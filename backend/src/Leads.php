@@ -2,12 +2,14 @@
 declare(strict_types=1);
 namespace App;
 final class Leads {
- public static function productData(array $landing): array {
+ public static function productData(array $landing,int $quantity=1): array {
   $r=Landing::decode($landing);$c=$r['content'];$p=$r['product_snapshot'];
   return ['product_id'=>$p['id'],'product_name'=>$c['title'],'dropi_product_name'=>$p['name'],
    'sku'=>$p['sku']??null,'dropi_price'=>$p['price']??null,'public_price'=>$c['publicPrice'],
    'inflated_price'=>$c['publicPrice'],'image'=>$c['images'][0]??null,
    'landing_url'=>rtrim(Support::env('APP_URL'),'/').'/p/'.$r['slug'],
+   'quantity'=>$quantity,'unit_price'=>$c['publicPrice'],'total'=>$c['publicPrice']===null?null:round($c['publicPrice']*$quantity,2),
+   'dropi_id'=>$p['id'],'category'=>array_values(array_filter(array_column($p['categories']??[],'name'))),
    'tags'=>['dropi-product-lead','product-'.$p['id']]];
  }
  public static function validate(array $b): array {
@@ -19,7 +21,8 @@ final class Leads {
  }
  public static function save(array $landing,array $b): array {
   $v=self::validate($b);$r=Landing::decode($landing);$c=$r['content'];$p=$r['product_snapshot'];
-  $data=self::productData($r);
+  $quantity=filter_var($b['quantity']??1,FILTER_VALIDATE_INT);$max=$c['commerce']['quantityEnabled']?$c['commerce']['maxQuantity']:1;if($quantity===false||$quantity<1||$quantity>$max)throw new HttpError(422,'Cantidad inválida.');
+  $data=self::productData($r,$quantity);
   $db=Database::connection();$db->beginTransaction();try{
    $lead=Database::one('INSERT INTO leads(id,user_id,landing_page_id,idempotency_key,first_name,last_name,email,phone,product_data) VALUES(?,?,?,?,?,?,?,?,?::jsonb) ON CONFLICT(landing_page_id,idempotency_key) DO NOTHING RETURNING id,status',[Support::uuid(),$r['user_id'],$r['id'],$v['key'],$v['first'],$v['last'],$v['email'],$v['phone'],Support::json($data)]);
    if($lead)Database::query('INSERT INTO webhook_deliveries(id,lead_id) VALUES(?,?)',[Support::uuid(),$lead['id']]);

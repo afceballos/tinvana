@@ -74,7 +74,7 @@ const publicPage=await visitor.request('/p/'+fixture.slug);check('published SSR 
 check('public page hides supplier and Dropi price',!publicPage.text.includes('Proveedor interno fixture')&&!publicPage.text.includes('12345'));
 check('published included in sitemap',(await visitor.request('/sitemap.xml')).text.includes(fixture.slug));
 check('published image publicly accessible',(await visitor.request(mediaPath)).response.headers.get('content-type')==='image/webp');
-const publicCsrf=publicPage.text.match(/name="csrf" value="([^"]+)"/)[1];visitor.csrf=publicCsrf;const lead={first_name:'Prueba',last_name:'HTTP',email:'lead@example.test',phone:'3001234567',idempotency_key:randomUUID(),website:'',dropi_price:1,public_price:2,inflated_price:3,product_id:'untrusted'};
+const publicCsrf=publicPage.text.match(/name="csrf" value="([^"]+)"/)[1];visitor.csrf=publicCsrf;const lead={first_name:'Prueba',last_name:'HTTP',email:'lead@example.test',phone:'3001234567',idempotency_key:randomUUID(),website:'',quantity:2,dropi_price:1,public_price:2,inflated_price:3,product_id:'untrusted'};
 check('public lead without CSRF refused',(await visitor.request('/p/'+fixture.slug+'/lead','POST',lead,'bad')).response.status===419);
 check('invalid email refused',(await visitor.request('/p/'+fixture.slug+'/lead','POST',{...lead,email:'bad'})).response.status===422);
 const first=await visitor.request('/p/'+fixture.slug+'/lead','POST',lead);check('lead saved before webhook and pending',first.response.status===202&&first.data.saved&&first.data.delivery_status==='pending');
@@ -100,6 +100,7 @@ try{
  sinkStatus=200;await worker('due');list=(await owner.request('/api/leads')).data.leads;check('retry updates existing delivery to accepted',list[0].status==='delivered'&&list[0].attempts===2&&list[0].history.length===2);
  check('retry sends stable lead ID and idempotency header',sinkPayloads.length===2&&sinkPayloads[0].body.lead_id===sinkPayloads[1].body.lead_id&&sinkPayloads[0].key===sinkPayloads[1].key);
  check('webhook payload uses both prices and tags',sinkPayloads[1].body.dropi_price===12345&&sinkPayloads[1].body.public_price===25000&&sinkPayloads[1].body.inflated_price===25000&&sinkPayloads[1].body.tags.includes('dropi-product-lead')&&sinkPayloads[1].body.tags.includes('product-987654321')&&!Object.hasOwn(sinkPayloads[1].body,'token'));
+ check('webhook receives validated quantity and total',sinkPayloads[1].body.quantity===2&&sinkPayloads[1].body.unit_price===25000&&sinkPayloads[1].body.total===50000&&sinkPayloads[1].body.dropi_id==='987654321');
  await visitor.request('/p/'+fixture.slug+'/lead','POST',{...lead,idempotency_key:randomUUID()});sinkStatus=503;await worker('final');list=(await owner.request('/api/leads')).data.leads;const failed=list.find(l=>l.status==='failed');check('exhausted delivery becomes failed',Boolean(failed)&&failed.attempts===8);
  check('owner can retry failed lead',(await owner.request('/api/leads/'+failed.id+'/retry','POST',{})).response.status===200);sinkStatus=200;await worker();list=(await owner.request('/api/leads')).data.leads;check('manual retry retains lead and history',list.find(l=>l.id===failed.id).status==='delivered'&&list.find(l=>l.id===failed.id).history.length===2);
 }finally{await new Promise(resolve=>sink.close(resolve));}

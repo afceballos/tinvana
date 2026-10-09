@@ -1,1 +1,22 @@
-{"name":"zenzales/platform","type":"project","require":{"php":">=8.2","ext-pdo":"*","ext-pdo_pgsql":"*","ext-curl":"*","ext-openssl":"*","ext-mbstring":"*","vlucas/phpdotenv":"^5.6"},"autoload":{"psr-4":{"App\\":"src/"}},"scripts":{"test":"php tests/run.php"}}
+{
+  "name": "zenzales/platform",
+  "type": "project",
+  "require": {
+    "php": ">=8.2",
+    "ext-pdo": "*",
+    "ext-pdo_pgsql": "*",
+    "ext-curl": "*",
+    "ext-openssl": "*",
+    "ext-mbstring": "*",
+    "vlucas/phpdotenv": "^5.6",
+    "ext-dom": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "src/"
+    }
+  },
+  "scripts": {
+    "test": "php tests/run.php"
+  }
+}

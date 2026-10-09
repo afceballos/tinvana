@@ -1,0 +1,14 @@
+import definitions from '../backend/blocks.json';
+import type {BlockData,BlockItem,BlockType,LandingBlock} from './types';
+export const blockRegistry=definitions as Record<BlockType,{name:string;description:string;icon:string;variants:string[];fields:string[];items:boolean}>;
+export const variantLabels:Record<string,string>={'image-left':'Imagen a la izquierda','image-right':'Imagen a la derecha',centered:'Centrado','full-image':'Imagen grande',minimal:'Minimalista',cards:'Tarjetas',grid:'Cuadrícula',icons:'Con íconos',checks:'Con checks',horizontal:'Horizontal',numbered:'Numerado',standard:'Clásico',highlight:'Destacado',narrow:'Columna de lectura',bullets:'Viñetas',steps:'Pasos',list:'Lista','image-text':'Imagen con texto',stepper:'Secuencia vertical',timeline:'Línea de tiempo',compact:'Compacto',carousel:'Carrusel',thumbnails:'Imagen + miniaturas',editorial:'Editorial','image-top':'Imagen superior',table:'Tabla',accordion:'Acordeón',bar:'Barra informativa',expanded:'Expandido',columns:'Dos columnas',text:'Texto',band:'Banda',card:'Tarjeta',image:'Con imagen',space:'Espacio',line:'Línea',surface:'Cambio de fondo'};
+export function newBlock(type:BlockType):LandingBlock{const definition=blockRegistry[type];const data:BlockData={};for(const field of definition.fields){if(field==='images'||field==='relatedIds')Object.assign(data,{[field]:[]});else Object.assign(data,{[field]:field==='title'&&type!=='hero'?definition.name:''});}if(definition.items)data.items=[];return {id:crypto.randomUUID(),type,visible:true,variant:definition.variants[0],style:{tone:'paper',space:'normal',align:'left',ratio:'landscape'},data};}
+export function newItem():BlockItem{return {id:crypto.randomUUID(),title:'',description:'',value:'',quantity:'',image:'',icon:'check',rating:null,date:'',visible:true};}
+export const presets:Record<string,{name:string;description:string;types:BlockType[]}>= {
+ minimal:{name:'Minimalista',description:'Una presentación directa, beneficios y respuestas.',types:['hero','benefits','cta','faq']},
+ complete:{name:'Venta completa',description:'Toda la información para conocer tu producto.',types:['hero','benefits','usage','gallery','specs','shipping','faq','cta']},
+ kit:{name:'Para kits',description:'Presenta cada componente y su forma de uso.',types:['hero','includes','benefits','usage','gallery','faq','cta']},
+ technical:{name:'Producto técnico',description:'Características, especificaciones y cuidados.',types:['hero','list','specs','gallery','precautions','cta']},
+ blank:{name:'En blanco',description:'Comienza con un lienzo vacío y agrega secciones.',types:[]}
+};
+export function cloneBlocks(blocks:LandingBlock[]):LandingBlock[]{return blocks.map(block=>({...structuredClone(block),id:crypto.randomUUID(),data:{...structuredClone(block.data),...(block.data.items?{items:block.data.items.map(item=>({...item,id:crypto.randomUUID()}))}:{})}}));}

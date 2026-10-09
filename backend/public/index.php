@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-use App\{Support,Auth,Api,Database,Landing,Leads,HttpError,Media};
+use App\{Support,Auth,Api,Database,Landing,Leads,HttpError,Media,Blocks};
 header('X-Content-Type-Options: nosniff');header('Referrer-Policy: strict-origin-when-cross-origin');header('X-Frame-Options: SAMEORIGIN');
 header("Content-Security-Policy: default-src 'self'; img-src 'self' https: http: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'self'; base-uri 'none'");
 $path=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH)?:'/';$method=$_SERVER['REQUEST_METHOD']??'GET';
@@ -9,15 +9,15 @@ try {
  require dirname(__DIR__).'/bootstrap.php';
  if(Support::env('APP_ENV')==='production')header('Strict-Transport-Security: max-age=31536000');
  if($path==='/sitemap.xml'){
-  header('Content-Type: application/xml; charset=utf-8');$rows=Database::all("SELECT slug,updated_at FROM landing_pages WHERE status='published'");echo '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';foreach($rows as $r)echo '<url><loc>'.Support::escape(rtrim(Support::env('APP_URL'),'/').'/p/'.$r['slug']).'</loc><lastmod>'.gmdate('c',strtotime($r['updated_at'])).'</lastmod></url>';echo '</urlset>';exit;
+  header('Content-Type: application/xml; charset=utf-8');$rows=Database::all("SELECT COALESCE(published_slug,slug) AS slug,published_at AS updated_at FROM landing_pages WHERE status='published'");echo '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';foreach($rows as $r)echo '<url><loc>'.Support::escape(rtrim(Support::env('APP_URL'),'/').'/p/'.$r['slug']).'</loc><lastmod>'.gmdate('c',strtotime($r['updated_at'])).'</lastmod></url>';echo '</urlset>';exit;
  }
  Auth::start();header('Cache-Control: no-store');
  if(preg_match('~^/media/([a-f0-9-]+)\.webp$~',$path,$m)){
   if(!in_array($method,['GET','HEAD'],true)||!Support::isUuid($m[1]))throw new HttpError(404,'Imagen no encontrada.');
-  $asset=Database::one('SELECT a.*,l.content,l.status FROM media_assets a JOIN landing_pages l ON l.id=a.landing_page_id WHERE a.id=?',[$m[1]]);
+  $asset=Database::one('SELECT a.*,l.content,l.published_content,l.status FROM media_assets a JOIN landing_pages l ON l.id=a.landing_page_id WHERE a.id=?',[$m[1]]);
   if(!$asset)throw new HttpError(404,'Imagen no encontrada.');
   $owner=isset($_SESSION['user_id'])&&$_SESSION['user_id']===$asset['user_id'];
-  $images=json_decode($asset['content'],true)['images']??[];
+  $images=Blocks::imageUrls(json_decode($asset['published_content']??$asset['content'],true));
   $published=$asset['status']==='published'&&in_array(rtrim(Support::env('APP_URL'),'/').$path,$images,true);
   if(!$owner&&!$published){$expires=(string)($_GET['expires']??'');$signature=(string)($_GET['signature']??'');$key=base64_decode(Support::env('TOKEN_ENCRYPTION_KEY'),true);if(!$key||!ctype_digit($expires)||(int)$expires<time()||(int)$expires>time()+900||!hash_equals(hash_hmac('sha256',$asset['landing_page_id'].':'.$expires,$key),$signature))throw new HttpError(404,'Imagen no encontrada.');}
   $file=Media::path($m[1]);if(!is_file($file))throw new HttpError(404,'Imagen no encontrada.');
@@ -25,7 +25,7 @@ try {
  }
  if($api){header('Content-Type: application/json; charset=utf-8');echo Support::json(Api::handle($path,$method));exit;}
  if(preg_match('~^/p/([a-z0-9]+(?:-[a-z0-9]+)*)(/lead)?$~',$path,$m)){
-  $r=Database::one("SELECT * FROM landing_pages WHERE slug=? AND status='published'",[$m[1]]);if(!$r)throw new HttpError(404,'Producto no encontrado.');
+  $r=Database::one("SELECT * FROM landing_pages WHERE COALESCE(published_slug,slug)=? AND status='published'",[$m[1]]);if(!$r)throw new HttpError(404,'Producto no encontrado.');$r=Landing::published($r);
   if(isset($m[2])){
    if($method!=='POST')throw new HttpError(405,'Método no permitido.');Auth::csrf();Auth::limit('lead-ip:'.($_SERVER['REMOTE_ADDR']??''),15,3600);
    $json=str_contains($_SERVER['CONTENT_TYPE']??'','application/json');$b=$json?Api::body():$_POST;$result=Leads::save($r,$b);

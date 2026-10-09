@@ -15,7 +15,7 @@ try {
  $command=$argv[1]??'help';
  if($command==='key:generate'){echo base64_encode(random_bytes(32))."\n";exit;}
  if($command==='check'){
-  echo 'PHP '.PHP_VERSION."\n";foreach(['curl','pdo','pdo_pgsql','openssl','mbstring','gd'] as $ext){echo $ext.': '.(extension_loaded($ext)?'OK':'FALTA')."\n";if(!extension_loaded($ext))exit(1);}if(!function_exists('imagewebp'))throw new RuntimeException('GD necesita soporte WebP.');
+  echo 'PHP '.PHP_VERSION."\n";foreach(['curl','pdo','pdo_pgsql','openssl','mbstring','gd','dom'] as $ext){echo $ext.': '.(extension_loaded($ext)?'OK':'FALTA')."\n";if(!extension_loaded($ext))exit(1);}if(!function_exists('imagewebp'))throw new RuntimeException('GD necesita soporte WebP.');
   if(Support::env('DB_HOST')===''){echo "PostgreSQL: pendiente de configurar DB_HOST\n";exit(1);}
   Database::one('SELECT 1');echo "PostgreSQL: conexión OK\n";Crypto::decrypt(Crypto::encrypt('check','check'),'check');echo "Cifrado: OK\n";exit;
  }

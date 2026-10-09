@@ -34,7 +34,7 @@ final class Api {
    }
   }
   if($path==='/api/products'){
-   if($method==='GET'){$rows=Database::all('SELECT p.*,l.id AS landing_id,l.slug,l.status AS publication_status FROM selected_products p LEFT JOIN landing_pages l ON l.selected_product_id=p.id WHERE p.user_id=? ORDER BY p.created_at DESC',[$owner]);foreach($rows as &$p){$p['product']=json_decode($p['mapped_data'],true);unset($p['original_data'],$p['mapped_data']);}return ['products'=>$rows];}
+   if($method==='GET'){$rows=Database::all('SELECT p.*,l.id AS landing_id,COALESCE(l.published_slug,l.slug) AS slug,l.status AS publication_status FROM selected_products p LEFT JOIN landing_pages l ON l.selected_product_id=p.id WHERE p.user_id=? ORDER BY p.created_at DESC',[$owner]);foreach($rows as &$p){$p['product']=json_decode($p['mapped_data'],true);unset($p['original_data'],$p['mapped_data']);}return ['products'=>$rows];}
    if($method==='POST'){
     $b=self::body();$integration=self::owned('integrations',(string)($b['integration_id']??''),$owner);$id=(string)($b['dropi_id']??'');if(!preg_match('/^[1-9][0-9]{0,17}$/',$id))throw new HttpError(422,'ID de producto inválido.');
     $raw=null;foreach($_SESSION['catalog_pages'][$integration['id']]??[] as $page)if($page['at']>time()-900)foreach($page['objects'] as $p)if((string)$p['id']===$id)$raw=$p;
@@ -52,14 +52,24 @@ final class Api {
   }
   if($path==='/api/template-settings'){
    if($method==='GET'){$r=Database::one('SELECT settings FROM template_settings WHERE user_id=?',[$owner]);return ['settings'=>$r?json_decode($r['settings'],true):Landing::defaults()];}
-   if($method==='PUT'){$s=Landing::visual(self::body());Database::query('INSERT INTO template_settings(user_id,settings) VALUES(?,?::jsonb) ON CONFLICT(user_id) DO UPDATE SET settings=excluded.settings,updated_at=now()',[$owner,Support::json($s)]);return ['settings'=>$s];}
+   if($method==='PUT'){$s=Landing::visual(self::body());Database::query('INSERT INTO template_settings(user_id,settings) VALUES(?,?::jsonb) ON CONFLICT(user_id) DO UPDATE SET settings=template_settings.settings||excluded.settings,updated_at=now()',[$owner,Support::json($s)]);return ['settings'=>$s];}
   }
-  if(preg_match('~^/api/landings/([^/]+)(?:/(publish|unpublish|preview-link|images))?$~',$path,$m)){
+  if($path==='/api/builder-templates'){
+   $stored=Database::one('SELECT settings FROM template_settings WHERE user_id=?',[$owner]);$settings=$stored?json_decode($stored['settings'],true):Landing::defaults();$templates=$settings['layouts']??[];
+   if($method==='GET')return ['templates'=>$templates];
+   if($method==='POST'){$b=self::body();if(count($templates)>=10)throw new HttpError(422,'Máximo 10 plantillas guardadas.');$blocks=Blocks::validate($b['blocks']??[]);foreach($blocks as &$block){$d=&$block['data'];if(isset($d['image'])&&preg_match('~/media/[a-f0-9-]+\.webp~',$d['image']))$d['image']='';if(isset($d['images']))$d['images']=array_values(array_filter($d['images'],fn($url)=>!preg_match('~/media/[a-f0-9-]+\.webp~',$url)));foreach($d['items']??[] as $i=>$item)if(preg_match('~/media/[a-f0-9-]+\.webp~',$item['image']))$d['items'][$i]['image']='';if(isset($d['relatedIds']))$d['relatedIds']=[];}unset($block,$d);$templates[]=['id'=>Support::uuid(),'name'=>Support::text($b['name']??null,100),'blocks'=>$blocks];}
+   elseif($method==='DELETE'){$b=self::body();$templates=array_values(array_filter($templates,fn($template)=>$template['id']!==($b['id']??'')));}
+   else throw new HttpError(405,'Método no permitido.');
+   $settings['layouts']=$templates;Database::query('INSERT INTO template_settings(user_id,settings) VALUES(?,?::jsonb) ON CONFLICT(user_id) DO UPDATE SET settings=excluded.settings,updated_at=now()',[$owner,Support::json($settings)]);return ['templates'=>$templates];
+  }
+  if(preg_match('~^/api/landings/([^/]+)(?:/(publish|unpublish|preview-link|images|render))?$~',$path,$m)){
    $r=self::owned('landing_pages',$m[1],$owner);$action=$m[2]??'';
    if($method==='POST'&&$action==='images')return ['image'=>Media::upload($r,$owner)];
    if($method==='GET'&&$action==='')return ['landing'=>Landing::decode($r)];
-   if($method==='PUT'&&$action===''){$b=self::body();$c=Landing::content($b['content']??[]);Media::validateReferences($c['images'],$owner,$r['id']);$slug=Landing::slug($b['slug']??'');Database::query('UPDATE landing_pages SET slug=?,content=?::jsonb,updated_at=now() WHERE id=? AND user_id=?',[$slug,Support::json($c),$r['id'],$owner]);return ['landing'=>Landing::decode(self::owned('landing_pages',$r['id'],$owner))];}
-   if($method==='POST'&&in_array($action,['publish','unpublish'],true)){Database::query('UPDATE landing_pages SET status=?,published_at=CASE WHEN ?=\'published\' THEN now() ELSE null END,updated_at=now() WHERE id=? AND user_id=?',[$action==='publish'?'published':'draft',$action==='publish'?'published':'draft',$r['id'],$owner]);return ['ok'=>true];}
+   if($method==='PUT'&&$action===''){$b=self::body();$c=Landing::content($b['content']??[]);Media::validateReferences(Blocks::imageUrls($c),$owner,$r['id']);$slug=Landing::slug($b['slug']??'');Landing::checkSlug($slug,$r['id']);Database::query('UPDATE landing_pages SET slug=?,content=?::jsonb,updated_at=now() WHERE id=? AND user_id=?',[$slug,Support::json($c),$r['id'],$owner]);return ['landing'=>Landing::decode(self::owned('landing_pages',$r['id'],$owner))];}
+   if($method==='POST'&&$action==='render'){$b=self::body();$c=Landing::content($b['content']??[]);Media::validateReferences(Blocks::imageUrls($c),$owner,$r['id']);$r['content']=$c;$r['slug']=Landing::slug($b['slug']??$r['slug']);$_GET['expires']=time()+900;$_GET['signature']=hash_hmac('sha256',$r['id'].':'.$_GET['expires'],base64_decode(Support::env('TOKEN_ENCRYPTION_KEY'),true));return ['html'=>Landing::render($r,true)];}
+   if($method==='POST'&&$action==='publish'){Landing::publish($r);return ['ok'=>true];}
+   if($method==='POST'&&$action==='unpublish'){Database::query("UPDATE landing_pages SET status='draft',published_at=null,updated_at=now() WHERE id=? AND user_id=?",[$r['id'],$owner]);return ['ok'=>true];}
    if($method==='POST'&&$action==='preview-link'){
     $expires=time()+900;$payload=$r['id'].':'.$expires;$key=base64_decode(Support::env('TOKEN_ENCRYPTION_KEY'),true);if(!$key)throw new \RuntimeException('Falta clave de cifrado.');$signature=hash_hmac('sha256',$payload,$key);return ['url'=>'/preview/'.$r['id'].'?expires='.$expires.'&signature='.$signature,'expires_at'=>gmdate('c',$expires)];
    }
