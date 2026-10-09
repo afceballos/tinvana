@@ -39,4 +39,10 @@ No había filtros de rango de precio en la interfaz original. No se inventaron p
 
 ## Próximos pasos recomendados
 
+### Editor visual de imágenes
+
+La carga de imágenes se rediseñó en `src/ImageUpload.tsx` y `src/media.css`: recuadros punteados con botón +, selección múltiple y arrastrar/soltar, portada independiente, miniaturas de galería, promoción a principal, orden anterior/siguiente y eliminación. La estructura persistida sigue siendo `content.images`; el primer elemento es la portada. Al cambiar la portada se conserva la anterior como imagen adicional. Los enlaces externos continúan disponibles en un desplegable avanzado.
+
+Se conservan las validaciones PHP, la conversión WebP y el límite de 30 imágenes. Se muestran progreso por archivos completados, errores y confirmaciones. Guardar/previsualizar/publicar se bloquean mientras se cargan imágenes para evitar guardar una galería incompleta. `tests/gallery.mjs` verifica cargas PNG reales a WebP, orden, portada, eliminación, persistencia tras guardar/recargar y responsive a 1440/768/375 px. Capturas `test-results/gallery-*.png`.
+
 Verificar el catálogo y categorías con Dropi real, confirmar mapping/deduplicación en GHL, medir LCP/CLS/INP con imágenes reales en hosting y considerar separar las rutas del panel en chunks si el crecimiento lo requiere.

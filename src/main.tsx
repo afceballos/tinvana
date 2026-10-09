@@ -7,6 +7,7 @@ import {Catalog,Integrations,MyProducts,Editor,Template,Leads} from './pages';
 import {WebhookSettings} from './WebhookSettings';
 import './style.css';
 import './premium.css';
+import './media.css';
 import {Icon,MotionView} from './ui';
 const AuthContext=createContext<{user:User|null;setUser:(u:User|null)=>void}>({user:null,setUser:()=>{}});
 function Login(){const {user,setUser}=useContext(AuthContext);const [error,setError]=useState('');const [busy,setBusy]=useState(false);const navigate=useNavigate();if(user)return <Navigate to="/panel/catalogo" replace/>;
