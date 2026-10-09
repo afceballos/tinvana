@@ -6,7 +6,8 @@ final class Dropi {
   $page=filter_var($q['page']??1,FILTER_VALIDATE_INT,['options'=>['min_range'=>1,'max_range'=>100000]]);if($page===false)throw new HttpError(422,'Página inválida.');
   $sort=$q['sort']??'default';$orders=['default'=>['id','asc'],'recent'=>['id','desc'],'name_asc'=>['name','asc'],'name_desc'=>['name','desc']];if(!is_string($sort)||!isset($orders[$sort]))throw new HttpError(422,'Orden inválido.');
   $keywords=Support::text($q['search']??'',150,false);
-  return self::payload(['pageSize'=>50,'startData'=>($page-1)*32,'order_by'=>$orders[$sort][0],'order_type'=>$orders[$sort][1],'keywords'=>$keywords]);
+  $size=filter_var($q['pageSize']??25,FILTER_VALIDATE_INT);if(!in_array($size,[25,30,50],true))throw new HttpError(422,'Tamaño de página inválido.');
+  return self::payload(['pageSize'=>$size,'startData'=>($page-1)*$size,'order_by'=>$orders[$sort][0],'order_type'=>$orders[$sort][1],'keywords'=>$keywords,'category_id'=>$q['category']??'']);
  }
  public static function payload(array $input): array {
   $start=filter_var($input['startData']??0,FILTER_VALIDATE_INT);

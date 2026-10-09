@@ -26,11 +26,11 @@ final class Api {
    if($method==='POST'&&$action==='test'){Dropi::request($r,['pageSize'=>1,'startData'=>0,'no_count'=>true,'order_by'=>'id','order_type'=>'asc','keywords'=>'','favorite'=>false]);return ['ok'=>true,'message'=>'Dropi respondió correctamente desde este servidor.'];}
    if($method==='GET'&&$action==='categories')return Dropi::request($r,[],true);
    if($method==='GET'&&$action==='products'){
-    $params=Dropi::parameters($_GET);$result=Dropi::request($r,$params);$objects=array_slice($result['objects'],0,32);
+    $params=Dropi::parameters($_GET);$result=Dropi::request($r,$params);$objects=array_slice($result['objects'],0,$params['pageSize']);
     // Bounded, server-side cache for selecting exact products without undocumented Dropi filters.
     $_SESSION['catalog_pages'][$r['id']]??=[];$_SESSION['catalog_pages'][$r['id']][]=['at'=>time(),'objects'=>$objects];$_SESSION['catalog_pages'][$r['id']]=array_slice($_SESSION['catalog_pages'][$r['id']],-3);
     $selected=Database::all('SELECT id,dropi_id FROM selected_products WHERE user_id=? AND integration_id=?',[$owner,$r['id']]);$lookup=[];foreach($selected as $s)$lookup[(string)$s['dropi_id']]=$s['id'];
-    return ['products'=>array_map(function($p)use($lookup){$p=Product::map($p);$p['selectedId']=$lookup[$p['id']]??null;return $p;},$objects),'hasNext'=>count($result['objects'])>32,'page'=>(int)($_GET['page']??1)];
+    return ['products'=>array_map(function($p)use($lookup){$p=Product::map($p);$p['selectedId']=$lookup[$p['id']]??null;return $p;},$objects),'hasNext'=>count($result['objects'])>=$params['pageSize'],'page'=>(int)($_GET['page']??1)];
    }
   }
   if($path==='/api/products'){
