@@ -24,6 +24,14 @@ final class Dropi {
   }
   return $body;
  }
+ // Dropi currently caps a request for 50 at 40. Fetch two supported 25-item
+ // windows so the public page size and the next offset remain consistent.
+ public static function catalog(array $integration,array $params): array {
+  if(($params['pageSize']??null)!==50)return self::request($integration,$params);
+  $window=$params;$window['pageSize']=25;$result=self::request($integration,$window);
+  if(count($result['objects'])===25){$window['startData']+=25;$second=self::request($integration,$window);$result['objects']=array_merge($result['objects'],$second['objects']);}
+  return $result;
+ }
  // Sanitize successful responses too, before caching or saving a product snapshot.
  public static function redact(mixed $value,string $secret): mixed {
   if(is_array($value)){
