@@ -1,0 +1,9 @@
+node_modules/
+backend/vendor/
+.env
+backend/.env
+.tools/
+backend/storage/*
+!backend/storage/.gitkeep
+test-results/
+*.tsbuildinfo

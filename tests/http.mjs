@@ -1,0 +1,121 @@
+import {readFile,writeFile} from 'node:fs/promises';
+import {existsSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import {createServer} from 'node:https';
+import {randomUUID} from 'node:crypto';
+import assert from 'node:assert/strict';
+const fixture=JSON.parse(await readFile(new URL('../.tools/test-fixture.json',import.meta.url),'utf8'));
+const base=process.env.TEST_BASE_URL||'http://127.0.0.1:8080';let passed=0;
+const root=fileURLToPath(new URL('../',import.meta.url));
+const portablePhp=fileURLToPath(new URL('../.tools/php/php.exe',import.meta.url));
+const php=process.env.PHP_BINARY||(existsSync(portablePhp)?portablePhp:'php');
+const execute=promisify(execFile);
+async function runPhp(script,args=[]){return execute(php,[...args,'backend/tests/'+script],{cwd:root});}
+function check(name,condition){assert.ok(condition,name);passed++;console.log('PASS '+name);}
+class Client {
+ cookie='';csrf='';
+ async request(path,method='GET',body,token=this.csrf){const response=await fetch(base+path,{method,headers:{Cookie:this.cookie,...(body?{'Content-Type':'application/json'}:{}),...(method!=='GET'?{'X-CSRF-Token':token}:{})},...(body?{body:JSON.stringify(body)}:{})});const setCookie=response.headers.get('set-cookie');if(setCookie)this.cookie=setCookie.split(';')[0];const text=await response.text();let data;try{data=JSON.parse(text);}catch{data=null;}return {response,text,data};}
+ async init(){const r=await this.request('/api/auth/session');this.csrf=r.data.csrf;return r;}
+ async login(email=fixture.email){const r=await this.request('/api/auth/login','POST',{email,password:fixture.password});if(r.data.csrf)this.csrf=r.data.csrf;return r;}
+}
+const owner=new Client(),other=new Client(),visitor=new Client();
+const session=await owner.init();check('anonymous session and CSRF',session.response.status===200&&session.data.user===null&&owner.csrf.length===64);
+check('HttpOnly + SameSite cookie',/HttpOnly/i.test(session.response.headers.get('set-cookie'))&&/SameSite=Lax/i.test(session.response.headers.get('set-cookie')));
+check('anonymous API refused',(await owner.request('/api/products')).response.status===401);
+check('anonymous webhook settings refused',(await owner.request('/api/webhook-settings')).response.status===401);
+check('login without CSRF refused',(await owner.request('/api/auth/login','POST',{email:fixture.email,password:fixture.password},'bad')).response.status===419);
+check('wrong login refused',(await owner.request('/api/auth/login','POST',{email:fixture.email,password:'incorrect'})).response.status===401);
+const before=owner.cookie;const login=await owner.login();check('real password login',login.response.status===200&&login.data.user.email===fixture.email);
+check('session regenerated',before!==owner.cookie);
+check('CSRF regenerated',owner.csrf!==session.data.csrf);
+check('old CSRF invalid',(await owner.request('/api/template-settings','PUT',{},session.data.csrf)).response.status===419);
+const integration=await owner.request('/api/integrations');check('integration visible with no secret',integration.data.integrations[0].configured&&!integration.text.includes('ciphertext')&&!integration.text.includes('non-production-test-token'));
+check('selection persisted in database',(await owner.request('/api/products')).data.products.some(p=>p.id===fixture.product));
+await writeFile(new URL('../.tools/test-session.txt',import.meta.url),owner.cookie.split('=')[1]);
+await runPhp('cache.php');
+const selected=await owner.request('/api/products','POST',{integration_id:fixture.integration,dropi_id:'987654322',product:{name:'Untrusted browser content',price:1}});
+check('selection API saves upstream session copy',selected.response.status===200&&(await owner.request('/api/products')).data.products.find(p=>p.id===selected.data.id).product.name==='Producto seleccionado por API');
+check('selection API is unique per integration and Dropi ID',(await owner.request('/api/products','POST',{integration_id:fixture.integration,dropi_id:'987654322'})).data.id===selected.data.id);
+check('selection survives logout/relogin',(await owner.request('/api/auth/logout','POST',{})).response.status===200);await owner.init();await owner.login();check('saved selection restored after login',(await owner.request('/api/products')).data.products.some(p=>p.id===selected.data.id));
+check('remove selection without landing',(await owner.request('/api/products/'+selected.data.id,'DELETE',{})).response.status===200);
+check('draft starts private',(await visitor.request('/p/'+fixture.slug)).response.status===404);
+await other.init();await other.login(fixture.otherEmail);
+check('other user selection empty',(await other.request('/api/products')).data.products.length===0);
+check('other user cannot view integration',(await other.request('/api/integrations/'+fixture.integration+'/products')).response.status===404);
+check('other user cannot edit landing',(await other.request('/api/landings/'+fixture.landing)).response.status===404);
+check('other user cannot publish',(await other.request('/api/landings/'+fixture.landing+'/publish','POST',{})).response.status===404);
+check('other user cannot remove product',(await other.request('/api/products/'+fixture.product,'DELETE',{})).response.status===404);
+check('owner initially has no webhook',(await owner.request('/api/webhook-settings')).data.settings.configured===false);
+check('webhook update needs CSRF',(await owner.request('/api/webhook-settings','PUT',{url:'https://hooks.example.com/owner-webhook-secret'},'bad')).response.status===419);
+check('private network webhook refused',(await owner.request('/api/webhook-settings','PUT',{url:'https://127.0.0.1/private',enabled:true,provider:'ghl'})).response.status===422);
+const landing=(await owner.request('/api/landings/'+fixture.landing)).data.landing;
+landing.content.title='Título público único';landing.content.publicPrice=25000;landing.content.description='Descripción comercial editada';landing.content.seoTitle='SEO único del producto';landing.content.seoDescription='Metadato específico de la landing.';
+const update=await owner.request('/api/landings/'+fixture.landing,'PUT',{slug:fixture.slug,content:landing.content});check('landing commercial fields saved',update.response.status===200&&update.data.landing.content.publicPrice===25000);
+await runPhp('image-fixture.php');const png=await readFile(new URL('../.tools/upload-test.png',import.meta.url));
+async function uploadImage(client,bytes=png,type='image/png',csrf=client.csrf){const body=new FormData();body.append('image',new Blob([bytes],{type}),'fixture.png');const response=await fetch(base+'/api/landings/'+fixture.landing+'/images',{method:'POST',headers:{Cookie:client.cookie,'X-CSRF-Token':csrf},body});return {response,data:await response.json()};}
+await visitor.init();check('anonymous upload refused',(await uploadImage(visitor)).response.status===401);
+check('upload requires CSRF',(await uploadImage(owner,png,'image/png','bad')).response.status===419);
+check('other owner upload refused',(await uploadImage(other)).response.status===404);
+check('fake image refused',(await uploadImage(owner,Buffer.from('<?php echo 1;'))).response.status===422);
+const uploaded=await uploadImage(owner);check('real multipart upload converted to bounded WebP',uploaded.response.status===200&&uploaded.data.image.width===1600&&uploaded.data.image.height===800&&uploaded.data.image.bytes<=409600);
+const mediaPath=new URL(uploaded.data.image.url).pathname;
+check('draft image private',(await visitor.request(mediaPath)).response.status===404&&(await other.request(mediaPath)).response.status===404);
+check('owner can open draft image',(await owner.request(mediaPath)).response.headers.get('content-type')==='image/webp');
+landing.content.images.push(uploaded.data.image.url);check('uploaded gallery can be saved',(await owner.request('/api/landings/'+fixture.landing,'PUT',{slug:fixture.slug,content:landing.content})).response.status===200);
+const preview=await owner.request('/api/landings/'+fixture.landing+'/preview-link','POST',{});const privatePage=await visitor.request(preview.data.url);check('signed preview is available with noindex',privatePage.response.status===200&&privatePage.text.includes('noindex,nofollow'));
+check('unsigned preview denied',(await visitor.request('/preview/'+fixture.landing)).response.status===404);
+check('signed preview image accessible',(await visitor.request(mediaPath+'?'+preview.data.url.split('?')[1])).response.headers.get('content-type')==='image/webp');
+check('tampered preview denied',(await visitor.request(preview.data.url.replace('signature=','signature=bad'))).response.status===404);
+check('draft excluded from sitemap',!(await visitor.request('/sitemap.xml')).text.includes(fixture.slug));
+check('publish works',(await owner.request('/api/landings/'+fixture.landing+'/publish','POST',{})).response.status===200);
+const publicPage=await visitor.request('/p/'+fixture.slug);check('published SSR contains real title and SEO',publicPage.response.status===200&&publicPage.text.includes('<h1>Título público único</h1>')&&publicPage.text.includes('<title>SEO único del producto</title>'));
+check('public page hides supplier and Dropi price',!publicPage.text.includes('Proveedor interno fixture')&&!publicPage.text.includes('12345'));
+check('published included in sitemap',(await visitor.request('/sitemap.xml')).text.includes(fixture.slug));
+check('published image publicly accessible',(await visitor.request(mediaPath)).response.headers.get('content-type')==='image/webp');
+const publicCsrf=publicPage.text.match(/name="csrf" value="([^"]+)"/)[1];visitor.csrf=publicCsrf;const lead={first_name:'Prueba',last_name:'HTTP',email:'lead@example.test',phone:'3001234567',idempotency_key:randomUUID(),website:'',dropi_price:1,public_price:2,inflated_price:3,product_id:'untrusted'};
+check('public lead without CSRF refused',(await visitor.request('/p/'+fixture.slug+'/lead','POST',lead,'bad')).response.status===419);
+check('invalid email refused',(await visitor.request('/p/'+fixture.slug+'/lead','POST',{...lead,email:'bad'})).response.status===422);
+const first=await visitor.request('/p/'+fixture.slug+'/lead','POST',lead);check('lead saved before webhook and pending',first.response.status===202&&first.data.saved&&first.data.delivery_status==='pending');
+const repeat=await visitor.request('/p/'+fixture.slug+'/lead','POST',lead);check('idempotent duplicate accepted safely',repeat.response.status===202);
+const leads=await owner.request('/api/leads');check('same lead stored only once',leads.data.leads.length===1);check('lead has edited public price only',leads.data.leads[0].product_data.public_price===25000&&leads.data.leads[0].product_data.product_name==='Título público único');
+check('lead prices come from backend snapshots',leads.data.leads[0].product_data.dropi_price===12345&&leads.data.leads[0].product_data.inflated_price===25000&&leads.data.leads[0].product_data.product_id==='987654321');
+const waiting=JSON.parse((await execute(php,['backend/tests/worker.php'],{cwd:root})).stdout);check('unconfigured webhook keeps lead pending without attempts',waiting.waiting_for_configuration===1&&(await owner.request('/api/leads')).data.leads[0].attempts===0);
+const configured=await owner.request('/api/webhook-settings','PUT',{url:'https://hooks.example.com/owner-webhook-secret',provider:'ghl',enabled:true});check('owner webhook saved without returning its URL',configured.response.status===200&&configured.data.settings.configured&&!configured.text.includes('owner-webhook-secret')&&!configured.text.includes('ciphertext'));
+await other.request('/api/webhook-settings','PUT',{url:'https://hooks.example.com/other-webhook-secret',provider:'generic',enabled:true,user_id:fixture.owner});
+check('webhook configurations isolated by owner',(await owner.request('/api/webhook-settings')).data.settings.provider==='ghl'&&(await other.request('/api/webhook-settings')).data.settings.provider==='generic');
+check('other webhook secret not exposed',(await other.request('/api/webhook-settings')).text.includes('other-webhook-secret')===false);
+check('webhook can be paused without reentering URL',(await owner.request('/api/webhook-settings','PUT',{url:'',provider:'ghl',enabled:false})).data.settings.enabled===false);
+const paused=JSON.parse((await execute(php,['backend/tests/worker.php'],{cwd:root})).stdout);check('paused webhook retains pending delivery without attempts',paused.waiting_for_configuration===1&&(await owner.request('/api/leads')).data.leads[0].attempts===0);
+await owner.request('/api/webhook-settings','PUT',{url:'',provider:'ghl',enabled:true});
+check('other user cannot view leads',(await other.request('/api/leads')).data.leads.length===0);
+check('other user cannot retry lead',(await other.request('/api/leads/'+leads.data.leads[0].id+'/retry','POST',{})).response.status===404);
+await runPhp('certificate.php');let sinkStatus=503;const sinkPayloads=[];
+const sink=createServer({key:await readFile(new URL('../.tools/test-key.pem',import.meta.url)),cert:await readFile(new URL('../.tools/test-cert.pem',import.meta.url))},(request,response)=>{let body='';request.on('data',chunk=>body+=chunk);request.on('end',()=>{sinkPayloads.push({body:JSON.parse(body),key:request.headers['idempotency-key']});response.writeHead(sinkStatus,{'Content-Type':'application/json'});response.end('{}');});});
+await new Promise(resolve=>sink.listen(9443,'127.0.0.1',resolve));
+async function worker(command){const args=['-d','curl.cainfo='+fileURLToPath(new URL('../.tools/test-cert.pem',import.meta.url)),'backend/tests/worker.php',...(command?[command]:[])];return execute(php,args,{cwd:root});}
+try{
+ await worker();let list=(await owner.request('/api/leads')).data.leads;check('HTTPS failure is recorded and stays pending',list[0].status==='pending'&&list[0].attempts===1&&list[0].last_http_status===503&&list[0].history.length===1);
+ sinkStatus=200;await worker('due');list=(await owner.request('/api/leads')).data.leads;check('retry updates existing delivery to accepted',list[0].status==='delivered'&&list[0].attempts===2&&list[0].history.length===2);
+ check('retry sends stable lead ID and idempotency header',sinkPayloads.length===2&&sinkPayloads[0].body.lead_id===sinkPayloads[1].body.lead_id&&sinkPayloads[0].key===sinkPayloads[1].key);
+ check('webhook payload uses both prices and tags',sinkPayloads[1].body.dropi_price===12345&&sinkPayloads[1].body.public_price===25000&&sinkPayloads[1].body.inflated_price===25000&&sinkPayloads[1].body.tags.includes('dropi-product-lead')&&sinkPayloads[1].body.tags.includes('product-987654321')&&!Object.hasOwn(sinkPayloads[1].body,'token'));
+ await visitor.request('/p/'+fixture.slug+'/lead','POST',{...lead,idempotency_key:randomUUID()});sinkStatus=503;await worker('final');list=(await owner.request('/api/leads')).data.leads;const failed=list.find(l=>l.status==='failed');check('exhausted delivery becomes failed',Boolean(failed)&&failed.attempts===8);
+ check('owner can retry failed lead',(await owner.request('/api/leads/'+failed.id+'/retry','POST',{})).response.status===200);sinkStatus=200;await worker();list=(await owner.request('/api/leads')).data.leads;check('manual retry retains lead and history',list.find(l=>l.id===failed.id).status==='delivered'&&list.find(l=>l.id===failed.id).history.length===2);
+}finally{await new Promise(resolve=>sink.close(resolve));}
+check('current webhook has masked identifiable display',(await owner.request('/api/webhook-settings')).data.settings.display_url.startsWith('https://hooks.example.com/••••'));
+check('webhook deletion needs CSRF',(await owner.request('/api/webhook-settings','DELETE',undefined,'bad')).response.status===419);
+check('owner can delete only own webhook',(await owner.request('/api/webhook-settings','DELETE')).data.settings.configured===false&&(await other.request('/api/webhook-settings')).data.settings.configured===true);
+check('unpublish works',(await owner.request('/api/landings/'+fixture.landing+'/unpublish','POST',{})).response.status===200);
+check('unpublished 404',(await visitor.request('/p/'+fixture.slug)).response.status===404);
+check('unpublished image private again',(await visitor.request(mediaPath)).response.status===404);
+check('unpublished lead refused',(await visitor.request('/p/'+fixture.slug+'/lead','POST',{...lead,idempotency_key:randomUUID()})).response.status===404);
+check('unpublished removed from sitemap',!(await visitor.request('/sitemap.xml')).text.includes(fixture.slug));
+check('React deep route refresh',(await owner.request('/panel/productos')).response.status===200);
+const shell=await owner.request('/panel/catalogo');const asset=shell.text.match(/src="([^"]+\.js)"/)[1];check('built asset served from public path',(await owner.request(asset)).response.status===200&&asset.startsWith('/app/assets/'));
+check('secrets unavailable via HTTP',(await visitor.request('/.env')).response.status===404&&(await visitor.request('/../.env')).response.status!==200);
+check('logout works',(await owner.request('/api/auth/logout','POST',{})).response.status===200);
+check('logout invalidates API session',(await owner.request('/api/products')).response.status===401);
+await owner.init();check('can log in again after logout',(await owner.login()).response.status===200);
+const brute=new Client();await brute.init();let limited=false;for(let i=0;i<10;i++){const r=await brute.request('/api/auth/login','POST',{email:'nonexistent@example.test',password:'incorrect'});if(r.response.status===429){limited=true;break;}}check('login attempt limit enforced',limited);
+console.log(`${passed} HTTP checks passed against real PHP sessions, PostgreSQL and a local TLS webhook fixture. No Dropi/GHL request made.`);
