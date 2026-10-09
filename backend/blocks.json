@@ -1,20 +1,323 @@
 {
- "hero":{"name":"Presentación del producto","description":"Imagen, galería, precio y botón de pedido.","icon":"box","variants":["image-left","image-right","centered","full-image","minimal"],"fields":["label","title","subtitle","text","image","images","ctaText"],"items":true},
- "benefits":{"name":"Beneficios","description":"Explica lo que aporta el producto con datos reales.","icon":"check","variants":["cards","grid","icons","checks","horizontal","numbered"],"fields":["title","subtitle"],"items":true},
- "richText":{"name":"Texto enriquecido","description":"Párrafos, enlaces, énfasis y listas.","icon":"layout","variants":["standard","highlight","narrow"],"fields":["title","subtitle","text"],"items":false},
- "list":{"name":"Lista dinámica","description":"Características, razones o pasos personalizados.","icon":"check","variants":["bullets","numbered","checks","icons","cards","steps"],"fields":["title","subtitle"],"items":true},
- "includes":{"name":"Qué incluye","description":"Componentes y cantidades de un kit o paquete.","icon":"box","variants":["cards","list","grid","image-text"],"fields":["title","subtitle","image"],"items":true},
- "usage":{"name":"Cómo se usa","description":"Instrucciones con una secuencia clara.","icon":"arrow","variants":["stepper","numbered","timeline","grid","compact"],"fields":["title","subtitle"],"items":true},
- "gallery":{"name":"Galería de imágenes","description":"Otros ángulos, detalles y fotografías.","icon":"grid","variants":["grid","carousel","thumbnails","editorial","image-text"],"fields":["title","subtitle","text","images"],"items":false},
- "imageText":{"name":"Imagen + texto","description":"Un relato visual de tu producto.","icon":"layout","variants":["image-left","image-right","image-top"],"fields":["title","subtitle","text","image","ctaText"],"items":true},
- "specs":{"name":"Ficha técnica","description":"Pares de característica y valor verificables.","icon":"layout","variants":["table","list","grid","accordion"],"fields":["title","subtitle"],"items":true},
- "shipping":{"name":"Envíos y entregas","description":"Cobertura, costo, tiempos y condiciones reales.","icon":"send","variants":["cards","list","bar","accordion"],"fields":["title","text","coverage","cost","delivery","carrier","conditions"],"items":false},
- "payment":{"name":"Métodos de pago","description":"Solo los métodos disponibles para este producto.","icon":"box","variants":["cards","list","bar"],"fields":["title","subtitle"],"items":true},
- "faq":{"name":"Preguntas frecuentes","description":"Preguntas y respuestas con visibilidad individual.","icon":"chat","variants":["accordion","expanded","columns","compact"],"fields":["title","subtitle"],"items":true},
- "precautions":{"name":"Precauciones y recomendaciones","description":"Cuidados y advertencias del fabricante o negocio.","icon":"chat","variants":["text","list","highlight"],"fields":["title","text"],"items":true},
- "testimonials":{"name":"Testimonios","description":"Opiniones auténticas aportadas por tu negocio.","icon":"chat","variants":["cards","carousel","grid"],"fields":["title","subtitle"],"items":true},
- "cta":{"name":"Llamado a la acción","description":"Repite el botón que abre el formulario del producto.","icon":"arrow","variants":["band","card","image","minimal"],"fields":["title","subtitle","text","image","ctaText"],"items":false},
- "related":{"name":"Productos relacionados","description":"Selección manual de tus landings publicadas.","icon":"grid","variants":["grid","carousel","compact"],"fields":["title","subtitle","relatedIds"],"items":false},
- "policies":{"name":"Políticas y garantías","description":"Condiciones reales, enlaces y textos legales.","icon":"layout","variants":["accordion","text","cards"],"fields":["title","text"],"items":true},
- "divider":{"name":"Espaciador / divisor","description":"Ajusta el ritmo y la separación entre secciones.","icon":"layout","variants":["space","line","surface"],"fields":[],"items":false}
+ "hero": {
+  "name": "Presentación del producto",
+  "description": "Imagen, galería, precio y botón de pedido.",
+  "icon": "box",
+  "variants": [
+   "image-left",
+   "image-right",
+   "centered",
+   "full-image",
+   "minimal"
+  ],
+  "fields": [
+   "label",
+   "title",
+   "subtitle",
+   "text",
+   "image",
+   "images",
+   "ctaText"
+  ],
+  "items": true
+ },
+ "benefits": {
+  "name": "Beneficios",
+  "description": "Explica lo que aporta el producto con datos reales.",
+  "icon": "check",
+  "variants": [
+   "cards",
+   "grid",
+   "icons",
+   "checks",
+   "horizontal",
+   "numbered"
+  ],
+  "fields": [
+   "title",
+   "subtitle"
+  ],
+  "items": true
+ },
+ "richText": {
+  "name": "Texto enriquecido",
+  "description": "Párrafos, enlaces, énfasis y listas.",
+  "icon": "layout",
+  "variants": [
+   "standard",
+   "highlight",
+   "narrow"
+  ],
+  "fields": [
+   "title",
+   "subtitle",
+   "text"
+  ],
+  "items": false
+ },
+ "list": {
+  "name": "Lista dinámica",
+  "description": "Características, razones o pasos personalizados.",
+  "icon": "check",
+  "variants": [
+   "bullets",
+   "numbered",
+   "checks",
+   "icons",
+   "cards",
+   "steps"
+  ],
+  "fields": [
+   "title",
+   "subtitle"
+  ],
+  "items": true
+ },
+ "includes": {
+  "name": "Qué incluye",
+  "description": "Componentes y cantidades de un kit o paquete.",
+  "icon": "box",
+  "variants": [
+   "cards",
+   "list",
+   "grid",
+   "image-text"
+  ],
+  "fields": [
+   "title",
+   "subtitle",
+   "image"
+  ],
+  "items": true
+ },
+ "usage": {
+  "name": "Cómo se usa",
+  "description": "Instrucciones con una secuencia clara.",
+  "icon": "arrow",
+  "variants": [
+   "stepper",
+   "numbered",
+   "timeline",
+   "grid",
+   "compact"
+  ],
+  "fields": [
+   "title",
+   "subtitle"
+  ],
+  "items": true
+ },
+ "gallery": {
+  "name": "Galería de imágenes",
+  "description": "Otros ángulos, detalles y fotografías.",
+  "icon": "grid",
+  "variants": [
+   "grid",
+   "carousel",
+   "thumbnails",
+   "editorial",
+   "image-text"
+  ],
+  "fields": [
+   "title",
+   "subtitle",
+   "text",
+   "images"
+  ],
+  "items": false
+ },
+ "imageText": {
+  "name": "Imagen + texto",
+  "description": "Un relato visual de tu producto.",
+  "icon": "layout",
+  "variants": [
+   "image-left",
+   "image-right",
+   "image-top"
+  ],
+  "fields": [
+   "title",
+   "subtitle",
+   "text",
+   "image",
+   "ctaText"
+  ],
+  "items": true
+ },
+ "specs": {
+  "name": "Ficha técnica",
+  "description": "Pares de característica y valor verificables.",
+  "icon": "layout",
+  "variants": [
+   "table",
+   "list",
+   "grid",
+   "accordion"
+  ],
+  "fields": [
+   "title",
+   "subtitle"
+  ],
+  "items": true
+ },
+ "shipping": {
+  "name": "Envíos y entregas",
+  "description": "Cobertura, costo, tiempos y condiciones reales.",
+  "icon": "send",
+  "variants": [
+   "cards",
+   "list",
+   "bar",
+   "accordion"
+  ],
+  "fields": [
+   "title",
+   "text",
+   "coverage",
+   "cost",
+   "delivery",
+   "carrier",
+   "conditions"
+  ],
+  "items": false
+ },
+ "payment": {
+  "name": "Métodos de pago",
+  "description": "Solo los métodos disponibles para este producto.",
+  "icon": "box",
+  "variants": [
+   "cards",
+   "list",
+   "bar"
+  ],
+  "fields": [
+   "title",
+   "subtitle"
+  ],
+  "items": true
+ },
+ "faq": {
+  "name": "Preguntas frecuentes",
+  "description": "Preguntas y respuestas con visibilidad individual.",
+  "icon": "chat",
+  "variants": [
+   "accordion",
+   "expanded",
+   "columns",
+   "compact"
+  ],
+  "fields": [
+   "title",
+   "subtitle"
+  ],
+  "items": true
+ },
+ "precautions": {
+  "name": "Precauciones y recomendaciones",
+  "description": "Cuidados y advertencias del fabricante o negocio.",
+  "icon": "chat",
+  "variants": [
+   "text",
+   "list",
+   "highlight"
+  ],
+  "fields": [
+   "title",
+   "text"
+  ],
+  "items": true
+ },
+ "testimonials": {
+  "name": "Testimonios",
+  "description": "Opiniones auténticas aportadas por tu negocio.",
+  "icon": "chat",
+  "variants": [
+   "cards",
+   "carousel",
+   "grid"
+  ],
+  "fields": [
+   "title",
+   "subtitle"
+  ],
+  "items": true
+ },
+ "cta": {
+  "name": "Llamado a la acción",
+  "description": "Repite el botón que abre el formulario del producto.",
+  "icon": "arrow",
+  "variants": [
+   "band",
+   "card",
+   "image",
+   "minimal"
+  ],
+  "fields": [
+   "title",
+   "subtitle",
+   "text",
+   "image",
+   "ctaText"
+  ],
+  "items": false
+ },
+ "related": {
+  "name": "Productos relacionados",
+  "description": "Selección manual de tus landings publicadas.",
+  "icon": "grid",
+  "variants": [
+   "grid",
+   "carousel",
+   "compact"
+  ],
+  "fields": [
+   "title",
+   "subtitle",
+   "relatedIds"
+  ],
+  "items": false
+ },
+ "policies": {
+  "name": "Políticas y garantías",
+  "description": "Condiciones reales, enlaces y textos legales.",
+  "icon": "layout",
+  "variants": [
+   "accordion",
+   "text",
+   "cards"
+  ],
+  "fields": [
+   "title",
+   "text"
+  ],
+  "items": true
+ },
+ "divider": {
+  "name": "Espaciador / divisor",
+  "description": "Ajusta el ritmo y la separación entre secciones.",
+  "icon": "layout",
+  "variants": [
+   "space",
+   "line",
+   "surface"
+  ],
+  "fields": [],
+  "items": false
+ },
+ "dropiData": {
+  "name": "Datos de Dropi",
+  "description": "ID, SKU, categoría, proveedor y disponibilidad por bodega.",
+  "icon": "box",
+  "variants": [
+   "grid",
+   "list",
+   "accordion"
+  ],
+  "fields": [
+   "title",
+   "subtitle",
+   "dropiFields"
+  ],
+  "items": false
+ }
 }

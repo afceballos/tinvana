@@ -1,5 +1,13 @@
 # Constructor modular Dropi + GHL
 
+## Datos de Dropi opcionales
+
+La biblioteca incorpora **Datos de Dropi** como sección número 19, con variantes cuadrícula, lista y acordeón. Permite mostrar u ocultar individualmente ID, SKU, categorías, stock total, proveedor, estado explícito de verificación, tipo y bodegas con ciudad/unidades. Los valores proceden exclusivamente del snapshot del producto guardado en el servidor, nunca de texto comercial introducido en el bloque. La selección persiste por landing y respeta la separación entre borrador y versión publicada.
+
+Los datos ausentes se omiten; stock cero sí se muestra. Un plan premium no implica proveedor verificado. En los productos actuales consultados, Dropi no entrega un estado de verificación explícito. Solo se admite un `verification_status` explícito o un booleano `verified` cuando el upstream los proporcione; no se deduce del plan, nombre ni actividad. Actualizar desde Dropi refresca el borrador; volver a publicar actualiza la información pública. No se promete stock en tiempo real en una versión publicada.
+
+Pruebas adicionales: 18 verificaciones PHP del mapeo, exclusión de campos privados, datos reales, stock cero, estado ausente y HTML escapado; Playwright confirma los ocho controles, ocultar/guardar/reabrir/publicar y desktop/tablet/móvil. Archivos principales: `Product.php`, `Blocks.php`, `LandingRenderer.php`, registro JSON, tipos/constructor y CSS. No requiere migración adicional.
+
 ## Uso
 
 En **Mis productos → Editar landing** abre el constructor. El panel **Secciones** permite agregar, arrastrar, subir/bajar con teclado, ocultar, duplicar y eliminar bloques. Las propiedades incluyen variantes, fondo, alineación, proporción de imagen y espaciado. **Restaurar sección** recupera sus valores iniciales previa confirmación.
@@ -16,7 +24,7 @@ Las secciones con listas admiten hasta 20 elementos; una landing admite 50 bloqu
 
 ## Arquitectura y archivos
 
-- `backend/blocks.json`: registro compartido de los 18 tipos y sus variantes/campos.
+- `backend/blocks.json`: registro compartido de los 19 tipos y sus variantes/campos.
 - `src/types.ts`, `src/block-registry.ts`: esquema TypeScript, valores iniciales, clonación con UUID nuevos y plantillas.
 - `src/Builder.tsx`, `src/builder.css`: editor, listas, drag & drop nativo y flechas accesibles, biblioteca, propiedades, guardado explícito y vista previa con debounce de 300 ms.
 - `src/RichEditor.tsx`: edición enriquecida limitada, pegado como texto y enlaces HTTP/HTTPS. El servidor es la frontera de confianza.
@@ -48,7 +56,7 @@ La referencia Puente360 se examinó como jerarquía de contenido: kit, razones, 
 
 ## Validación y despliegue
 
-- 66 verificaciones PHP existentes; 96 del esquema, sanitización, variantes, compatibilidad y publicación.
+- 66 verificaciones PHP existentes; 99 del esquema, sanitización, variantes, compatibilidad y publicación, más 18 del bloque de datos de Dropi.
 - 83 verificaciones HTTP de sesiones, PostgreSQL, medios y webhook TLS local, incluyendo cantidad y total.
 - 35 verificaciones HTTP del constructor: creación, recuperación, listas, aislamiento de borrador/publicación/URL/precio, permisos, contenido seguro, plantillas y total confiable.
 - Playwright + Edge: biblioteca de 18 tipos, plantillas, listas 1–20, restaurar/ocultar/duplicar/eliminar, drag & drop real, guardar/reabrir, publicar, dispositivo de preview, modal/foco/Escape, FAQ y fallo/reintento real del formulario.

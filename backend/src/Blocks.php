@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace App;
 final class Blocks {
+ public const DROPI_FIELDS=['id','sku','categories','stock','supplier','supplierStatus','type','warehouses'];
  public static function registry():array {static $r;return $r??=json_decode(file_get_contents(dirname(__DIR__).'/blocks.json'),true,512,JSON_THROW_ON_ERROR);}
  public static function rich(string $html):string {
   if($html==='')return '';
@@ -37,6 +38,7 @@ final class Blocks {
    foreach(['tone'=>['paper','white','soft','brand'],'space'=>['compact','normal','large'],'align'=>['left','center'],'ratio'=>['square','landscape','portrait']] as $key=>$values){$v=$style[$key]??$values[0];if(!is_string($v)||!in_array($v,$values,true))throw new HttpError(422,'Estilo de sección inválido.');$cleanStyle[$key]=$v;}
    $d=$b['data']??[];if(!is_array($d))throw new HttpError(422,'Contenido de sección inválido.');$data=[];
    foreach($definition['fields'] as $field){
+    if($field==='dropiFields'){$fields=$d[$field]??self::DROPI_FIELDS;if(!is_array($fields)||!array_is_list($fields)||count($fields)>8)throw new HttpError(422,'Campos de Dropi inválidos.');foreach($fields as $key)if(!is_string($key)||!in_array($key,self::DROPI_FIELDS,true))throw new HttpError(422,'Campo de Dropi no permitido.');$data[$field]=array_values(array_unique($fields));continue;}
     if($field==='images'){$data[$field]=self::images($d[$field]??[]);continue;}
     if($field==='relatedIds'){$values=$d[$field]??[];if(!is_array($values)||count($values)>20)throw new HttpError(422,'Máximo 20 productos relacionados.');foreach($values as $id)if(!is_string($id)||!Support::isUuid($id))throw new HttpError(422,'Producto relacionado inválido.');$data[$field]=array_values(array_unique($values));continue;}
     $v=self::text($d[$field]??'',in_array($field,['text','conditions'],true)?20000:($field==='image'?2000:500));
