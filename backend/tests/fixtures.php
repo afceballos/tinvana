@@ -13,7 +13,7 @@ if(($argv[1]??'')==='cleanup'){
 }
 if(is_file($file))throw new RuntimeException('Fixtures already exist; cleanup first.');
 $owner=Support::uuid();$other=Support::uuid();$password=bin2hex(random_bytes(24));$tag=substr(str_replace('-','',$owner),0,12);$email='test-'.$tag.'@example.test';$otherEmail='other-'.$tag.'@example.test';
-foreach([[$owner,$email],[$other,$otherEmail]] as [$id,$mail])Database::query('INSERT INTO users(id,email,password_hash) VALUES(?,?,?)',[$id,$mail,password_hash($password,PASSWORD_DEFAULT)]);
+foreach([[$owner,$email],[$other,$otherEmail]] as [$id,$mail])Database::query('INSERT INTO users(id,email,password_hash,email_verified_at) VALUES(?,?,?,now())',[$id,$mail,password_hash($password,PASSWORD_DEFAULT)]);
 $integration=Support::uuid();$token='non-production-test-token-'.bin2hex(random_bytes(10));Database::query('INSERT INTO integrations(id,user_id,name,token_ciphertext) VALUES(?,?,?,?)',[$integration,$owner,'Integration fixture',Crypto::encrypt($token,$integration.':'.$owner)]);
 $raw=['id'=>987654321,'name'=>'Producto de prueba HTTP','description'=>'<p>Descripción real del fixture de pruebas.</p>','sale_price'=>'12345','suggested_price'=>'20000','sku'=>'TEST-HTTP','gallery'=>[['main'=>true,'urlS3'=>'https://example.test/test-image.jpg']],'warehouse_product'=>[['stock'=>1]],'user'=>['store_name'=>'Proveedor interno fixture']];$mapped=Product::map($raw);$product=Support::uuid();
 Database::query('INSERT INTO selected_products(id,user_id,integration_id,dropi_id,original_data,mapped_data) VALUES(?,?,?,?,?::jsonb,?::jsonb)',[$product,$owner,$integration,$raw['id'],Support::json($raw),Support::json($mapped)]);

@@ -11,18 +11,27 @@ try {
  if($path==='/sitemap.xml'){
   header('Content-Type: application/xml; charset=utf-8');$rows=Database::all("SELECT COALESCE(published_slug,slug) AS slug,published_at AS updated_at FROM landing_pages WHERE status='published'");echo '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';foreach($rows as $r)echo '<url><loc>'.Support::escape(rtrim(Support::env('APP_URL'),'/').'/p/'.$r['slug']).'</loc><lastmod>'.gmdate('c',strtotime($r['updated_at'])).'</lastmod></url>';echo '</urlset>';exit;
  }
- Auth::start();header('Cache-Control: no-store');
+ if($path==='/datos-geograficos'){if($method!=='GET')throw new HttpError(405,'Use GET.');header('Content-Type: text/html; charset=utf-8');echo App\GeographyAttribution::html();exit;}
+ if(in_array($path,['/geography-data/world.zip','/geography-data/colombia.json'],true)){if($method!=='GET')throw new HttpError(405,'Use GET.');$world=$path==='/geography-data/world.zip';$file=dirname(__DIR__).'/resources/geo/'.($world?'world/world.zip':'colombia.json');header('Content-Type: '.($world?'application/zip':'application/json; charset=utf-8'));header('Cache-Control: public, max-age=86400');header('Content-Disposition: attachment; filename="'.($world?'zenzales-world-geography.zip':'zenzales-colombia-divipola.json').'"');readfile($file);exit;}
+ if(preg_match('~^/api/geography/(countries|states|cities)$~',$path,$geo)){if($method!=='GET')throw new HttpError(405,'Use GET.');header('Content-Type: application/json; charset=utf-8');header('Cache-Control: public, max-age=3600');echo Support::json(App\Geography::listing($geo[1],$_GET));exit;}
+ Auth::start();header('Cache-Control: no-store');if(preg_match('~^/(registro|verificar-correo|reenviar-verificacion|recuperar-contrasena|restablecer-contrasena)$~',$path)){header('Referrer-Policy: no-referrer');header('X-Robots-Tag: noindex, nofollow');}
  if(preg_match('~^/media/([a-f0-9-]+)\.webp$~',$path,$m)){
   if(!in_array($method,['GET','HEAD'],true)||!Support::isUuid($m[1]))throw new HttpError(404,'Imagen no encontrada.');
-  $asset=Database::one('SELECT a.*,l.content,l.published_content,l.status FROM media_assets a JOIN landing_pages l ON l.id=a.landing_page_id WHERE a.id=?',[$m[1]]);
+  $asset=Database::one('SELECT * FROM media_assets WHERE id=?',[$m[1]]);
   if(!$asset)throw new HttpError(404,'Imagen no encontrada.');
-  $owner=isset($_SESSION['user_id'])&&$_SESSION['user_id']===$asset['user_id'];
-  $images=Blocks::imageUrls(json_decode($asset['published_content']??$asset['content'],true));
-  $published=$asset['status']==='published'&&in_array(rtrim(Support::env('APP_URL'),'/').$path,$images,true);
-  if(!$owner&&!$published){$expires=(string)($_GET['expires']??'');$signature=(string)($_GET['signature']??'');$key=base64_decode(Support::env('TOKEN_ENCRYPTION_KEY'),true);if(!$key||!ctype_digit($expires)||(int)$expires<time()||(int)$expires>time()+900||!hash_equals(hash_hmac('sha256',$asset['landing_page_id'].':'.$expires,$key),$signature))throw new HttpError(404,'Imagen no encontrada.');}
+  $owner=false;if(isset($_SESSION['user_id'])&&$_SESSION['user_id']===$asset['user_id']){try{$owner=Auth::user()['id']===$asset['user_id'];}catch(HttpError $e){if($e->status!==401)throw $e;}}
+  $published=Media::isPublished($asset,$path);
+  if(!$owner&&!$published){$expires=(string)($_GET['expires']??'');$signature=(string)($_GET['signature']??'');$preview=(string)($_GET['landing']??$asset['landing_page_id']??'');$key=base64_decode(Support::env('TOKEN_ENCRYPTION_KEY'),true);
+   if(!$key||!Support::isUuid($preview)||!ctype_digit($expires)||(int)$expires<time()||(int)$expires>time()+900||!hash_equals(hash_hmac('sha256',$preview.':'.$expires,$key),$signature)||!Database::one('SELECT id FROM landing_pages WHERE id=? AND user_id=?',[$preview,$asset['user_id']]))throw new HttpError(404,'Imagen no encontrada.');
+  }
   $file=Media::path($m[1]);if(!is_file($file))throw new HttpError(404,'Imagen no encontrada.');
   header('Content-Type: image/webp');header('Content-Length: '.filesize($file));if($published)header('Cache-Control: public, max-age=300');if($method==='GET')readfile($file);exit;
  }
+ if(preg_match('~^/api/media/([a-f0-9-]{36})/download$~',$path,$download)&&in_array($method,['GET','HEAD'],true)){
+  $user=Auth::user();$asset=Database::one('SELECT * FROM media_assets WHERE id=? AND user_id=?',[$download[1],$user['id']]);if(!$asset)throw new HttpError(404,'Archivo no encontrado.');$file=Media::path($asset['id']);if(!is_file($file))throw new HttpError(404,'Archivo no encontrado.');
+  $name=pathinfo($asset['original_name']?:'imagen',PATHINFO_FILENAME).'.webp';header('Content-Type: image/webp');header('Content-Length: '.filesize($file));header("Content-Disposition: attachment; filename=imagen.webp; filename*=UTF-8''".rawurlencode($name));if($method==='GET')readfile($file);exit;
+ }
+ if($path==='/api/profile/avatar'&&in_array($method,['GET','HEAD'],true)){$user=Auth::user();$r=Database::one('SELECT avatar_id FROM users WHERE id=?',[$user['id']]);$file=$r['avatar_id']?App\Profile::avatarPath($r['avatar_id']):'';if(!$file||!is_file($file))throw new HttpError(404,'Foto no disponible.');header('Content-Type: image/webp');header('Content-Length: '.filesize($file));if($method==='GET')readfile($file);exit;}
  if($api){header('Content-Type: application/json; charset=utf-8');echo Support::json(Api::handle($path,$method));exit;}
  if(preg_match('~^/p/([a-z0-9]+(?:-[a-z0-9]+)*)(/lead)?$~',$path,$m)){
   $r=Database::one("SELECT * FROM landing_pages WHERE COALESCE(published_slug,slug)=? AND status='published'",[$m[1]]);if(!$r)throw new HttpError(404,'Producto no encontrado.');$r=Landing::published($r);
@@ -39,7 +48,7 @@ try {
   if(!$authorized){$expires=(string)($_GET['expires']??'');$signature=(string)($_GET['signature']??'');$key=base64_decode(Support::env('TOKEN_ENCRYPTION_KEY'),true);if(!$key||!ctype_digit($expires)||(int)$expires<time()||(int)$expires>time()+900||!hash_equals(hash_hmac('sha256',$m[1].':'.$expires,$key),$signature))throw new HttpError(404,'Vista previa no disponible o enlace vencido.');$r=Database::one('SELECT * FROM landing_pages WHERE id=?',[$m[1]]);}
   if(empty($r))throw new HttpError(404,'Vista previa no encontrada.');header('X-Robots-Tag: noindex, nofollow');header('Referrer-Policy: no-referrer');echo Landing::render($r,true);exit;
  }
- if(!preg_match('~^/(?:login|panel(?:/(?:catalogo|integraciones|webhooks|productos|plantilla|leads|landings/[a-f0-9-]+))?)?/?$~',$path))throw new HttpError(404,'Página no encontrada.');
+ if(!preg_match('~^/(?:login|registro|verificar-correo|reenviar-verificacion|recuperar-contrasena|restablecer-contrasena|panel(?:/(?:catalogo|integraciones|webhooks|ia|perfil|seguridad|productos(?:/[a-f0-9-]+/ofertas)?|archivos|plantilla|leads|pedidos(?:/[a-f0-9-]+)?|landings/[a-f0-9-]+))?)?/?$~',$path))throw new HttpError(404,'Página no encontrada.');
  $file=__DIR__.'/app/index.html';if(!is_file($file))throw new HttpError(503,'Compila el frontend con npm run build.');readfile($file);
 }catch(HttpError $e){http_response_code($e->status);if($api||str_contains($_SERVER['CONTENT_TYPE']??'','application/json')){header('Content-Type: application/json; charset=utf-8');echo json_encode(['error'=>$e->getMessage()]+$e->details,JSON_UNESCAPED_UNICODE);}else {header('Content-Type: text/html; charset=utf-8');echo '<!doctype html><html lang="es"><meta charset="utf-8"><title>Error '.$e->status.'</title><link rel="stylesheet" href="/landing.css"><main><h1>'.htmlspecialchars($e->getMessage(),ENT_QUOTES,'UTF-8').'</h1><p>Vuelve atrás para revisar el formulario o la dirección.</p></main></html>';}
 }catch(\PDOException $e){

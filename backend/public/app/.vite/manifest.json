@@ -1,11 +1,20 @@
 {
   "index.html": {
-    "file": "assets/index-CNjsoZTU.js",
+    "file": "assets/index-Bi1konuB.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
+    "dynamicImports": [
+      "node_modules/three/build/three.module.js"
+    ],
     "css": [
-      "assets/index-v2SaGgFx.css"
+      "assets/index-PtbtkE-i.css"
     ]
+  },
+  "node_modules/three/build/three.module.js": {
+    "file": "assets/three.module-BdMZo7zQ.js",
+    "name": "three.module",
+    "src": "node_modules/three/build/three.module.js",
+    "isDynamicEntry": true
   }
 }

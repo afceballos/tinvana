@@ -26,3 +26,5 @@ No uses `--clean` contra una base con otros datos. Si haces una prueba de restau
 Esto no es una migración automática a MySQL. Cambiar de motor requiere adaptar JSONB, SQL, índices, constraints, PDO y pruebas.
 
 Las imágenes propias también requieren copiar `backend/storage/media` al nuevo servidor, además de la tabla `media_assets` incluida en el dump. Conserva los UUID y permisos. Verifica imágenes privadas, previews y publicadas antes de retirar el servidor anterior. Si cambia el dominio, revisa las URLs propias según [IMAGES.md](IMAGES.md).
+
+Las claves de OpenAI y Claude también se exportan cifradas en `ai_connections`. Conserva exactamente la misma `TOKEN_ENCRYPTION_KEY`, comprueba que cada usuario vea únicamente sus proveedores y prueba las conexiones antes de retirar el servidor anterior. No es necesario volver a introducir las claves si se conservaron la tabla y la clave maestra.

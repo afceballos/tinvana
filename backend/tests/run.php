@@ -55,7 +55,7 @@ check('internal supplier excluded from landing',!str_contains($html,'Proveedor d
 rejects('invalid lead email',fn()=>Leads::validate(['idempotency_key'=>Support::uuid(),'first_name'=>'A','last_name'=>'B','email'=>'bad','phone'=>'3001234567']));
 rejects('invalid lead idempotency',fn()=>Leads::validate(['idempotency_key'=>'bad']));
 rejects('honeypot',fn()=>Leads::validate(['website'=>'spam']));
-check('valid lead fields',Leads::validate(['idempotency_key'=>Support::uuid(),'first_name'=>'Andrés','last_name'=>'Prueba','email'=>'Test@example.test','phone'=>'+57 300 123 4567'])['email']==='test@example.test');
+check('valid lead fields',Leads::validate(['idempotency_key'=>Support::uuid(),'first_name'=>'Andrés','last_name'=>'Prueba','country_code'=>'CO','department_code'=>'11','city_code'=>'11001','address'=>'Calle 123 # 45-67','email'=>'Test@example.test','phone'=>'+57 300 123 4567'])['email']==='test@example.test');
 $prices=Leads::productData(['slug'=>'test-product','content'=>$content,'product_snapshot'=>$p]);
 check('server snapshot includes both product prices',$prices['dropi_price']===12345.5&&$prices['public_price']===20000.0&&$prices['inflated_price']===20000.0);
 check('server snapshot includes original and commercial names',$prices['dropi_product_name']===$p['name']&&$prices['product_name']===$content['title']);
@@ -78,4 +78,8 @@ check('existing percent encoding preserved',Product::image('https://example.com/
 check('invalid control in image rejected',Product::image("foto\n.jpg")===null);
 $source=tempnam(sys_get_temp_dir(),'zen-img-');$target=$source.'.webp';
 try{$im=imagecreatetruecolor(2400,1200);imagepng($im,$source);imagedestroy($im);$meta=App\Media::optimize($source,$target);$info=getimagesize($target);check('uploaded PNG converted resized and bounded',$info[2]===IMAGETYPE_WEBP&&$meta['width']===1600&&$meta['height']===800&&$meta['bytes']<=409600);file_put_contents($source,'<?php echo 1;');rejects('non image upload refused',fn()=>App\Media::optimize($source,$target));}finally{@unlink($source);@unlink($target);}
+$mediaId='11111111-1111-4111-8111-111111111111';$canonical=rtrim(App\Support::env('APP_URL'),'/');
+check('own local upload follows current public origin',App\Media::rebase('http://127.0.0.1:8080/media/'.$mediaId.'.webp')===$canonical.'/media/'.$mediaId.'.webp');
+check('old temporary upload follows current origin',App\Media::rebase(['blocks'=>[['image'=>'https://old-demo.trycloudflare.com/media/'.$mediaId.'.webp']]])['blocks'][0]['image']===$canonical.'/media/'.$mediaId.'.webp');
+check('external image origin stays unchanged',App\Media::rebase('https://example.com/media/'.$mediaId.'.webp')==='https://example.com/media/'.$mediaId.'.webp');
 echo "$passed tests passed. No external services used.\n";

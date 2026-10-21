@@ -6,10 +6,47 @@ final class Api {
  public static function owned(string $table,string $id,string $owner): array { if(!in_array($table,['integrations','selected_products','landing_pages','leads'],true)||!Support::isUuid($id))throw new HttpError(404,'Registro no encontrado.');$r=Database::one("SELECT * FROM $table WHERE id=? AND user_id=?",[$id,$owner]);if(!$r)throw new HttpError(404,'Registro no encontrado.');return $r; }
  public static function integrationView(array $r): array {return ['id'=>$r['id'],'name'=>$r['name'],'configured'=>true,'created_at'=>$r['created_at'],'updated_at'=>$r['updated_at']];}
  public static function handle(string $path,string $method): array {
-  if($path==='/api/auth/session'&&$method==='GET'){return ['user'=>isset($_SESSION['user_id'])?Auth::user():null,'csrf'=>$_SESSION['csrf']];}
+  if($path==='/api/auth/session'&&$method==='GET'){$user=null;if(isset($_SESSION['user_id'])){try{$user=Auth::user();}catch(HttpError $e){if($e->status!==401)throw $e;unset($_SESSION['user_id'],$_SESSION['session_version']);session_regenerate_id(true);$_SESSION['csrf']=bin2hex(random_bytes(32));}}return ['user'=>$user,'csrf'=>$_SESSION['csrf']];}
   if(!in_array($method,['GET','HEAD'],true))Auth::csrf();
   if($path==='/api/auth/login'&&$method==='POST')return Auth::login(self::body());
+  if($method==='POST'){
+   if($path==='/api/auth/register')return AccountRecovery::request('verify',self::body(),true);
+   if($path==='/api/auth/resend-verification')return AccountRecovery::request('verify',self::body());
+   if($path==='/api/auth/forgot-password')return AccountRecovery::request('reset',self::body());
+   if($path==='/api/auth/verify-email')return AccountRecovery::complete('verify',self::body());
+   if($path==='/api/auth/reset-password')return AccountRecovery::complete('reset',self::body());
+  }
   $u=Auth::user();$owner=$u['id'];
+  if(preg_match('~^/api/products/([^/]+)/offers$~',$path,$m)){
+   if($method==='GET')return ProductOffers::view($owner,$m[1]);
+   if($method==='PUT')return ProductOffers::save($owner,$m[1],self::body());
+  }
+  if($path==='/api/orders'){
+   if($method==='GET')return Orders::listing($owner,$_GET);
+   if($method==='POST')return Orders::create($owner,self::body());
+  }
+  if(preg_match('~^/api/orders/([^/]+)(?:/(quote|confirm|cancel|customer|reopen))?$~',$path,$m)){
+   if($method==='GET'&&!isset($m[2]))return Orders::detail($owner,$m[1]);
+   if($method==='POST'&&isset($m[2]))return Orders::change($owner,$m[1],self::body(),$m[2]);
+  }
+  if($path==='/api/media'){if($method==='DELETE')return Media::remove($owner,self::body());if($method==='GET')return Media::listing($owner,$_GET);if($method==='POST')return ['image'=>Media::upload(null,$owner)];}
+  if($path==='/api/profile'){if($method==='GET')return ['profile'=>Profile::view($owner)];if($method==='PUT')return ['profile'=>Profile::save($owner,self::body())];}
+  if($path==='/api/profile/password'&&$method==='POST')return Profile::password($owner,self::body());
+  if($path==='/api/profile/avatar'&&in_array($method,['POST','DELETE'],true))return ['profile'=>Profile::photo($owner,$method==='DELETE')];
+  if($path==='/api/ai/connections'&&$method==='GET')return AiConnections::view($owner);
+  if(preg_match('~^/api/ai/connections/(openai|anthropic)(?:/(test|activate))?$~',$path,$m)){
+   $provider=$m[1];$action=$m[2]??'';
+   if($method==='PUT'&&$action==='')return AiConnections::save($owner,$provider,self::body());
+   if($method==='DELETE'&&$action==='')return AiConnections::remove($owner,$provider);
+   if($method==='POST'&&$action==='test')return AiConnections::test($owner,$provider);
+   if($method==='POST'&&$action==='activate')return AiConnections::activate($owner,$provider);
+  }
+  if($path==='/api/ai/status'&&$method==='GET')return ['status'=>AiLanding::status($owner)];
+  if($path==='/api/ai/preferences'){
+   if($method==='GET'){$row=Database::one('SELECT settings FROM template_settings WHERE user_id=?',[$owner]);$settings=$row?json_decode($row['settings'],true):[];return ['preferences'=>AiLanding::preferences($settings['ai']??[])];}
+   if($method==='PUT'){$preferences=AiLanding::preferences(self::body());Database::query('INSERT INTO template_settings(user_id,settings) VALUES(?,?::jsonb) ON CONFLICT(user_id) DO UPDATE SET settings=template_settings.settings||excluded.settings,updated_at=now()',[$owner,Support::json(['ai'=>$preferences])]);return ['preferences'=>$preferences];}
+  }
+  if(preg_match('~^/api/landings/([^/]+)/ai$~',$path,$m)&&$method==='POST'){$row=self::owned('landing_pages',$m[1],$owner);return ['proposal'=>AiLanding::generate($row,self::body())];}
   if($path==='/api/webhook-settings'){
    if($method==='GET')return ['settings'=>Webhooks::view($owner)];
    if($method==='PUT')return ['settings'=>Webhooks::save($owner,self::body())];
@@ -57,7 +94,7 @@ final class Api {
   if($path==='/api/builder-templates'){
    $stored=Database::one('SELECT settings FROM template_settings WHERE user_id=?',[$owner]);$settings=$stored?json_decode($stored['settings'],true):Landing::defaults();$templates=$settings['layouts']??[];
    if($method==='GET')return ['templates'=>$templates];
-   if($method==='POST'){$b=self::body();if(count($templates)>=10)throw new HttpError(422,'Máximo 10 plantillas guardadas.');$blocks=Blocks::validate($b['blocks']??[]);foreach($blocks as &$block){$d=&$block['data'];if(isset($d['image'])&&preg_match('~/media/[a-f0-9-]+\.webp~',$d['image']))$d['image']='';if(isset($d['images']))$d['images']=array_values(array_filter($d['images'],fn($url)=>!preg_match('~/media/[a-f0-9-]+\.webp~',$url)));foreach($d['items']??[] as $i=>$item)if(preg_match('~/media/[a-f0-9-]+\.webp~',$item['image']))$d['items'][$i]['image']='';if(isset($d['relatedIds']))$d['relatedIds']=[];}unset($block,$d);$templates[]=['id'=>Support::uuid(),'name'=>Support::text($b['name']??null,100),'blocks'=>$blocks];}
+   if($method==='POST'){$b=self::body();if(count($templates)>=10)throw new HttpError(422,'Máximo 10 plantillas guardadas.');$blocks=Blocks::validate($b['blocks']??[]);foreach($blocks as &$block){$d=&$block['data'];if(isset($d['image'])&&preg_match('~/media/[a-f0-9-]+\.webp~',$d['image']))$d['image']='';if(isset($d['images']))$d['images']=array_values(array_filter($d['images'],fn($url)=>!preg_match('~/media/[a-f0-9-]+\.webp~',$url)));foreach($d['items']??[] as $i=>$item)if(preg_match('~/media/[a-f0-9-]+\.webp~',$item['image']))$d['items'][$i]['image']='';if(isset($d['relatedIds']))$d['relatedIds']=[];if(isset($d['selectedProductIds']))$d['selectedProductIds']=[];}unset($block,$d);$header=LandingHeader::validate($b['header']??[],$blocks);if(preg_match('~/media/[a-f0-9-]+\\.webp~',$header['logo']))$header['logo']='';$templates[]=['id'=>Support::uuid(),'name'=>Support::text($b['name']??null,100),'blocks'=>$blocks,'header'=>$header];}
    elseif($method==='DELETE'){$b=self::body();$templates=array_values(array_filter($templates,fn($template)=>$template['id']!==($b['id']??'')));}
    else throw new HttpError(405,'Método no permitido.');
    $settings['layouts']=$templates;Database::query('INSERT INTO template_settings(user_id,settings) VALUES(?,?::jsonb) ON CONFLICT(user_id) DO UPDATE SET settings=excluded.settings,updated_at=now()',[$owner,Support::json($settings)]);return ['templates'=>$templates];
@@ -66,8 +103,8 @@ final class Api {
    $r=self::owned('landing_pages',$m[1],$owner);$action=$m[2]??'';
    if($method==='POST'&&$action==='images')return ['image'=>Media::upload($r,$owner)];
    if($method==='GET'&&$action==='')return ['landing'=>Landing::decode($r)];
-   if($method==='PUT'&&$action===''){$b=self::body();$c=Landing::content($b['content']??[]);Media::validateReferences(Blocks::imageUrls($c),$owner,$r['id']);$slug=Landing::slug($b['slug']??'');Landing::checkSlug($slug,$r['id']);Database::query('UPDATE landing_pages SET slug=?,content=?::jsonb,updated_at=now() WHERE id=? AND user_id=?',[$slug,Support::json($c),$r['id'],$owner]);return ['landing'=>Landing::decode(self::owned('landing_pages',$r['id'],$owner))];}
-   if($method==='POST'&&$action==='render'){$b=self::body();$c=Landing::content($b['content']??[]);Media::validateReferences(Blocks::imageUrls($c),$owner,$r['id']);$r['content']=$c;$r['slug']=Landing::slug($b['slug']??$r['slug']);$_GET['expires']=time()+900;$_GET['signature']=hash_hmac('sha256',$r['id'].':'.$_GET['expires'],base64_decode(Support::env('TOKEN_ENCRYPTION_KEY'),true));return ['html'=>Landing::render($r,true)];}
+   if($method==='PUT'&&$action===''){$b=self::body();$c=Landing::content($b['content']??[]);Blocks::ownedProducts($c['blocks'],$owner);$db=Database::connection();$db->beginTransaction();try{Database::query('SELECT id FROM landing_pages WHERE id=? AND user_id=? FOR UPDATE',[$r['id'],$owner]);Media::validateReferences(Blocks::imageUrls($c),$owner,$r['id']);$slug=Landing::slug($b['slug']??'');Landing::checkSlug($slug,$r['id']);Database::query('UPDATE landing_pages SET slug=?,content=?::jsonb,updated_at=now() WHERE id=? AND user_id=?',[$slug,Support::json($c),$r['id'],$owner]);$db->commit();}catch(\Throwable $e){$db->rollBack();throw $e;}return ['landing'=>Landing::decode(self::owned('landing_pages',$r['id'],$owner))];}
+   if($method==='POST'&&$action==='render'){$b=self::body();$c=Landing::content($b['content']??[]);Blocks::ownedProducts($c['blocks'],$owner);Media::validateReferences(Blocks::imageUrls($c),$owner,$r['id']);$r['content']=$c;$r['slug']=Landing::slug($b['slug']??$r['slug']);$_GET['expires']=time()+900;$_GET['signature']=hash_hmac('sha256',$r['id'].':'.$_GET['expires'],base64_decode(Support::env('TOKEN_ENCRYPTION_KEY'),true));return ['html'=>Landing::render($r,true)];}
    if($method==='POST'&&$action==='publish'){Landing::publish($r);return ['ok'=>true];}
    if($method==='POST'&&$action==='unpublish'){Database::query("UPDATE landing_pages SET status='draft',published_at=null,updated_at=now() WHERE id=? AND user_id=?",[$r['id'],$owner]);return ['ok'=>true];}
    if($method==='POST'&&$action==='preview-link'){
@@ -75,7 +112,7 @@ final class Api {
    }
   }
   if($path==='/api/leads'&&$method==='GET'){
-   $page=max(1,min(100000,(int)($_GET['page']??1)));$rows=Database::all('SELECT l.*,d.attempts,d.last_http_status,d.last_error,d.history,d.next_attempt_at FROM leads l LEFT JOIN webhook_deliveries d ON d.lead_id=l.id WHERE l.user_id=? ORDER BY l.created_at DESC LIMIT 26 OFFSET '.(($page-1)*25),[$owner]);$next=count($rows)>25;$rows=array_slice($rows,0,25);foreach($rows as &$r){$r['product_data']=json_decode($r['product_data'],true);$r['history']=json_decode($r['history']??'[]',true);}return ['leads'=>$rows,'hasNext'=>$next];
+   $page=max(1,min(100000,(int)($_GET['page']??1)));$rows=Database::all('SELECT l.*,d.attempts,d.last_http_status,d.last_error,d.history,d.next_attempt_at FROM leads l LEFT JOIN webhook_deliveries d ON d.lead_id=l.id WHERE l.user_id=? ORDER BY l.created_at DESC LIMIT 26 OFFSET '.(($page-1)*25),[$owner]);$next=count($rows)>25;$rows=array_slice($rows,0,25);foreach($rows as &$r){$r['product_data']=json_decode($r['product_data'],true);$r['delivery_address']=$r['delivery_address']?json_decode($r['delivery_address'],true):null;$r['history']=json_decode($r['history']??'[]',true);}return ['leads'=>$rows,'hasNext'=>$next];
   }
   if(preg_match('~^/api/leads/([^/]+)/retry$~',$path,$m)&&$method==='POST'){
    $l=self::owned('leads',$m[1],$owner);if($l['status']!=='failed')throw new HttpError(409,'Solo se reintentan manualmente envíos fallidos.');

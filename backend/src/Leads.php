@@ -17,15 +17,15 @@ final class Leads {
   if(($b['website']??'')!=='')throw new HttpError(422,'No fue posible aceptar la consulta.');
   $first=Support::text($b['first_name']??null,100);$last=Support::text($b['last_name']??null,100);$email=Support::text($b['email']??null,254);$phone=Support::text($b['phone']??null,30);
   if(!filter_var($email,FILTER_VALIDATE_EMAIL)||!preg_match('/^\+?[0-9 ()-]{7,30}$/',$phone)||strlen(preg_replace('/\D/','',$phone))<7)throw new HttpError(422,'Verifica el email y el teléfono.');
-  return ['key'=>$key,'first'=>$first,'last'=>$last,'email'=>strtolower($email),'phone'=>$phone];
+  $number=DeliveryAddress::phone($phone,$b['phone_country']??'CO');$delivery=DeliveryAddress::validate($b);return ['key'=>$key,'first'=>$first,'last'=>$last,'email'=>strtolower($email),'phone'=>$number['phone'],'phone_country'=>$number['phone_country'],'delivery'=>$delivery];
  }
  public static function save(array $landing,array $b): array {
   $v=self::validate($b);$r=Landing::decode($landing);$c=$r['content'];$p=$r['product_snapshot'];
   $quantity=filter_var($b['quantity']??1,FILTER_VALIDATE_INT);$max=$c['commerce']['quantityEnabled']?$c['commerce']['maxQuantity']:1;if($quantity===false||$quantity<1||$quantity>$max)throw new HttpError(422,'Cantidad inválida.');
   $data=self::productData($r,$quantity);
   $db=Database::connection();$db->beginTransaction();try{
-   $lead=Database::one('INSERT INTO leads(id,user_id,landing_page_id,idempotency_key,first_name,last_name,email,phone,product_data) VALUES(?,?,?,?,?,?,?,?,?::jsonb) ON CONFLICT(landing_page_id,idempotency_key) DO NOTHING RETURNING id,status',[Support::uuid(),$r['user_id'],$r['id'],$v['key'],$v['first'],$v['last'],$v['email'],$v['phone'],Support::json($data)]);
-   if($lead)Database::query('INSERT INTO webhook_deliveries(id,lead_id) VALUES(?,?)',[Support::uuid(),$lead['id']]);
+   $lead=Database::one('INSERT INTO leads(id,user_id,landing_page_id,idempotency_key,first_name,last_name,email,phone,phone_country,delivery_address,product_data) VALUES(?,?,?,?,?,?,?,?,?,?::jsonb,?::jsonb) ON CONFLICT(landing_page_id,idempotency_key) DO NOTHING RETURNING id,status',[Support::uuid(),$r['user_id'],$r['id'],$v['key'],$v['first'],$v['last'],$v['email'],$v['phone'],$v['phone_country'],Support::json($v['delivery']),Support::json($data)]);
+   if($lead){Database::query('INSERT INTO webhook_deliveries(id,lead_id) VALUES(?,?)',[Support::uuid(),$lead['id']]);Orders::fromLead($r['user_id'],$lead['id']);}
    else $lead=Database::one('SELECT id,status FROM leads WHERE landing_page_id=? AND idempotency_key=?',[$r['id'],$v['key']]);
    $db->commit();return ['saved'=>true,'delivery_status'=>$lead['status'],'message'=>$lead['status']==='delivered'?'Tu consulta fue guardada y enviada.':'Tu consulta fue guardada. El envío al equipo está pendiente.'];
   }catch(\Throwable $e){$db->rollBack();throw $e;}
@@ -43,6 +43,7 @@ final class Leads {
    if(!$d){$db->commit();break;}
    Database::query("UPDATE webhook_deliveries SET status='processing',locked_at=now(),updated_at=now() WHERE id=?",[$d['id']]);$db->commit();
    $l=Database::one('SELECT * FROM leads WHERE id=?',[$d['lead_id']]);$payload=array_merge(json_decode($l['product_data'],true),['lead_id'=>$l['id'],'idempotency_key'=>$l['id'],'first_name'=>$l['first_name'],'last_name'=>$l['last_name'],'email'=>$l['email'],'phone'=>$l['phone']]);
+   $address=json_decode($l['delivery_address']??'{}',true);foreach(['country_code','country','department_code','state','city_code','city','address','address_details','postal_code'] as $field)$payload[$field]=$address[$field]??null;$payload['phone_country']=$l['phone_country']??null;
    $payload['dropi_price']??=null;$payload['inflated_price']??=$payload['public_price']??null;
    try{
     $url=Crypto::decrypt($d['url_ciphertext'],'webhook-url:'.$d['destination_owner']);

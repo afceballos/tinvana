@@ -1,5 +1,14 @@
 # Verificación real
 
+## Cierre de la etapa de pedidos (2026-10-19)
+
+- `npm run build`: aprobado tras las funciones de edición, reapertura, ofertas y variantes.
+- `npm test`: 107 comprobaciones aprobadas; `node tests/orders.mjs`: 38 aprobadas; `node tests/order-editing.mjs`: 52 aprobadas. Ejecutadas contra el PostgreSQL local aislado, no contra pedidos externos.
+- PHP: sintaxis comprobada para Orders, ProductOffers, DropiOrders, Api y el enrutador público.
+- Capturas de ofertas en escritorio y móvil revisadas. La demo temporal cargó `/panel/pedidos`, respondió `200` en la API autenticada y el dominio público devolvió `200` por HTTPS. La verificación fue solo de lectura y no creó ni modificó pedidos.
+- Al terminar, se eliminaron los fixtures locales y se detuvieron el servidor de pruebas en 8081 y PostgreSQL local. La demo temporal en 8082 quedó activa.
+- La integración de órdenes Dropi sigue en preparación: no se probó ni envió ninguna orden real.
+
 ## Carga y conversión de imágenes
 
 Se encontró una URL de Dropi con espacios en el nombre del archivo que bloqueaba la creación de la landing. Se corrige al mapear nuevas imágenes y al generar la landing desde selecciones ya guardadas. El build pasó; 61 pruebas PHP y 82 comprobaciones HTTP aprobaron conversión WebP real y carga multipart con permisos, CSRF, preview firmada e imágenes públicas solo al publicar. Configuración y límites en [IMAGES.md](IMAGES.md).

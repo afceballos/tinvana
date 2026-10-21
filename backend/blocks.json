@@ -319,5 +319,20 @@
    "dropiFields"
   ],
   "items": false
+ },
+ "productList": {
+  "name": "Lista de productos",
+  "description": "Tarjetas de los productos que seleccionaste de Dropi, con título y descripción breve.",
+  "icon": "grid",
+  "variants": [
+   "grid",
+   "compact"
+  ],
+  "fields": [
+   "title",
+   "subtitle",
+   "selectedProductIds"
+  ],
+  "items": false
  }
 }

@@ -1,0 +1,117 @@
+<?php
+declare(strict_types=1);
+namespace App;
+
+/** Local order lifecycle. This class never submits orders to a supplier. */
+final class Orders {
+ public static function fromLead(string $owner,string $leadId): array {
+  if(!Support::isUuid($leadId))throw new HttpError(404,'Consulta no encontrada.');
+  $lead=Database::one('SELECT * FROM leads WHERE id=? AND user_id=?',[$leadId,$owner]);
+  if(!$lead)throw new HttpError(404,'Consulta no encontrada.');
+  $p=json_decode($lead['product_data'],true,512,JSON_THROW_ON_ERROR);
+  $unit=self::amount($p['public_price']??null,true);$id=Support::uuid();
+  $r=Database::one('INSERT INTO orders(id,user_id,lead_id,customer,delivery_address,product_data,quantity,unit_price) VALUES(?,?,?,?::jsonb,?::jsonb,?::jsonb,?,?) ON CONFLICT(lead_id) DO NOTHING RETURNING *',[
+   $id,$owner,$leadId,Support::json(array_intersect_key($lead,array_flip(['first_name','last_name','email','phone']))),$lead['delivery_address']??'{}',$lead['product_data'],max(1,min(100,(int)($p['quantity']??1))),$unit
+  ]);
+  if($r)self::event($r,'created',['origin'=>'landing','lead_id'=>$leadId],null);
+  else $r=Database::one('SELECT * FROM orders WHERE lead_id=? AND user_id=?',[$leadId,$owner]);
+  return self::view($r);
+ }
+ public static function create(string $owner,array $b): array {
+  $db=Database::connection();$db->beginTransaction();
+  try{$r=self::fromLead($owner,(string)($b['lead_id']??''));$db->commit();return ['order'=>$r];}
+  catch(\Throwable $e){$db->rollBack();throw $e;}
+ }
+ public static function amount(mixed $value,bool $nullable=false): ?string {
+  if($nullable&&$value===null)return null;
+  if(!is_string($value)&&!is_int($value)&&!is_float($value))throw new HttpError(422,'Importe inválido.');
+  $s=(string)$value;
+  if(!preg_match('/^(0|[1-9][0-9]{0,9})(?:\.([0-9]{1,2}))?$/D',$s,$m))throw new HttpError(422,'Usa importes positivos, sin separadores de miles y con máximo dos decimales.');
+  return $m[1].'.'.str_pad($m[2]??'',2,'0');
+ }
+ private static function cents(string $v): int {[$a,$b]=explode('.',$v);return (int)$a*100+(int)$b;}
+ private static function decimal(int $v): string {return intdiv($v,100).'.'.str_pad((string)($v%100),2,'0',STR_PAD_LEFT);}
+ private static function sameFields(array $a,array $b): bool {ksort($a);ksort($b);return $a===$b;}
+ public static function owned(string $owner,string $id,bool $lock=false): array {
+  if(!Support::isUuid($id))throw new HttpError(404,'Pedido no encontrado.');
+  $r=Database::one('SELECT * FROM orders WHERE id=? AND user_id=?'.($lock?' FOR UPDATE':''),[$id,$owner]);
+  if(!$r)throw new HttpError(404,'Pedido no encontrado.');return $r;
+ }
+ public static function view(array $r): array {
+  foreach(['customer','delivery_address','product_data','confirmation','variant_data','offer_snapshot'] as $key)$r[$key]=($r[$key]??null)===null?null:json_decode($r[$key],true,512,JSON_THROW_ON_ERROR);
+  $r['quantity']=(int)$r['quantity'];$r['version']=(int)$r['version'];
+  $r['total']=$r['unit_price']!==null&&$r['shipping_price']!==null?self::decimal(self::cents($r['unit_price'])*$r['quantity']+self::cents($r['shipping_price'])):null;
+  return $r;
+ }
+ public static function listing(string $owner,array $q): array {
+  $status=$q['status']??'';if(!is_string($status)||!in_array($status,['','draft','confirmed','cancelled'],true))throw new HttpError(422,'Estado inválido.');
+  $page=max(1,min(10000,(int)($q['page']??1)));$args=[$owner];$where='user_id=?';
+  if($status!==''){$where.=' AND sale_status=?';$args[]=$status;}
+  $rows=Database::all('SELECT * FROM orders WHERE '.$where.' ORDER BY created_at DESC,id DESC LIMIT 26 OFFSET '.(($page-1)*25),$args);
+  return ['orders'=>array_map([self::class,'view'],array_slice($rows,0,25)),'hasNext'=>count($rows)>25,'page'=>$page];
+ }
+ public static function detail(string $owner,string $id): array {
+  $r=self::owned($owner,$id);$events=Database::all('SELECT id,event_type,order_version,data,created_at FROM order_events WHERE order_id=? AND user_id=? ORDER BY created_at DESC,id DESC LIMIT 100',[$id,$owner]);
+  foreach($events as &$e)$e['data']=json_decode($e['data'],true);
+  $product=ProductOffers::forOrder($r);
+  return ['order'=>self::view($r),'events'=>$events,'commercial'=>ProductOffers::view($owner,$product['id']),'dropi'=>DropiOrders::readiness($r)];
+ }
+ private static function event(array $r,string $type,array $data,?string $actor): void {
+  Database::query('INSERT INTO order_events(id,order_id,user_id,actor_id,event_type,order_version,data) VALUES(?,?,?,?,?,?,?::jsonb)',[Support::uuid(),$r['id'],$r['user_id'],$actor,$type,$r['version'],Support::json($data)]);
+ }
+ public static function change(string $owner,string $id,array $b,string $action): array {
+  $db=Database::connection();$db->beginTransaction();
+  try{
+   $r=self::owned($owner,$id,true);
+   if(!isset($b['version'])||!is_int($b['version'])||$b['version']!==(int)$r['version'])throw new HttpError(409,'El pedido cambió. Actualiza el detalle antes de continuar.');
+   if($r['integration_status']!=='not_sent')throw new HttpError(409,'El pedido tiene una operación externa. Necesita revisión antes de modificarlo.');
+   if($action==='customer'){
+    if($r['sale_status']!=='draft')throw new HttpError(409,'Devuelve el pedido a revisión antes de editar sus datos.');
+    $customer=['first_name'=>Support::text($b['first_name']??null,100),'last_name'=>Support::text($b['last_name']??null,100),'email'=>strtolower(Support::text($b['email']??null,254))];
+    if(!filter_var($customer['email'],FILTER_VALIDATE_EMAIL))throw new HttpError(422,'Verifica el email del comprador.');
+    $number=DeliveryAddress::phone(Support::text($b['phone']??null,30),'CO');$customer['phone']=$number['phone'];
+    $address=DeliveryAddress::validate($b);
+    $before=['customer'=>json_decode($r['customer'],true),'delivery_address'=>json_decode($r['delivery_address'],true)];
+    $addressChanged=!self::sameFields($before['delivery_address'],$address);
+    if(self::sameFields($before['customer'],$customer)&&!$addressChanged){$db->commit();return self::detail($owner,$id);}
+    $r=Database::one('UPDATE orders SET customer=?::jsonb,delivery_address=?::jsonb,shipping_price=?,quote_id=null,quote_expires_at=null,confirmation=null,version=version+1,updated_at=now() WHERE id=? RETURNING *',[Support::json($customer),Support::json($address),$addressChanged?null:$r['shipping_price'],$id]);
+    self::event($r,'customer_updated',['before'=>$before,'after'=>['customer'=>$customer,'delivery_address'=>$address],'shipping_invalidated'=>$addressChanged],$owner);
+   }elseif($action==='reopen'){
+    if($r['sale_status']!=='confirmed')throw new HttpError(409,'Solo puedes devolver a revisión un pedido confirmado localmente.');
+    $reason=Support::text($b['reason']??null,1000);
+    $previous=['confirmation'=>json_decode($r['confirmation']??'null',true),'quote_id'=>$r['quote_id'],'quantity'=>$r['quantity'],'unit_price'=>$r['unit_price'],'shipping_price'=>$r['shipping_price'],'customer'=>json_decode($r['customer'],true),'delivery_address'=>json_decode($r['delivery_address'],true),'variant'=>json_decode($r['variant_data']??'null',true),'offer'=>json_decode($r['offer_snapshot']??'null',true)];
+    $r=Database::one("UPDATE orders SET sale_status='draft',shipping_price=null,quote_id=null,quote_expires_at=null,confirmation=null,version=version+1,updated_at=now() WHERE id=? RETURNING *",[$id]);
+    self::event($r,'reopened',['reason'=>$reason,'previous'=>$previous],$owner);
+   }elseif($action==='quote'){
+    if($r['sale_status']!=='draft')throw new HttpError(409,'Solo puedes cotizar un borrador.');
+    $qty=$b['quantity']??null;if(!is_int($qty)||$qty<1||$qty>100)throw new HttpError(422,'La cantidad debe estar entre 1 y 100.');
+    $product=ProductOffers::forOrder($r);$mapped=json_decode($product['mapped_data'],true);$variants=ProductOffers::variants($product);$variant=null;$variantId=$b['variant_id']??null;
+    if($variantId!==null&&(!is_string($variantId)||!preg_match('/^[1-9][0-9]{0,17}$/D',$variantId)))throw new HttpError(422,'Variante inválida.');
+    foreach($variants as $v)if($v['id']===$variantId)$variant=$v;
+    if($variantId!==null&&!$variant)throw new HttpError(422,'La variante no pertenece a este producto. Actualiza sus datos si cambió en Dropi.');
+    if(($variants||strtoupper((string)($mapped['type']??''))==='VARIABLE')&&!$variant)throw new HttpError(422,'Selecciona una variante válida del producto.');
+    $offer=null;if(($b['use_offer']??false)!==false){if($b['use_offer']!==true)throw new HttpError(422,'Selección de oferta inválida.');$offer=ProductOffers::resolve($product,$b['offer_version']??null,$qty);}
+    $unit=$offer?$offer['unit_price']:self::amount($b['unit_price']??null);$shipping=self::amount($b['shipping_price']??null);
+    if(self::cents($unit)<1)throw new HttpError(422,'El precio público debe ser mayor que cero.');
+    $notes=Support::text($b['notes']??'',2000,false);
+    $address=json_decode($r['delivery_address'],true);foreach(['country','state','city','address'] as $key)if(empty($address[$key]))throw new HttpError(422,'La consulta no tiene una dirección completa. No se puede cotizar todavía.');
+    $r=Database::one("UPDATE orders SET quantity=?,unit_price=?,shipping_price=?,notes=?,variant_data=?::jsonb,offer_snapshot=?::jsonb,version=version+1,quote_id=?,quote_expires_at=LEAST(now()+interval '24 hours',COALESCE(?::timestamptz,now()+interval '24 hours')),confirmation=null,updated_at=now() WHERE id=? RETURNING *",[$qty,$unit,$shipping,$notes,Support::json($variant),Support::json($offer),Support::uuid(),$offer['ends_at']??null,$id]);
+    self::event($r,'quoted',['quantity'=>$qty,'unit_price'=>$unit,'shipping_price'=>$shipping,'quote_id'=>$r['quote_id'],'expires_at'=>$r['quote_expires_at'],'customer'=>json_decode($r['customer'],true),'delivery_address'=>json_decode($r['delivery_address'],true),'variant'=>$variant,'offer'=>$offer,'notes'=>$notes,'validation'=>'manual_not_supplier_verified'],$owner);
+   }elseif($action==='confirm'){
+    if($r['sale_status']!=='draft'||!$r['quote_id']||strtotime($r['quote_expires_at'])<=time())throw new HttpError(409,'Necesitas una cotización vigente antes de confirmar.');
+    if(($b['quote_id']??'')!==$r['quote_id'])throw new HttpError(409,'La confirmación no corresponde a la cotización actual.');
+    $evidence=Support::text($b['evidence']??null,2000);if(mb_strlen($evidence)<10)throw new HttpError(422,'Describe la aceptación del comprador con al menos 10 caracteres.');
+    if(($b['accepted']??false)!==true)throw new HttpError(422,'Debes confirmar que verificaste la aceptación del comprador.');
+    $confirmation=['quote_id'=>$r['quote_id'],'quoted_version'=>(int)$r['version'],'evidence'=>$evidence,'recorded_by'=>$owner,'recorded_at'=>gmdate('c'),'method'=>'operator_record'];
+    $r=Database::one("UPDATE orders SET sale_status='confirmed',confirmation=?::jsonb,version=version+1,updated_at=now() WHERE id=? RETURNING *",[Support::json($confirmation),$id]);
+    self::event($r,'confirmed',$confirmation,$owner);
+   }elseif($action==='cancel'){
+    if($r['sale_status']==='cancelled')throw new HttpError(409,'El pedido ya está cancelado.');
+    $reason=Support::text($b['reason']??null,1000);
+    $r=Database::one("UPDATE orders SET sale_status='cancelled',version=version+1,quote_id=null,quote_expires_at=null,updated_at=now() WHERE id=? RETURNING *",[$id]);
+    self::event($r,'cancelled',['reason'=>$reason],$owner);
+   }else throw new HttpError(404,'Operación no disponible.');
+   $db->commit();return self::detail($owner,$id);
+  }catch(\Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
+ }
+}

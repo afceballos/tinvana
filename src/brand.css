@@ -1,0 +1,33 @@
+:root{--ink:#1e1e1e;--forest:#1e1e1e;--brand-accent:#8b4b25;--brand-mint:#ffe0cd;--lime:#ffe0cd;--paper:#fff8f1;--soft:#fff8f1;--muted:#8b4b25;--line:#ffe0cd}
+body{font-family:Montserrat,'Segoe UI',sans-serif}button,input,select,textarea{font-family:inherit}h1,h2,h3{font-family:Montserrat,'Segoe UI',sans-serif;font-weight:700;letter-spacing:-.75px;line-height:1.3}
+.primary{background:var(--forest)}.primary:hover:not(:disabled){background:#1e1e1e}.intro,.sidebar-note,.art-caption{color:var(--forest)}.intro{background:var(--brand-mint)}.intro h1{font-size:clamp(28px,3vw,42px);letter-spacing:-1.1px}.app-sidebar{background:var(--forest);padding-top:20px}.app-sidebar .brand{justify-content:center;padding:0;min-height:145px}.app-sidebar .space-label{margin-top:20px}.app-sidebar nav a{color:#ffe0cd}.app-sidebar nav a.active{color:var(--forest);background:var(--brand-mint)}.app-sidebar .sidebar-note{color:var(--brand-mint)}.app-sidebar .space-label small,.app-sidebar .sidebar-note span{color:#ffe0cd}.login-intro{background:var(--forest)}.login-intro .brand{align-self:flex-start;padding:0}.login-intro h1{font-size:clamp(34px,3.6vw,52px);line-height:1.28;letter-spacing:-1.3px}.login-intro h1 span{color:var(--brand-mint)}.login-intro p,.login-intro small{color:#ffe0cd}.login-form h2{font-size:30px;letter-spacing:-1px}.section-heading h1{font-size:30px}.pill{background:#fff8f1;color:#1e1e1e}.selected-badge{background:var(--brand-mint)}.live-label i{background:var(--brand-accent)}.account-avatar{color:var(--forest);background:#fff8f1}.startup-brand{gap:10px}.startup-brand .brand-logo-compact{width:36px;height:36px;border-radius:10px}.startup-center h1>span{color:var(--brand-accent)}.startup-center:before{background:radial-gradient(circle,#ffe0cd85 0%,#ffe0cd00 70%)}.loader-tile-main{background:var(--forest)}.loader-tile-main .brand-logo-compact{width:65px;height:65px;background:transparent;border-radius:0}.loader-orbit{border-color:#b98a68}.loader-orbit-dot:after{background:var(--brand-accent);box-shadow:0 0 0 5px #ffe0cd70}.loader-tile-small{background:var(--brand-mint);border-color:#b98a68}.loading-glyph>span:nth-child(2),.network-activity>span{background:var(--brand-accent)}.loading-glyph>span:nth-child(3){background:var(--brand-mint)}.catalog-skeleton-image{background:#fff8f1}.toast{--toast-accent:#1e1e1e;--toast-soft:#fff8f1}.toast-copy strong{color:var(--forest)}.toast-error{--toast-accent:#b64c3d;--toast-soft:#fff0ec}.toast-warning{--toast-accent:#936724;--toast-soft:#fff5e1}.toast-info{--toast-accent:#1e1e1e;--toast-soft:#fff8f1}.brand-dot{color:var(--brand-accent)}
+.is-collapsed .app-sidebar .brand{min-height:44px;padding:0}.is-collapsed .brand-logo-full{width:44px;height:44px}.is-collapsed .brand-full{display:none}.is-collapsed .brand-symbol-collapse{display:block}
+@media(max-width:900px){.login-intro .brand-logo-full{width:110px;height:110px}.login-intro .brand{margin-bottom:12px}.is-collapsed .app-sidebar .brand{min-height:145px}.is-collapsed .brand-logo-full{width:145px;height:145px}.is-collapsed .brand-full{display:block}.is-collapsed .brand-symbol-collapse{display:none}.is-collapsed .space-label{display:flex}}
+@media(max-width:600px){.login-intro{min-height:360px}.login-intro h1{font-size:34px}.section-heading h1{font-size:27px}.login-form h2{font-size:27px}.startup-center h1{font-size:27px;letter-spacing:-.9px}.card h3{font-family:Montserrat,'Segoe UI',sans-serif;letter-spacing:0}.selected-info h3{font-size:17px;line-height:1.4}}
+.lead-delivery{margin:18px 0;padding:16px 18px;border:1px solid #ffe0cd;border-radius:12px;background:#fff8f1;font-size:14px;line-height:1.6}.lead-delivery p{margin:8px 0 0;overflow-wrap:anywhere}
+/* Consistent spacing for interface copy, scoped away from landing content. */
+.panel-main .motion-view>.section-heading:has(+p){margin-bottom:12px}
+.panel-main .motion-view>p{margin:0 0 24px;line-height:1.65;max-width:85ch}
+.panel-main .panel>h2,.panel-main .panel>h3{margin:0 0 12px;line-height:1.4}
+.panel-main .panel>p{margin:0 0 16px;line-height:1.65}
+.panel-main .panel>p:last-child{margin-bottom:0}
+.panel-main .panel>.row+p,.panel-main .panel>.table-scroll+p{margin-top:16px}
+.panel-main .panel>.eyebrow{display:block;margin-bottom:8px}
+.panel-main .panel>p+.row{margin-top:20px}
+.panel-main .panel .table-scroll{margin-top:16px}
+.panel-main .payload-table{line-height:1.6}
+.panel-main .payload-table th,.panel-main .payload-table td{padding:14px 10px}
+.panel-main .panel form>p,.panel-main form.editor-form>p{margin:0;line-height:1.65}
+.panel-main .selected-info>h3{margin:0 0 10px}
+.panel-main .selected-info>p{margin:0 0 8px;line-height:1.6}
+.panel-main .selected-info>p:last-child{margin-bottom:0}
+.panel-main .leads-list .panel>.row h3{margin:0;line-height:1.4}
+.panel-main .leads-list .panel>.row{margin-bottom:12px}
+.panel-main .leads-list details>p{margin:10px 0;line-height:1.6}
+.login-form>h2{margin:10px 0 12px}.login-form>p{margin:0 0 24px;line-height:1.65}.login-form>form+p{margin:20px 0 0}
+.modal-layout>article>p{margin:0 0 12px}.modal-layout>article>h2{margin:8px 0 16px}.modal-layout>article>.description{margin:20px 0;line-height:1.75}
+@media(max-width:600px){.panel-main .motion-view>p{margin-bottom:20px}.panel-main .payload-table th,.panel-main .payload-table td{padding:12px 8px}}
+
+.panel-main .ai-connection-card>.ai-connection-model{margin:20px 0}
+.panel-main .selected-info>.pill{margin-bottom:8px}
+.panel-main .editor-side .panel>p{margin:0}

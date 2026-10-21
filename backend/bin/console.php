@@ -27,7 +27,12 @@ try {
   $email=$argv[2]??'';if($email===''){$email=readline('Email del administrador: ');}if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Email inválido.');
   if(Database::one('SELECT id FROM users WHERE email=?',[strtolower($email)]))throw new RuntimeException('Ese usuario ya existe.');
   $password=hiddenPassword();if(strlen($password)<12||strlen($password)>72)throw new RuntimeException('La contraseña debe tener entre 12 y 72 bytes.');
-  Database::query("INSERT INTO users(id,email,password_hash,role) VALUES(?,?,?,'admin')",[Support::uuid(),strtolower($email),password_hash($password,PASSWORD_DEFAULT)]);echo "Administrador creado.\n";exit;
+  Database::query("INSERT INTO users(id,email,password_hash,role,email_verified_at) VALUES(?,?,?,'admin',now())",[Support::uuid(),strtolower($email),password_hash($password,PASSWORD_DEFAULT)]);echo "Administrador creado.\n";exit;
+ }
+ if($command==='ai:import'){
+  $email=strtolower($argv[2]??'');$user=Database::one('SELECT id FROM users WHERE email=?',[$email]);if(!$user)throw new RuntimeException('Usuario no encontrado.');
+  if(Database::one('SELECT provider FROM ai_connections WHERE user_id=? AND provider=?',[$user['id'],'openai']))throw new RuntimeException('Esa cuenta ya tiene una conexión OpenAI. Reemplázala desde el panel.');
+  App\AiConnections::save($user['id'],'openai',['key'=>Support::env('OPENAI_API_KEY')]);echo "Clave OpenAI importada y cifrada únicamente para la cuenta indicada. No hay fallback global.\n";exit;
  }
  if($command==='integration:import'){
   $email=strtolower($argv[2]??'');$u=Database::one('SELECT id FROM users WHERE email=?',[$email]);if(!$u)throw new RuntimeException('Usuario no encontrado.');
@@ -45,7 +50,8 @@ try {
   Webhooks::save($user['id'],['provider'=>'ghl','enabled'=>true,'url'=>Support::env('GHL_WEBHOOK_URL')]);
   echo "Webhook del entorno importado y cifrado para el usuario indicado.\n";exit;
  }
+ if($command==='mail:work'){echo Support::json(App\AccountMail::work(min(100,max(1,(int)($argv[2]??20))))).PHP_EOL;exit;}
  if($command==='webhooks:work'){echo Support::json(Leads::deliver(min(100,max(1,(int)($argv[2]??20)))))."\n";exit;}
- if($command==='maintenance'){Database::query('DELETE FROM rate_limits WHERE expires_at<now()-interval \'1 day\'');echo "Límites vencidos eliminados.\n";exit;}
- echo "Comandos: check, key:generate, migrate, admin:create [email], integration:import email, webhook:import email, webhooks:work [20], maintenance\n";
+ if($command==='maintenance'){Database::query("UPDATE account_mail SET status='cancelled',payload_ciphertext=null,updated_at=now() WHERE status IN ('pending','failed') AND token_id IN (SELECT id FROM account_tokens WHERE expires_at<now() OR used_at IS NOT NULL)");Database::query("DELETE FROM account_tokens WHERE expires_at<now()-interval '7 days'");Database::query('DELETE FROM rate_limits WHERE expires_at<now()-interval \'1 day\'');echo "Límites vencidos eliminados.\n";exit;}
+ echo "Comandos: check, key:generate, migrate, admin:create [email], integration:import email, ai:import email, webhook:import email, webhooks:work [20], mail:work [20], maintenance\n";
 }catch(Throwable $e){fwrite(STDERR,'Error: '.($e instanceof PDOException?'PostgreSQL no disponible o consulta inválida. Comprueba la conexión y las migraciones.':$e->getMessage())."\n");exit(1);}

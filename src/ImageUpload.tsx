@@ -1,3 +1,5 @@
+import {MediaPickerButton} from './MediaLibrary';
+import {useFeedbackState} from './Notifications';
 import {useRef,useState} from 'react';
 import type {DragEvent} from 'react';
 import {api} from './api';
@@ -14,7 +16,7 @@ function Photo({url,alt}:{url:string;alt:string}){
 export function ImageUpload({landingId,images,onChange,onBusyChange}:{landingId:string;images:string[];onChange:(images:string[])=>void;onBusyChange?:(busy:boolean)=>void}){
  const mainInput=useRef<HTMLInputElement>(null);const galleryInput=useRef<HTMLInputElement>(null);const inFlight=useRef(false);
  const [busy,setBusy]=useState(false);const [dragTarget,setDragTarget]=useState<Target|null>(null);
- const [error,setError]=useState('');const [notice,setNotice]=useState('');const [progress,setProgress]=useState({done:0,total:0});
+ const [error,setError]=useFeedbackState('error');const [notice,setNotice]=useFeedbackState('success');const [progress,setProgress]=useState({done:0,total:0});
  const urls=images.filter(url=>url.trim());const gallery=urls.slice(1);
  async function upload(files:File[],target:Target){
   if(inFlight.current||!files.length)return;
@@ -56,9 +58,10 @@ export function ImageUpload({landingId,images,onChange,onBusyChange}:{landingId:
     <button type="button" disabled={busy||urls.length>=30} className={'media-dropzone media-add-tile '+(dragTarget==='gallery'?'is-dragging':'')} onClick={()=>galleryInput.current?.click()} {...dragProps('gallery')}><span className="media-plus"><ImageSymbol plus/></span><strong>Agregar imágenes</strong><span>Selecciona varias<br/>o arrástralas aquí</span></button>
    </div>
   </div>
+  <MediaPickerButton selected={urls} maxSelected={30} onRemove={url=>onChange(urls.filter(value=>value!==url))} disabled={busy} onChoose={url=>{if(!urls.includes(url))onChange([...urls,url]);}}/>
   <p className="media-formats">JPEG, PNG o WebP · Hasta 8 MB por imagen · 30 imágenes en total.<br/>Optimizamos tus archivos automáticamente para que la página cargue rápido.</p>
   {busy&&<div className="media-upload-progress" role="status"><span className="media-spinner" aria-hidden="true"/><div><strong>Subiendo y optimizando imágenes…</strong><span>{progress.done} de {progress.total} completadas</span></div><progress value={progress.done} max={progress.total} aria-label="Imágenes completadas"/></div>}
-  {error&&<p className="error" role="alert">{error}</p>}{notice&&<p className="notice" role="status">{notice}</p>}
+  
   <details className="media-advanced"><summary>Editar enlaces de imágenes</summary><label>URLs en orden (una por línea)<textarea rows={4} value={images.join('\n')} disabled={busy} onChange={e=>onChange(e.target.value.split('\n'))}/><span className="small muted">La primera URL corresponde a la imagen principal. También puedes conservar imágenes externas.</span></label></details>
  </section>;
 }

@@ -1,0 +1,23 @@
+import {chromium,request} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const fixture=JSON.parse(await readFile('.tools/test-fixture.json','utf8'));const base='http://127.0.0.1:8081';
+async function client(email=fixture.email,password=fixture.password){const c=await request.newContext({baseURL:base});const s=await(await c.get('/api/auth/session')).json();const r=await c.post('/api/auth/login',{headers:{'X-CSRF-Token':s.csrf},data:{email,password}});assert.equal(r.status(),200);const b=await r.json();return {c,csrf:b.csrf};}
+let browser;const clients=[];
+try{
+ const a=await client(),second=await client(),other=await client(fixture.otherEmail);clients.push(a.c,second.c,other.c);const headers={'X-CSRF-Token':a.csrf};
+ assert.equal((await a.c.put('/api/profile',{data:{first_name:'No CSRF'}})).status(),419);
+ assert.equal((await a.c.put('/api/profile',{headers,data:{email:'changed@example.test',first_name:'Test',last_name:'User'}})).status(),422);
+ const data={first_name:'Andrea',last_name:'Prueba',phone:'+573001234567',country:'CO',state:'Antioquia',city:'Medellín',address:'Calle 10 # 20-30',address_details:'Apto 2',postal_code:'050001'};
+ const saved=await a.c.put('/api/profile',{headers,data});assert.equal(saved.status(),200);assert.equal((await saved.json()).profile.fields.city,'Medellín');assert.equal((await(await other.c.get('/api/profile')).json()).profile.fields.first_name,undefined);
+ assert.equal((await a.c.post('/api/profile/avatar',{headers,multipart:{image:{name:'bad.svg',mimeType:'image/svg+xml',buffer:Buffer.from('<svg/>')}}})).status(),422);
+ const photo=await a.c.post('/api/profile/avatar',{headers,multipart:{image:{name:'logo.png',mimeType:'image/png',buffer:await readFile('logo.png')}}});assert.equal(photo.status(),200);const avatar=(await photo.json()).profile.avatar;assert(avatar);const image=await a.c.get(avatar);assert.match(image.headers()['content-type'],/image\/webp/);assert((await image.body()).length<=409600);assert.equal((await other.c.get(avatar)).status(),404);
+ browser=await chromium.launch({channel:'msedge',headless:true});const context=await browser.newContext({storageState:await a.c.storageState(),reducedMotion:'reduce'});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(base+'/panel/perfil');await page.getByLabel('Nombre',{exact:true}).waitFor();await page.getByLabel('Nombre',{exact:true}).fill('Andrea');assert(await page.getByLabel(/^Correo electrónico/).evaluate(el=>el.readOnly));assert(await page.getByLabel(/^Usuario de acceso/).evaluate(el=>el.readOnly));assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`test-results/profile-${width}.png`,fullPage:true});await page.getByRole('button',{name:/Abrir menú de cuenta/}).click();await page.getByRole('link',{name:'Cambiar contraseña',exact:true}).click();await page.getByLabel('Contraseña actual',{exact:true}).waitFor();await page.screenshot({path:`test-results/password-${width}.png`,fullPage:true});}
+ assert.deepEqual(errors,[]);await context.close();
+ assert.equal((await a.c.post('/api/profile/password',{headers,data:{current_password:'wrong',new_password:'Different-test-password-123',confirm_password:'Different-test-password-123'}})).status(),422);
+ const changed=await a.c.post('/api/profile/password',{headers,data:{current_password:fixture.password,new_password:'Different-test-password-123',confirm_password:'Different-test-password-123'}});assert.equal(changed.status(),200);const next=await changed.json();assert(next.csrf!==a.csrf);assert.equal((await second.c.get('/api/profile')).status(),401);assert.equal((await a.c.get('/api/profile')).status(),200);
+ const restored=await a.c.post('/api/profile/password',{headers:{'X-CSRF-Token':next.csrf},data:{current_password:'Different-test-password-123',new_password:fixture.password,confirm_password:fixture.password}});assert.equal(restored.status(),200);const csrf=(await restored.json()).csrf;
+ assert.equal((await a.c.delete('/api/profile/avatar',{headers:{'X-CSRF-Token':csrf}})).status(),200);assert.equal((await a.c.get(avatar)).status(),404);
+ console.log('PASS profile persistence, immutable login, CSRF, owner isolation, avatar validation/WebP/delete, desktop/mobile menu/forms, current-password verification, CSRF rotation, other-session revocation. Isolated accounts only.');
+}finally{await browser?.close();for(const c of clients)await c.dispose();}

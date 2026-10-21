@@ -1,0 +1,51 @@
+.delivery-fields{border:0;border-top:1px solid #ffe0cd;padding:24px 0 0;margin:24px 0;min-width:0}.delivery-fields legend{font-family:Montserrat,sans-serif;font-size:19px;font-weight:700;padding:0 12px 0 0;color:#1e1e1e}.delivery-fields>.form-help{margin:8px 0 22px;line-height:1.6}.delivery-fields .delivery-full{grid-column:1/-1}
+#lead-form .form-grid{gap:18px}#lead-form select{width:100%;min-width:0;min-height:48px;padding:12px;border:1px solid #ffe0cd;border-radius:10px;background:#fff;color:#1e1e1e;font:inherit;font-size:16px}#lead-form select:disabled{background:#fff8f1;color:#68746b}#lead-form input{font-size:16px}#lead-form input::placeholder{color:#8b4b25}#lead-form select:focus-visible{outline:3px solid #8b4b25;outline-offset:3px}
+.phone-field{display:flex;flex-direction:column;gap:8px;min-width:0}.form-help{font-size:13px;font-weight:400;color:#8b4b25;line-height:1.5}.phone-country-fallback{margin-bottom:8px}.is-phone-enhanced .phone-country-fallback{display:none}.phone-field>.iti{width:100%}.phone-field .iti__tel-input{width:100%;min-height:48px}.phone-field .iti__selected-country{min-height:44px;color:#1e1e1e;font:inherit;font-size:14px;border-radius:10px 0 0 10px}.phone-field .iti__selected-country:hover{background:#fff8f1}
+#purchase-dialog{--iti-border-color:#ffe0cd;--iti-hover-color:#fff8f1;--iti-dropdown-bg:#fff;--iti-spacer-horizontal:12px;--iti-search-icon-color:#8b4b25;--iti-text-color:#1e1e1e}#purchase-dialog .iti__country-container{z-index:2}#purchase-dialog .iti__dropdown-content{border:1px solid #ffe0cd;border-radius:14px;box-shadow:0 12px 32px #1e1e1e24;overflow:hidden;color:#1e1e1e;font-family:Montserrat,sans-serif}#purchase-dialog .iti__country{min-height:44px;gap:10px;font-size:14px}#purchase-dialog .iti__search-input{border:0;border-bottom:1px solid #ffe0cd;border-radius:0;margin:0;font-size:16px}#purchase-dialog .iti__selected-dial-code{color:#8b4b25;font-weight:600}#purchase-dialog .iti__country-list{max-height:250px}#purchase-dialog .iti__country-selector{z-index:50}
+@media(max-width:600px){.delivery-fields{padding-top:20px;margin-top:20px}#lead-form .form-grid{grid-template-columns:1fr;gap:16px}#purchase-dialog .iti__dropdown-content{max-width:calc(100vw - 32px)}}
+.iti{--iti-path-flags-1x:url('/brand/phone/flags.webp');--iti-path-flags-2x:url('/brand/phone/flags@2x.webp')}
+#lead-form .form-grid{align-items:start}.purchase-modal-top{position:sticky;top:0;z-index:4;background:#fff}
+/* Keep one scrolling surface for the order, including password-manager suggestions. */
+#purchase-dialog[open]{display:flex;flex-direction:column;overflow:hidden;max-height:92dvh}
+#purchase-dialog .purchase-modal-top{position:relative;flex:0 0 auto;z-index:4}
+#purchase-dialog .purchase-modal-content{overflow-y:auto;overflow-x:hidden;min-height:0;overscroll-behavior-y:contain;scrollbar-gutter:stable;touch-action:pan-y;scroll-padding-block:20px}
+#lead-form,#lead-form .form-grid>*{min-width:0}
+#purchase-dialog .iti--fullscreen-popup.iti--detached-country-selector{position:absolute;inset:0;z-index:60;padding:48px 16px 16px;background:#1e1e1eb8;overflow:hidden;cursor:default;border-radius:inherit}
+#purchase-dialog .iti__country-selector{display:flex;flex-direction:column;min-height:0;max-height:100%;border-radius:14px;box-shadow:0 16px 48px #1e1e1e40;color:#1e1e1e;overflow:visible}
+#purchase-dialog .iti__search-input{flex-shrink:0;border-radius:14px 14px 0 0}
+#purchase-dialog .iti__country-list{min-height:0;max-height:none;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;border-radius:0 0 14px 14px}
+#purchase-dialog .iti__country{white-space:normal;flex-shrink:0}
+#purchase-dialog .iti__country-name{overflow-wrap:anywhere}
+.form-label-help{display:flex;align-items:center;gap:6px}.form-label-help>label{margin:0}.form-label-help>legend{float:none;padding:0}
+#purchase-dialog .form-info{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:16px;height:16px;min-height:0;padding:0;margin:0;border:0;background:transparent;color:#1e1e1e;font:700 11px Montserrat,sans-serif;cursor:pointer;border-radius:50%;position:relative}
+.form-info::before{content:'';position:absolute;width:14px;height:14px;border:1px solid currentColor;border-radius:50%}.form-info:hover{background:#fff8f1}.form-info:focus-visible{outline:2px solid #8b4b25;outline-offset:1px}
+#purchase-dialog .form-tooltip{position:fixed;z-index:80;width:max-content;max-width:min(300px,calc(100vw - 56px));padding:12px 16px;border:1px solid #1e1e1e;border-radius:12px;background:#1e1e1e;color:#fff;font:400 14px/1.55 Montserrat,sans-serif;box-shadow:0 8px 28px #1e1e1e30;pointer-events:none}
+.form-tooltip[hidden],[hidden].form-help,[hidden].order-note{display:none!important}
+@media(max-width:600px){#purchase-dialog[open]{max-height:96dvh}}
+/* The library measures viewport padding; this selector is contained by a dialog. */
+#purchase-dialog .iti--fullscreen-popup.iti--detached-country-selector{padding:48px 16px 16px!important;width:100%;height:100%;box-sizing:border-box}
+#purchase-dialog .iti__country-selector{width:100%;box-sizing:border-box}
+#purchase-dialog .iti__search-input-wrapper{flex-shrink:0}
+
+/* Field labels share the same baseline; help buttons never increase row height. */
+#lead-form .form-grid>label{display:flex;flex-direction:column;gap:8px;margin:0;line-height:20px}
+#lead-form .form-label-help{height:20px;gap:6px;line-height:20px;margin:0;padding:0}
+#lead-form .form-label-help>label{margin:0;padding:0;line-height:20px}
+#lead-form .phone-field{gap:8px}
+#lead-form .form-grid input:not([type=hidden]){height:48px;min-height:48px;box-sizing:border-box;margin:0}
+
+/* A compact, inline list below the telephone; it stays inside the form scroll. */
+.phone-country-dropdown:empty{display:none}
+#purchase-dialog .phone-country-dropdown .iti--detached-country-selector{position:static;inset:auto;width:100%;padding:0;margin:0;anchor-name:none;position-anchor:auto}
+#purchase-dialog .phone-country-dropdown .iti__country-selector:not(.iti__hide){display:flex;flex-direction:column;max-height:260px;width:100%!important;border:1px solid #ffe0cd;border-radius:12px;overflow:hidden;box-shadow:0 6px 18px #1e1e1e14}
+#purchase-dialog .phone-country-dropdown .iti__country-list{max-height:200px;min-height:0;overflow-y:auto}
+#purchase-dialog .phone-country-dropdown .iti__country{min-height:40px;font-size:13px;gap:8px}
+#purchase-dialog .phone-country-dropdown .iti__search-input{height:44px;min-height:44px;border-radius:0}
+.phone-country-dropdown:has(.iti__hide){margin:0}
+
+#purchase-dialog .phone-field{position:relative}
+#purchase-dialog .phone-country-dropdown{position:absolute;left:0;right:0;top:100%;height:0;margin:0!important}
+#purchase-dialog .phone-country-dropdown .iti--detached-country-selector{position:fixed;inset:auto;z-index:1000;border:0;background:transparent;overflow:hidden}
+#purchase-dialog .phone-country-dropdown .iti--detached-country-selector::backdrop{background:transparent}
+#purchase-dialog .phone-country-dropdown .iti__country-selector:not(.iti__hide){max-height:inherit;box-sizing:border-box}
+#purchase-dialog .phone-country-dropdown .iti__country-list{overscroll-behavior:contain;flex:1;min-height:0}

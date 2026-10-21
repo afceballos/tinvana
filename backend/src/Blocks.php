@@ -40,7 +40,7 @@ final class Blocks {
    foreach($definition['fields'] as $field){
     if($field==='dropiFields'){$fields=$d[$field]??self::DROPI_FIELDS;if(!is_array($fields)||!array_is_list($fields)||count($fields)>8)throw new HttpError(422,'Campos de Dropi inválidos.');foreach($fields as $key)if(!is_string($key)||!in_array($key,self::DROPI_FIELDS,true))throw new HttpError(422,'Campo de Dropi no permitido.');$data[$field]=array_values(array_unique($fields));continue;}
     if($field==='images'){$data[$field]=self::images($d[$field]??[]);continue;}
-    if($field==='relatedIds'){$values=$d[$field]??[];if(!is_array($values)||count($values)>20)throw new HttpError(422,'Máximo 20 productos relacionados.');foreach($values as $id)if(!is_string($id)||!Support::isUuid($id))throw new HttpError(422,'Producto relacionado inválido.');$data[$field]=array_values(array_unique($values));continue;}
+    if($field==='relatedIds'||$field==='selectedProductIds'){$values=$d[$field]??[];if(!is_array($values)||!array_is_list($values)||count($values)>20)throw new HttpError(422,'Máximo 20 productos relacionados.');foreach($values as $id)if(!is_string($id)||!Support::isUuid($id))throw new HttpError(422,'Producto relacionado inválido.');$data[$field]=array_values(array_unique($values));continue;}
     $v=self::text($d[$field]??'',in_array($field,['text','conditions'],true)?20000:($field==='image'?2000:500));
     if($field==='image'&&$v!==''&&!Support::url($v))throw new HttpError(422,'URL de imagen inválida.');
     $data[$field]=$field==='text'?self::rich($v):$v;
@@ -72,10 +72,16 @@ final class Blocks {
   $max=$value['maxQuantity']??99;if(!is_int($max)||$max<1||$max>99)throw new HttpError(422,'La cantidad máxima debe estar entre 1 y 99.');$out['maxQuantity']=$max;
   $price=$value['previousPrice']??null;if($price!==null&&(!is_numeric($price)||!is_finite((float)$price)||(float)$price<0||(float)$price>999999999))throw new HttpError(422,'Precio anterior inválido.');$out['previousPrice']=$price===null?null:(float)$price;return $out;
  }
- public static function imageUrls(array $c):array {$urls=$c['images']??[];foreach($c['blocks']??[] as $b){$d=$b['data'];if(!empty($d['image']))$urls[]=$d['image'];foreach($d['images']??[] as $url)$urls[]=$url;foreach($d['items']??[] as $item)if(!empty($item['image']))$urls[]=$item['image'];}return array_values(array_unique($urls));}
+ public static function imageUrls(array $c):array {$urls=$c['images']??[];if(!empty($c['header']['logo']))$urls[]=$c['header']['logo'];foreach($c['blocks']??[] as $b){$d=$b['data'];if(!empty($d['image']))$urls[]=$d['image'];foreach($d['images']??[] as $url)$urls[]=$url;foreach($d['items']??[] as $item)if(!empty($item['image']))$urls[]=$item['image'];}return array_values(array_unique($urls));}
+ public static function ownedProducts(array $blocks,string $owner):void {
+  $ids=[];foreach($blocks as $block)foreach($block['data']['selectedProductIds']??[] as $id)$ids[$id]=true;
+  if(!$ids)return;
+  $found=Database::all('SELECT id FROM selected_products WHERE user_id=? AND id IN ('.implode(',',array_fill(0,count($ids),'?')).')',[$owner,...array_keys($ids)]);
+  if(count($found)!==count($ids))throw new HttpError(422,'Selecciona únicamente productos guardados en tu cuenta.');
+ }
  public static function publishable(array $c):void {
   $visible=array_filter($c['blocks'],fn($b)=>$b['visible']&&$b['type']!=='divider');if(!$visible)throw new HttpError(422,'Agrega al menos una sección visible antes de publicar.');
-  foreach($visible as $b){if(self::registry()[$b['type']]['items']&&in_array($b['type'],['benefits','list','includes','usage','specs','payment','faq','testimonials'],true)){
+  foreach($visible as $b){if($b['type']==='productList'&&!$b['data']['selectedProductIds'])throw new HttpError(422,'Elige productos para la Lista de productos o esconde esa sección.');if(self::registry()[$b['type']]['items']&&in_array($b['type'],['benefits','list','includes','usage','specs','payment','faq','testimonials'],true)){
    $items=array_filter($b['data']['items'],fn($i)=>$i['visible']);if(!$items)throw new HttpError(422,'Completa u oculta la sección «'.self::registry()[$b['type']]['name'].'».');foreach($items as $item){
     if(trim($item['title'])==='')throw new HttpError(422,'Completa los títulos de «'.self::registry()[$b['type']]['name'].'».');
     if(in_array($b['type'],['faq','testimonials'],true)&&trim(strip_tags($item['description']))==='')throw new HttpError(422,'Completa las respuestas o comentarios de «'.self::registry()[$b['type']]['name'].'».');

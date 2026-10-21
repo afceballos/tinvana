@@ -1,0 +1,47 @@
+<?php
+require dirname(__DIR__).'/bootstrap.php';
+use App\{AiLanding,AiClient,Blocks,Landing,Support,HttpError};
+$passed=0;function aiCheck($name,$ok){global $passed;if(!$ok)throw new RuntimeException($name);$passed++;echo "PASS $name\n";}
+function aiReject($name,$fn,$status=502){try{$fn();}catch(HttpError $e){aiCheck($name,$e->status===$status);return;}throw new RuntimeException($name);}
+$base=Landing::content(['title'=>'Botella de acero','description'=>'Botella de acero de 500 ml.','publicPrice'=>29000,'images'=>['https://example.test/botella.webp'],'features'=>['Capacidad: 500 ml'],'header'=>['mode'=>'custom'],'visual'=>['primaryColor'=>'#06444a','backgroundColor'=>'#fafbf7','buttonText'=>'Consultar','whatsapp'=>'573001234567']]);
+$sources=['Botella de acero de 500 ml.'];
+$block=['type'=>'hero','variant'=>'image-left','title'=>'Conoce esta botella','subtitle'=>'','paragraphs'=>[['text'=>'Botella de acero de 500 ml.','sourceIds'=>[0]]],'items'=>[],'imageIndex'=>0];
+$raw=['title'=>'Botella de acero','description'=>'Botella de acero de 500 ml.','seoTitle'=>'Botella de acero','seoDescription'=>'Conoce la botella de acero de 500 ml.','sourceIds'=>[0],'blocks'=>[$block],'notes'=>['No se incluyeron garantías ni condiciones de envío.']];
+$result=AiLanding::proposal($raw,$base,$sources,null);$c=$result['content'];
+aiCheck('proposal uses existing blocks and images',$c['blocks'][0]['type']==='hero'&&$c['blocks'][0]['data']['image']===$base['images'][0]);
+aiCheck('price and contact configuration preserved',$c['publicPrice']===$base['publicPrice']&&$c['visual']===$base['visual']);
+aiCheck('existing logo and dark header preserved',$c['header']['logo']===$base['header']['logo']&&$c['header']['backgroundColor']===$base['header']['backgroundColor']);
+aiCheck('commercial review includes factual sources',$result['sources']===$sources&&$result['notes']===$raw['notes']);
+aiCheck('HTML generated only by backend',str_contains($c['blocks'][0]['data']['text'],'<p>Botella'));
+$section=$base['blocks'][0];$section['visible']=false;$section['style']['tone']='brand';$base['blocks'][]=Blocks::validate([Blocks::make('cta')])[0];$raw['blocks'][0]['variant']='image-right';$revised=AiLanding::proposal($raw,$base,$sources,$section)['content'];
+aiCheck('section regeneration preserves stable ID visibility and style',$revised['blocks'][0]['id']===$section['id']&&!$revised['blocks'][0]['visible']&&$revised['blocks'][0]['style']===$section['style']);
+aiCheck('section regeneration preserves other sections',$revised['blocks'][1]===$base['blocks'][1]);
+aiCheck('section regeneration preserves commercial fields',$revised['title']===$base['title']&&$revised['description']===$base['description']&&$revised['header']===$base['header']);
+$bad=$raw;$bad['publicPrice']=1;aiReject('price injection rejected',fn()=>AiLanding::proposal($bad,$base,$sources,null));
+$bad=$raw;$bad['blocks'][0]['type']='testimonials';aiReject('invented testimonials cannot be generated',fn()=>AiLanding::proposal($bad,$base,$sources,null));
+$bad=$raw;$bad['blocks'][0]['type']='productList';aiReject('unrequested other products cannot be generated',fn()=>AiLanding::proposal($bad,$base,$sources,null));
+$bad=$raw;$bad['blocks'][0]['variant']='unknown';aiReject('unknown block variant rejected',fn()=>AiLanding::proposal($bad,$base,$sources,null));
+$bad=$raw;$bad['blocks'][0]['imageIndex']=9;aiReject('unknown product image rejected',fn()=>AiLanding::proposal($bad,$base,$sources,null));
+$bad=$raw;$bad['blocks'][0]['paragraphs'][0]['sourceIds']=[99];aiReject('nonexistent evidence rejected',fn()=>AiLanding::proposal($bad,$base,$sources,null));
+$bad=$raw;$bad['blocks'][0]['paragraphs'][0]['sourceIds']=[];aiReject('ungrounded paragraph rejected',fn()=>AiLanding::proposal($bad,$base,$sources,null));
+$bad=$raw;$bad['description']='<script>alert(1)</script>';aiReject('model HTML injection rejected',fn()=>AiLanding::proposal($bad,$base,$sources,null));
+$bad=$raw;$bad['blocks'][0]['extra']='new field';aiReject('extra block fields rejected',fn()=>AiLanding::proposal($bad,$base,$sources,null));
+$bad=$raw;$bad['blocks']=array_fill(0,11,$block);aiReject('block cap enforced',fn()=>AiLanding::proposal($bad,$base,$sources,null));
+$bad=$raw;$bad['blocks'][0]['type']='faq';$bad['blocks'][0]['variant']='accordion';aiReject('empty factual section rejected',fn()=>AiLanding::proposal($bad,$base,$sources,null));
+$noImages=$base;$noImages['images']=[];$bad=$raw;$bad['blocks'][0]['type']='gallery';$bad['blocks'][0]['variant']='grid';$bad['blocks'][0]['imageIndex']=null;aiReject('gallery without product images rejected',fn()=>AiLanding::proposal($bad,$noImages,$sources,null));
+$custom=$base;$custom['header']['items']=[['id'=>$base['blocks'][0]['id'],'label'=>'Conocer','enabled'=>true]];$menu=AiLanding::proposal($raw,$custom,$sources,null)['content']['header'];aiCheck('custom menu labels reassigned to new stable section IDs',$menu['items'][0]['label']==='Conocer'&&$menu['items'][0]['id']!==$base['blocks'][0]['id']);
+$response=['status'=>'completed','output'=>[['type'=>'message','content'=>[['type'=>'output_text','text'=>Support::json($raw)]]]],'usage'=>['input_tokens'=>100,'output_tokens'=>200]];
+$parsed=AiClient::parse($response);aiCheck('actual Responses wire format parsed',$parsed['proposal']===$raw&&$parsed['usage']['outputTokens']===200);
+$bad=$response;$bad['status']='incomplete';aiReject('partial model response not applied',fn()=>AiClient::parse($bad));
+$bad=$response;$bad['output'][0]['content']=[['type'=>'refusal','refusal'=>'No']];aiReject('provider refusal surfaced',fn()=>AiClient::parse($bad),422);
+$bad=$response;$bad['output'][0]['content'][0]['text']='bad json';aiReject('provider invalid JSON surfaced',fn()=>AiClient::parse($bad));
+aiReject('bad preference tone rejected',fn()=>AiLanding::preferences(['tone'=>'unknown']),422);
+$schema=AiLanding::schema();aiCheck('strict JSON Schema has closed object fields',$schema['additionalProperties']===false&&$schema['properties']['blocks']['items']['additionalProperties']===false);
+$privateProduct=['name'=>'Botella','description'=>'Producto real.','price'=>1000,'supplier'=>'PRIVATE SUPPLIER','attributes'=>['token'=>'PRIVATE TOKEN'],'warehouses'=>[['stock'=>99]],'images'=>['https://example.test/private-name.jpg']];
+$row=['id'=>Support::uuid(),'user_id'=>Support::uuid(),'content'=>$base,'product_snapshot'=>$privateProduct];$input=AiLanding::prepare($row,['content'=>$base])['input'];$inputJson=Support::json($input);
+aiCheck('only public textual fields enter provider prompt',!str_contains($inputJson,'PRIVATE TOKEN')&&!str_contains($inputJson,'PRIVATE SUPPLIER')&&!str_contains($inputJson,'private-name.jpg')&&!str_contains($inputJson,'warehouses'));
+aiCheck('existing images sent as count only',$input['imageCount']===1);
+$_ENV['OPENAI_API_KEY']='unused-global-secret';aiReject('missing own key rejected despite global environment key',fn()=>AiClient::request([],AiLanding::schema(),['provider'=>'openai','key'=>'']),422);
+$claude=['stop_reason'=>'end_turn','content'=>[['type'=>'text','text'=>Support::json($raw)]],'usage'=>['input_tokens'=>50,'output_tokens'=>75]];aiCheck('Claude message response parsed',AiClient::parseClaude($claude)['usage']['outputTokens']===75);$bad=$claude;$bad['stop_reason']='max_tokens';aiReject('Claude truncated generation rejected',fn()=>AiClient::parseClaude($bad));$bad['stop_reason']='refusal';aiReject('Claude refusal reported',fn()=>AiClient::parseClaude($bad),422);
+aiReject('unsupported credential provider refused',fn()=>App\AiConnections::provider('other'),422);aiReject('credential header injection refused',fn()=>App\AiConnections::key(str_repeat('x',25)."\r\nX-Test: x"),422);
+echo "$passed AI checks passed. No OpenAI request made.\n";

@@ -1,0 +1,37 @@
+import {chromium} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import assert from 'node:assert/strict';
+const base='http://127.0.0.1:8081',fixture=JSON.parse(await readFile('.tools/test-fixture.json','utf8'));
+let passed=0;const check=(name,value)=>{assert(value,name);passed++;console.log('PASS '+name);};
+const baseline=process.env.CHECK_TINVANA_BASELINE==='1'?await readFile('.tools/tinvana-backend-baseline.json','utf8').then(JSON.parse).catch(()=>null):null;
+if(baseline){for(const [path,hash] of Object.entries(baseline))assert.equal(createHash('sha256').update(await readFile(path)).digest('hex'),hash,path+' must stay unchanged');check('PHP, migrations and API client byte-identical',true);}else console.log('SKIP pre-redesign integrity snapshot not present; functional contracts are covered by npm test.');
+const browser=await chromium.launch({channel:'msedge',headless:true});
+try{
+ const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ // The invalid fixture integration must never contact Dropi during this visual test.
+ await page.route('**/api/integrations/*/products?*',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Conexión externa desactivada en esta prueba visual.'})}));
+ await page.route('**/api/integrations/*/categories',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Conexión externa desactivada en esta prueba visual.'})}));
+ await page.goto(base+'/login');await page.getByLabel('Email',{exact:true}).waitFor();await page.evaluate(()=>document.fonts.ready);
+ check('Tinvana title and real SVG logo',/Tinvana/.test(await page.title())&&await page.getByRole('link',{name:'Tinvana · Iniciar sesión'}).isVisible());
+ check('Montserrat font loaded',await page.evaluate(()=>document.fonts.check('14px Montserrat')));
+ check('reduced motion skips splash and WebGL',await page.locator('.brand-entrance').count()===0&&await page.locator('.origami-scene canvas').count()===0);
+ check('CTA uses official orange and dark text',await page.locator('.login-form .primary').evaluate(el=>getComputedStyle(el).backgroundColor==='rgb(255, 106, 0)'&&getComputedStyle(el).color==='rgb(30, 30, 30)'));
+ for(const width of [1440,768,390]){await page.setViewportSize({width,height:900});check('login fits '+width,await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`test-results/tinvana-access-${width}.png`,fullPage:true});}
+ await page.getByRole('link',{name:'Crea una',exact:true}).click();await page.locator('input[name=company_name]').waitFor();check('registration form remains reachable',await page.locator('input[name=first_name]').isVisible());await page.goto(base+'/recuperar-contrasena');await page.getByRole('heading',{name:'Recupera tu acceso'}).waitFor();check('recovery form remains reachable',await page.getByRole('heading',{name:'Recupera tu acceso'}).isVisible());
+ await page.goto(base+'/login');await page.getByLabel('Email',{exact:true}).fill(fixture.email);await page.getByLabel('Contraseña',{exact:true}).fill(fixture.password);await page.getByRole('button',{name:'Iniciar sesión →',exact:true}).click();await page.locator('.app-sidebar').waitFor({state:'attached'});check('real PHP login still works',page.url().includes('/panel/catalogo'));
+ await page.getByRole('button',{name:'Abrir navegación',exact:true}).click();await page.getByRole('navigation').getByRole('link',{name:/Mis productos/}).click();await page.locator('.selected-row').waitFor();check('mobile sidebar navigates',page.url().includes('/panel/productos'));
+ await page.setViewportSize({width:1440,height:1000});await page.goto(base+'/panel/perfil');await page.locator('input[name=company_name]').waitFor();check('profile fields preserved',await page.locator('input[name=first_name]').isVisible()&&await page.locator('.profile-phone').isVisible());
+ await page.goto(base+'/panel/seguridad');await page.locator('input[name=current_password]').waitFor();check('password form preserved',await page.locator('input[name=current_password]').isVisible());
+ const csrf=(await(await context.request.get(base+'/api/auth/session')).json()).csrf;
+ const uploaded=await context.request.post(base+'/api/media',{headers:{'X-CSRF-Token':csrf},multipart:{image:{name:'Origami prueba.png',mimeType:'image/png',buffer:await readFile('.tools/upload-test.png')}}});check('real image upload unchanged',uploaded.status()===200);
+ await page.goto(base+'/panel/archivos');await page.locator('.asset-card').first().waitFor();check('media library renders',await page.getByRole('heading',{name:'Mis archivos',exact:true}).isVisible());await page.screenshot({path:'test-results/tinvana-files-ready.png',fullPage:true});
+ await page.goto(base+'/panel/landings/'+fixture.landing);await page.locator('.builder-topbar').waitFor();await page.frameLocator('iframe[title="Vista previa interactiva de la landing"]').locator('h1').first().waitFor();check('builder preview still renders actual product',true);await page.screenshot({path:'test-results/tinvana-builder-ready.png',fullPage:true});
+ await page.locator('.builder-properties-tabs button').nth(1).click();await page.locator('.header-logo-preview img').waitFor();check('editor default logo uses Tinvana',await page.locator('.header-logo-preview img').getAttribute('src')==='/brand/tinvana-light.svg');
+ await page.locator('.media-manager').getByRole('button',{name:'Elegir de mis archivos'}).click();await page.locator('.asset-choice').first().waitFor();await page.locator('.asset-choice').first().click();check('image selection checkmark still works',await page.locator('.asset-choice').first().getAttribute('aria-pressed')==='true');await page.keyboard.press('Escape');check('Escape closes image dialog',await page.locator('.asset-picker').count()===0);
+ await page.setViewportSize({width:390,height:844});check('builder stays within mobile viewport',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ check('no JavaScript errors',errors.length===0);
+ const normal=await browser.newContext({viewport:{width:1440,height:1000}});const welcome=await normal.newPage();await welcome.goto(base+'/login');await welcome.locator('.origami-scene[data-ready=true]').waitFor();check('actual Three.js origami canvas renders',await welcome.locator('.origami-scene canvas').count()===1);await welcome.mouse.move(150,350);await welcome.mouse.move(500,450);await welcome.screenshot({path:'test-results/tinvana-webgl.png',fullPage:true});await normal.close();
+ const fallback=await browser.newContext({viewport:{width:1440,height:1000}});await fallback.addInitScript(()=>{const original=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type,...args){if(type==='webgl2')return null;return original.call(this,type,...args);};});const staticPage=await fallback.newPage();await staticPage.goto(base+'/login');await staticPage.getByLabel('Email',{exact:true}).waitFor();check('WebGL unavailable retains branded SVG',await staticPage.locator('.origami-fallback').isVisible());await fallback.close();
+ console.log(`${passed} Tinvana checks passed. Local fixtures only; no real user content changed.`);
+}finally{await browser.close();}

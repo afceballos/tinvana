@@ -2,8 +2,13 @@ node_modules/
 backend/vendor/
 .env
 backend/.env
+.env.*
+!.env.example
+!backend/.env.example
 .tools/
+.agents/
+tmp/
+*.tsbuildinfo
+test-results/
 backend/storage/*
 !backend/storage/.gitkeep
-test-results/
-*.tsbuildinfo

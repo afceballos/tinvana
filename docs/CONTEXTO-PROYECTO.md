@@ -1,0 +1,381 @@
+# Tinvana: documento maestro de contexto y continuidad
+
+Última actualización: **19 de octubre de 2026**.
+
+Documento vivo para el propietario del proyecto, desarrolladores y otras IA. Describe el estado conocido al cerrar la última implementación; no garantiza que un túnel, proceso o servicio externo siga activo en otra sesión.
+
+## 1. Lectura rápida para retomar
+
+- **Producto:** plataforma privada para administrar integraciones Dropi, seleccionar productos, crear/publicar landings y recibir consultas. Se amplía con pedidos y ventas por WhatsApp.
+- **Marca actual:** Tinvana. Zenzales/Dropi + Zenzales son nombres anteriores que aún aparecen en rutas, configuraciones técnicas y algunos documentos.
+- **Proyecto real:** login PHP y PostgreSQL reales; catálogo obtenido de Dropi. No existe fallback de productos inventados. Los datos de pruebas están aislados.
+- **Última entrega funcional:** edición de comprador/dirección, revisión de confirmados, ofertas por cantidad versionadas y variantes en cotización. Preparación local para Dropi, sin envío externo.
+- **Todavía no:** creación de órdenes en Dropi, agente vendedor de WhatsApp, sincronización bidireccional de GHL, logística ni conciliación financiera.
+- **Últimas comprobaciones funcionales:** 107 checks HTTP generales, 38 de pedidos base y 52 de edición/ofertas/preparación; build aprobado y revisión visual de escritorio/móvil. Los checks externos se distinguen de las pruebas aisladas.
+- **Solicitud actual:** continuar en orden con edición de pedidos, revisión de confirmados, ofertas/variantes y preparación de Dropi, manteniendo la documentación actualizada.
+
+Leyenda:
+
+- `[x]` Implementado o realizado, con el alcance que indica el texto.
+- `[ ]` Pendiente; no asumir que existe por aparecer en un diseño o documento.
+- Una función implementada puede tener una comprobación externa pendiente: ambas se registran por separado.
+
+## 2. Objetivo y restricciones acordadas
+
+- [x] Proyecto independiente del catálogo original; se reutilizan diseño, comportamiento y mapeo donde corresponde.
+- [x] React + TypeScript + Vite + Tailwind CSS + React Router.
+- [x] PHP 8.2+ con Composer, API REST JSON y autenticación/autorización en servidor.
+- [x] PostgreSQL estándar mediante PDO y pdo_pgsql; Supabase inicialmente solo como proveedor de PostgreSQL.
+- [x] Configuración de conexión por entorno, sin hosts ni IDs de Supabase incrustados en la lógica.
+- [x] React no accede directamente a la base ni recibe secretos de integraciones.
+- [x] Guardar productos seleccionados y copias necesarias; no importar todo Dropi.
+- [x] Una plantilla reutilizable por landing, no un proyecto React por producto.
+- [ ] Migración efectiva a otro servidor PostgreSQL, si se decide: documentada pero no ejecutada.
+
+Referencia original, que debe permanecer intacta: `C:\Users\andre\Desktop\Proyectos\Dropi - GHL\catalogo`.
+
+Workspace actual: `C:\Users\andre\Desktop\Zenzales\Dropi + Zenzales`. La marca cambió; no renombrar carpetas ni contratos técnicos automáticamente.
+
+## 3. Arquitectura y organización
+
+```text
+Panel React -> API PHP -> PostgreSQL
+                    |-> Dropi: catálogo real por integración
+                    |-> OpenAI / Anthropic: propuestas para landings
+                    |-> Cola de leads -> webhook GHL u otro receptor
+Visitantes -> PHP /p/{slug}: HTML específico + interacciones React
+Formularios -> lead + entrega pendiente + borrador de pedido (misma transacción)
+```
+
+| Ruta | Responsabilidad |
+|---|---|
+| `src/` | Panel, editor, formularios, componentes, estilos y runtime de landings. |
+| `src/main.tsx` | Sesión React, navegación y rutas privadas. |
+| `src/api.ts` | Cliente HTTP, CSRF y manejo de sesión expirada. |
+| `backend/public/index.php` | Entrada web, API, rutas públicas, medios y entrega de SPA. |
+| `backend/src/` | Servicios PHP: Auth, Dropi, Landing, Leads, Orders, Media, etc. |
+| `backend/migrations/` | Migraciones SQL versionadas; no modificar una ya aplicada. |
+| `backend/bin/console.php` | Instalación, migraciones, administrador y trabajadores de colas. |
+| `backend/storage/` | Archivos y recursos privados; no servir como carpeta estática. |
+| `tests/`, `backend/tests/` | Pruebas HTTP, navegador, validaciones y fixtures aislados. |
+| `.tools/` | Herramientas locales, configuración y procesos temporales; excluido de Git. |
+| `docs/` | Guías funcionales y técnicas. |
+| `Iconos y logos/` | Recursos originales de marca. |
+| `output/pdf/` | PDF explicativo ya generado de la ampliación WhatsApp. |
+
+### Migraciones existentes
+
+| Versión | Contenido principal |
+|---|---|
+| 001 | Usuarios, integraciones, seleccionados, landings, plantilla, leads, entregas y límites. |
+| 002 | Restricciones de acceso a roles HTTP del proveedor. |
+| 003 | Configuración de webhook por usuario. |
+| 004 | Medios subidos. |
+| 005 | Constructor de landings y publicación de contenido. |
+| 006 | Conexiones de IA por usuario. |
+| 007 | Dirección y teléfono de leads. |
+| 008 | Perfil de usuario. |
+| 009 | Verificación, recuperación y correo de cuentas. |
+| 010 | Biblioteca de imágenes por cuenta y mes. |
+| 011 | Pedidos locales y eventos. |
+| 012 | Ofertas comerciales, historial de versiones y snapshots de oferta/variante en pedidos; aplicada a Supabase y al entorno local. |
+
+Esquema acumulativo: consultar el SQL real antes de cambiarlo. Hay relaciones de propietario y restricciones de unicidad; la autorización de aplicación sigue siendo obligatoria aunque exista RLS en tablas específicas.
+
+## 4. Funcionalidades de la plataforma
+
+### 4.1 Acceso, cuentas y perfil
+
+- [x] Login/logout reales con password_hash/password_verify.
+- [x] Sesiones PHP, cookie HttpOnly, Secure en producción HTTPS, SameSite, regeneración y CSRF.
+- [x] Límites de login y controles de propietario en API; rutas privadas React.
+- [x] Instalación de administrador por comando, sin contraseña predeterminada.
+- [x] Perfil con nombre, apellido, empresa, foto, teléfono y dirección; email/usuario no editables.
+- [x] Menú de cuenta y cambio de contraseña con revocación de sesiones según versión.
+- [x] Registro con verificación por email y establecimiento de contraseña mediante enlace.
+- [x] Enlace de verificación de 24 horas y recuperación de 30 minutos; tokens de un uso almacenados como hash.
+- [x] Envío de correo preparado con cola y SMTP o Resend, con plantilla HTML de marca existente.
+- [ ] Configurar proveedor real de correo y verificar entrega de extremo a extremo.
+- [ ] Revisar identidad Tinvana en remitente, dominio y plantilla de correo antes de activar el proveedor; el rebranding visual no reescribió automáticamente el backend de emails.
+- [ ] Verificación por SMS: no desarrollada ni servicio contratado.
+
+No solicitar que se peguen secretos en el chat. El remitente planteado inicialmente fue `no-reply@zenzales.com`; no acredita un buzón ni SMTP activo.
+
+### 4.2 Dropi, catálogo y selección
+
+- [x] Integraciones por usuario, token cifrado con cifrado autenticado y clave de entorno fuera de la base.
+- [x] Reemplazo de token y prueba de conexión; el frontend solo recibe estado de configuración.
+- [x] Cliente PHP cURL, TLS verificado, timeouts, destinos fijos y redacción de secretos.
+- [x] Catálogo con búsqueda debounce, cuatro órdenes: ID ascendente/descendente y nombre A-Z/Z-A.
+- [x] 32 productos visibles: solicitar 50 y usar desplazamiento `(página-1)*32`; no usar `count:0` como total.
+- [x] Búsqueda, orden y página en URL; cancelación de solicitudes obsoletas.
+- [x] Modal, galería, estados de carga/vacío/error y diseño responsive.
+- [x] Selección persistente entre páginas/sesiones y sección Mis productos.
+- [x] Mapeo real: precio, SKU, imágenes principales, categorías, bodegas, variantes y atributos disponibles.
+- [x] URLs absolutas conservadas; rutas de imagen relativas prefijadas con CloudFront; stock desconocido no inventado.
+- [x] Catálogo y categorías respondieron realmente durante verificaciones anteriores; hubo un 401 inicial antes de ajustar compatibilidad del cliente.
+- [ ] Revalidar conexión desde el hosting definitivo: el éxito desde este equipo no garantiza otra IP/red.
+
+No volver a añadir filtro de favoritos sin comprobarlo. Categorías, orden por precio y selector de tamaño no están expuestos inicialmente en el catálogo del panel.
+
+### 4.3 Landings, editor y publicación
+
+- [x] Copia del producto al generar landing; contenido comercial separado del original.
+- [x] Editor de título, slug, descripción, precio público, galería, botones, colores y SEO.
+- [x] Constructor de bloques reutilizables, plantillas guardadas y listado de productos seleccionados de la cuenta.
+- [x] Actualización explícita del producto que conserva cambios comerciales.
+- [x] Menú de anclas, encabezado oscuro sticky y logo reemplazable.
+- [x] Borradores iniciales, preview autorizada o firmada temporal y publicación/despublicación.
+- [x] PHP entrega HTML principal y metadatos propios en `/p/{slug}`; borradores/inexistentes devuelven 404.
+- [x] Sitemap excluye borradores; no exposición automática de proveedor, costo o JSON interno.
+- [x] WhatsApp aparece si se configura; no se inventan reseñas, garantías o promociones.
+
+### 4.4 IA para contenido
+
+- [x] Conexiones OpenAI y Anthropic/Claude por usuario, cifradas y con proveedor activo.
+- [x] Generación de propuestas usando producto y bloques existentes; revisión humana antes de guardar/publicar.
+- [x] Controles de validación y límites; no publicar automáticamente ni inventar disponibilidad.
+- [x] Respuesta real de OpenAI comprobada anteriormente sin guardar la propuesta.
+- [ ] Verificar respuesta externa real de Claude con credencial autorizada; las pruebas aisladas no sustituyen esa comprobación.
+- [ ] Agente vendedor conversacional: pertenece a la fase nueva, no al generador del editor.
+
+Una suscripción ChatGPT/Claude de usuario no implica acceso de API ni cubre necesariamente los cargos de Conversation AI de GHL.
+
+### 4.5 Formularios, consultas y webhook
+
+- [x] Nombre, apellido, email, teléfono con banderas, dirección, indicaciones, país, departamento, ciudad y código postal opcional.
+- [x] Landings con entrega solo Colombia; perfil con selectores mundiales. Listados buscables, ordenados y flotantes.
+- [x] Cantidad configurable y precios derivados de datos del servidor, no de campos manipulables del navegador.
+- [ ] Aplicar ofertas por cantidad y selector de variantes al formulario público: la ampliación actual las usa en cotización interna, sin cambiar automáticamente las landings.
+- [x] Lead guardado antes de intentar entrega; deduplicación por landing y clave idempotente.
+- [x] Una configuración de webhook por usuario: visualizar identificador enmascarado, reemplazar o eliminar; URL cifrada.
+- [x] Cola, reintentos y resultado HTTP/historial; vista compacta de consultas y detalle.
+- [x] Payload con datos del formulario/dirección, producto, SKU, cantidad, precio Dropi, público, total, imagen, URL y tags.
+- [x] “Precio inflado” significa precio público del editor, no porcentaje automático.
+- [ ] Comprobar el workflow real de GHL, su mapeo, deduplicación y creación de contactos/oportunidades.
+
+“Webhook aceptado” solo significa respuesta HTTP exitosa. El receptor debe deduplicar por `lead_id`; no se promete entrega externa exactamente una vez. Cambiar una cotización local no actualiza automáticamente el webhook original del lead.
+
+### 4.6 Archivos y diseño
+
+- [x] Carga JPEG/PNG/WebP y conversión real a WebP: entrada máxima 8 MB, salida máxima 1600 px y 400 KB.
+- [x] Biblioteca privada por cuenta/mes, búsqueda, paginación, descarga y reutilización sin duplicar el archivo.
+- [x] Rutas nuevas `backend/storage/media/{usuario}/{año}/{mes}/{uuid}.webp`; compatibilidad con archivos anteriores.
+- [x] Tarjetas compactas, selección por borde/chulo y selección múltiple.
+- [x] Eliminación con confirmación y protección de referencias guardadas en landings, versiones publicadas, leads y plantillas.
+- [x] Marca Tinvana: paloma origami, Montserrat, naranja `#FF6A00`, secundario `#FFBA3D`, oscuro `#1E1E1E`, crema `#FFF8F1`, borde `#FFE0CD`.
+- [x] Toasts flotantes, carga moderna, GSAP y escena Three.js sutil con reducción de movimiento y fallback.
+
+La biblioteca es de imágenes, no un gestor genérico de PDF/documentos. Copiar una URL privada no la publica. Una referencia externa o edición sin guardar no se puede detectar al eliminar.
+
+## 5. FASE APARTE: pedidos, WhatsApp, GHL y operación Dropi
+
+### 5.1 Objetivo y responsabilidades propuestas
+
+Unificar ventas de landing y chat en el mismo proyecto. Tinvana conserva ofertas, cotizaciones, aceptación y pedido; GHL gestiona contactos/conversación/asesores; Dropi acredita sus órdenes y datos logísticos disponibles. La IA conversa; el backend valida operaciones.
+
+Documentos de origen: `Proyecto_ventas_WhatsApp_GHL_Dropi.docx` y la explicación `output/pdf/Tinvana-Integracion-Ventas-WhatsApp.pdf`. Son propuestas, no certifican funcionalidades ya existentes. El otro DOCX, `Proyecto_control_dropshipping_Boostec_GHL.docx`, no se incorpora automáticamente como requisito implementado.
+
+### 5.2 Etapa 1 completada: pedidos locales supervisados
+
+- [x] Tablas `orders` y `order_events`, migración 011, índices y aislamiento por propietario.
+- [x] Borrador automático por cada consulta nueva, en la misma transacción que lead y entrega pendiente.
+- [x] Conversión explícita de consultas anteriores, idempotente: **Abrir o crear pedido**.
+- [x] Panel `/panel/pedidos`, filtro de venta y paginación en URL, detalle `/panel/pedidos/{id}`.
+- [x] Copias de comprador, dirección y producto; una partida por pedido en esta etapa.
+- [x] Cotización manual: cantidad, precio unitario público, flete y notas internas.
+- [x] Total pendiente hasta indicar flete; cero debe introducirse explícitamente si corresponde.
+- [x] Importes calculados en centavos enteros y almacenados con numeric; UI muestra decimales sin redondear el total.
+- [x] Cotización con UUID, versión y vencimiento de 24 horas.
+- [x] Bloqueo de cambios concurrentes mediante fila/versión; cambios sin guardar bloquean aceptación en UI.
+- [x] Aceptación manual con evidencia del comprador, operador y cotización vigente.
+- [x] Cancelación local con motivo; historial conservado.
+- [x] Estados de venta `draft`, `confirmed`, `cancelled`.
+- [x] Estados separados que permanecen en `integration_status=not_sent`, `logistics_status=not_requested`, `payment_status=pending`.
+- [x] 38 comprobaciones específicas, 107 generales y comprobación del panel público en lectura.
+
+Límites de la entrega inicial: dirección de solo lectura y sin selección de variantes; quedaron superados por la etapa 2 descrita a continuación. Siguen pendientes varias partidas y cotización automática. No se importó todo el historial. Marcar aceptación no registra una orden Dropi ni un pago; cancelar localmente no solicita cancelación externa.
+
+### 5.3 Etapa 2: correcciones y condiciones comerciales
+
+- [x] Editar comprador/dirección de Colombia con validación PHP, teléfono con banderas y selectores buscables flotantes. Conserva la consulta original, registra antes/después e invalida cotización; cambiar dirección también elimina el flete. Guardar sin cambios no invalida nada.
+- [x] Devolver confirmados locales a revisión con motivo; la aceptación anterior queda histórica, vuelve a borrador y exige nuevo flete/cotización/aceptación. No se reabren cancelados ni se modifican directamente confirmados.
+- [x] Selección de variantes con IDs de la copia del producto; verificación de pertenencia, snapshot y obligatoriedad cuando corresponde. Sin afirmar stock ni compatibilidad de órdenes externas.
+- [ ] Múltiples partidas por pedido y variantes seleccionables desde el formulario público.
+- [x] Ofertas internas por cantidad: hasta 10 tramos por producto, activación, vigencia opcional, historial versionado y aplicación explícita al cotizar. PHP resuelve el precio y congela la versión; el resumen no supera la vigencia de la oferta.
+- [ ] Combos de varios productos y publicación automática de ofertas en landings.
+- [x] Pantalla Mis productos → Precios por cantidad y auditoría privada de cambios/aceptaciones invalidadas.
+- [x] 52 checks de edición, ofertas, variantes y preparación, incluidos guardado/reapertura desde navegador y móvil.
+- [ ] Espacios por empresa/tienda, miembros y roles; hoy la pertenencia es por usuario.
+- [ ] Registro anuncio → oferta → entrada → sesión → pedido.
+- [ ] Consentimientos, exclusiones, responsables, tareas y bandeja operativa ampliada.
+- [ ] Infraestructura de eventos entrantes, autenticación, outbox y correlación con sistemas externos.
+
+### 5.4 Dropi: preparación local completada, conexión externa pendiente
+
+- [x] Lista de preparación por pedido: integración, aceptación, vigencia, dirección y variante. Los requisitos externos siguen pendientes y `can_submit` permanece en `false`, sin llamadas de red.
+- [x] Revisada una alternativa oficial MCP/OAuth de Dropi; documentada para evaluación, sin conectar la cuenta ni sustituir el contrato REST pendiente. Ver [DROPI-ORDERS.md](DROPI-ORDERS.md).
+
+- [x] Leída la documentación accesible de Scribd, con ejemplos históricos de 2021/2022.
+- [ ] Obtener documentación oficial vigente o colección Postman con URLs completas.
+- [ ] Confirmar autenticación autorizada: el catálogo usa `dropi-integration-key`; el documento histórico usa login y `Authorization: Bearer`. No son intercambiables por suposición.
+- [ ] Confirmar permisos de la cuenta, sandbox, límites, identificadores de bodegas, variantes, ciudades y transportadoras.
+- [ ] Probar consultas de stock/cobertura/fletes y definir cómo se congela una cotización.
+- [ ] Crear órdenes de prueba autorizadas, guardar referencia externa y verificar sus datos.
+- [ ] Comprobar idempotencia o búsqueda por referencia antes de habilitar reintentos de creación.
+- [ ] Manejar resultado desconocido, conciliación y revisión humana.
+- [ ] Consultar órdenes, guías, estados y novedades; verificar webhooks o polling permitido.
+- [ ] Confirmar capacidades de modificación/cancelación y recaudos; no confundir cartera con conciliación de cada pedido.
+
+Referencia histórica: <https://es.scribd.com/document/683043719/Documentacion-de-Dropi-docx-7>. Algunas URLs aparecen como `[Link]` en el contenido accesible. No se implementaron endpoints adivinados ni se crearon órdenes reales con esa documentación.
+
+### 5.5 GHL y WhatsApp pendientes
+
+- [ ] Subcuenta de pruebas, acceso administrativo autorizado y permisos API necesarios.
+- [ ] Decidir conexión piloto con token privado o instalación multiempresa por OAuth.
+- [ ] Vincular contacto, sesión, oportunidad y pedido exactos; dos compras de un teléfono no deben mezclarse.
+- [ ] WhatsApp oficial conectado y validación de capacidades/cargos de la cuenta.
+- [ ] Probar GHL → backend → GHL, incluyendo resultado asíncrono sin mensajes duplicados.
+- [ ] Asesor IA con fichas aprobadas, captura guiada, cotización y confirmación vinculada a versión.
+- [ ] Reconocimiento de anuncio y oferta con metadatos reales; pedir aclaración ante ambigüedad.
+- [ ] Intervención humana: pausar bot y seguimientos; reanudación explícita.
+- [ ] Plantillas aprobadas y verificación de ventanas/consentimiento antes de cada envío.
+- [ ] Recuperación de compras incompletas identificables y parada al comprar/rechazar/revocar permiso.
+- [ ] Sincronizar resultados y estados logísticos reales con la oportunidad correcta.
+
+n8n es opcional, no dependencia instalada obligatoria. Para el piloto se pueden utilizar PHP, PostgreSQL y cron; escalar trabajadores según carga. No conectar dos bots como emisores simultáneos del mismo chat.
+
+### 5.6 Finanzas y extensiones posteriores
+
+- [ ] Conciliación de recaudos, producto, fletes, devoluciones, comisiones y margen efectivo.
+- [ ] Pagos anticipados con confirmación del proveedor; un comprobante por chat no acredita pago.
+- [ ] Shopify y definición de un único responsable de crear órdenes si se incorpora.
+- [ ] Audios, comentarios sociales, marketplace de creativos y riesgo externo: fuera del MVP inicial.
+- [ ] Piloto supervisado de una tienda en Colombia, un número y 5-10 productos.
+- [ ] Pruebas de duplicados, timeout, cambio de dirección, stock agotado, toma humana y múltiples compras; lote supervisado antes de automatizar despachos.
+
+### 5.7 Lo que necesitamos del propietario
+
+- [ ] Confirmar si el piloto será una tienda propia o varias empresas desde el inicio.
+- [ ] Conseguir acceso autorizado/documentación de órdenes Dropi y condiciones de pruebas.
+- [ ] Autorizar acceso a subcuenta GHL de pruebas y definir quién administra sus conexiones.
+- [ ] Elegir número WhatsApp, productos y dos anuncios para pruebas de atribución.
+- [ ] Definir ofertas, precios, cobertura, transportadoras y reglas de excepciones.
+- [ ] Designar operador que revise pedidos y atienda novedades.
+- [ ] Confirmar hosting permanente y presupuesto de servicios externos.
+
+## 6. Entornos, despliegue y secretos
+
+- [x] Supabase PostgreSQL real: conexión PDO con TLS y configuración privada; migraciones hasta 012 aplicadas.
+- [x] Demo por túnel temporal; última URL comprobada: `https://scenes-high-congress-medieval.trycloudflare.com`.
+- [x] Demo utiliza build estático y PHP; no depende de mantener `npm run dev`, pero sí del equipo, PHP, túnel y procesos que la sostienen.
+- [x] Configuraciones y guías Apache/Nginx, frontend compilado y rutas al refrescar.
+- [ ] Despliegue definitivo en `dropizenzales.andresceballos.dev` u otro dominio elegido.
+- [ ] Habilitar pdo_pgsql en Hostinger: la comprobación anterior encontró PHP 8.3 y otras extensiones, pero pdo_pgsql ausente.
+- [ ] Verificar de nuevo conexión externa PostgreSQL/TLS, raíz pública, secretos fuera de ella, permisos, HTTPS y cron en el hosting definitivo.
+- [ ] Backup/restauración real de PostgreSQL y medios, y prueba de recuperación antes de retirar un proveedor.
+
+La ruta de destino propuesta en Hostinger era `/home/u527801383/domains/andresceballos.dev/public_html/dropizenzales`. No tratar acceso FTP como garantía de extensiones PHP ni capacidad de ubicar backend privado fuera de la raíz pública. No se subió la plataforma completa a ese destino durante la revisión de hosting.
+
+Ubicaciones privadas a conocer, **sin transcribir su contenido**:
+
+- `backend/.env`: base, clave de cifrado y configuración de servidor.
+- Base de datos: tokens de integraciones cifrados, hashes de contraseñas y datos de clientes.
+- `.tools/test-env.json`: configuración exclusivamente local de pruebas.
+- `.tools/demo-runtime.json` y archivos PID: estado operativo temporal; comprobar antes de usar.
+- `backend/storage/`: medios, certificados y almacenamiento privado según configuración.
+
+Conservar la clave de cifrado al migrar PostgreSQL y copiar los archivos privados necesarios. Nunca sustituir PostgreSQL por MySQL sin decisión y adaptación explícita.
+
+## 7. Pruebas y evidencia
+
+| Comprobación | Último estado conocido | Qué acredita / qué no |
+|---|---|---|
+| `npm run build` | Aprobado en la etapa de pedidos | TypeScript/Vite y runtime. Advertencias conocidas de tamaño de chunks y assets públicos. |
+| `npm test` | 107 checks aprobados | Sesión PHP, permisos, publicación, leads y receptor TLS local; no GHL real. |
+| `node tests/orders.mjs` | 38 checks aprobados | Pedidos locales, permisos, cotización, expiración, precisión, concurrencia por versión, deduplicación y UI. |
+| `node tests/order-editing.mjs` | 52 checks aprobados | Edición/revisión, historial, ofertas versionadas, validación de variantes y preparación bloqueada. Pruebas locales, sin órdenes externas. |
+| `php -l` PHP afectado | Aprobado | Sintaxis, no prueba externa de negocio. |
+| Demo de pedidos | Aprobado en lectura | Ruta pública del panel, API autenticada y renderizado; sin modificar pedidos reales. |
+| `node tests/media-delete.mjs` | 28 checks históricos aprobados | Borrado seguro y UI sobre archivos de pruebas. No reejecutado en la entrega de documentación. |
+| Cuenta/email | Pruebas aisladas históricas aprobadas | No acredita entrega por SMTP/Resend real aún sin configurar. |
+| Dropi catálogo | Respuestas reales históricas comprobadas | No acredita permisos para crear órdenes. |
+| OpenAI | Generación real histórica comprobada | No acredita Claude, saldo futuro ni agente WhatsApp. |
+
+No sumar comprobaciones de distintas fechas como si todas se hubieran ejecutado hoy. `docs/VERIFICATION.md` contiene registros históricos, algunos con pendientes ya superados; contrastar con este estado y las guías de módulo.
+
+### Repetir pruebas sin tocar producción
+
+1. Usar `.tools/test-env.json` con PostgreSQL local `zenzales_test` en `127.0.0.1:55432`.
+2. Iniciar PostgreSQL local y aplicar migraciones mediante `.tools/run-test-command.ps1 backend/bin/console.php migrate`.
+3. Crear fixtures con `backend/tests/fixtures.php`; iniciar servidor de pruebas con `.tools/start-test-server.ps1` (8081).
+4. Ejecutar `TEST_BASE_URL=http://127.0.0.1:8081 npm test`, adaptando asignación de entorno a PowerShell.
+5. Para las suites de pedidos, mantener los leads de la suite general y ejecutar el helper de límites local antes de `node tests/orders.mjs` y `node tests/order-editing.mjs` (ver ORDERS.md). La segunda reinicia solo sus fixtures de pedidos/ofertas.
+6. Limpiar fixtures con el helper, comprobar identidad de procesos y detener solo servicios de pruebas. No detener demo por confusión de PID/puerto.
+
+Estado al cerrar las pruebas de pedidos: fixtures eliminados y servicios de pruebas detenidos; demo activa en la comprobación realizada. Revisar el estado real en la siguiente sesión.
+
+## 8. Índice de guías
+
+| Tema | Documento |
+|---|---|
+| Instalación y configuración | [INSTALLATION.md](INSTALLATION.md) |
+| API y seguridad | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Despliegue y migración | [DEPLOYMENT.md](DEPLOYMENT.md), [MIGRATION.md](MIGRATION.md) |
+| Demo temporal | [TEMPORARY-DEMO.md](TEMPORARY-DEMO.md) |
+| Pedidos y correcciones | [ORDERS.md](ORDERS.md) |
+| Ofertas y variantes | [PRODUCT-OFFERS.md](PRODUCT-OFFERS.md) |
+| Preparación de órdenes Dropi | [DROPI-ORDERS.md](DROPI-ORDERS.md) |
+| Consultas, dirección y GHL | [LEAD-FORM.md](LEAD-FORM.md), [GHL.md](GHL.md) |
+| Constructor y encabezado | [BUILDER.md](BUILDER.md), [LANDING-HEADER.md](LANDING-HEADER.md) |
+| Productos relacionados | [PRODUCT-LIST.md](PRODUCT-LIST.md) |
+| IA | [AI-LANDINGS.md](AI-LANDINGS.md) |
+| Perfil, cuentas y geografía | [PROFILE.md](PROFILE.md), [ACCOUNT-EMAIL.md](ACCOUNT-EMAIL.md), [GEOGRAPHY.md](GEOGRAPHY.md) |
+| Biblioteca | [IMAGES.md](IMAGES.md) |
+| Identidad y experiencia | [TINVANA-DESIGN.md](TINVANA-DESIGN.md), [MOTION.md](MOTION.md), [NOTIFICATIONS.md](NOTIFICATIONS.md) |
+| Evidencia histórica | [VERIFICATION.md](VERIFICATION.md) |
+
+## 9. Bitácora de hitos y continuidad
+
+Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que no estén acreditadas en las guías:
+
+- Base real PHP/PostgreSQL y autenticación; selección y catálogo real Dropi.
+- Editor/publicación, formularios con dirección, webhook por usuario y colas.
+- IA por cuenta, perfiles, registro/recuperación y geografía.
+- Biblioteca mensual y reutilización; rediseño Tinvana y eliminación segura de medios.
+
+### 2026-10-19 · Primera etapa de pedidos
+
+- **Cambio:** migración 011, servicio Orders, API privada, rutas, panel, detalle y vínculo desde consultas.
+- **Comprobado:** 107 checks HTTP, 38 de pedidos, compilación, sintaxis y demo pública en lectura.
+- **Datos reales:** migración aditiva aplicada; no se convirtieron consultas históricas ni se enviaron órdenes a Dropi.
+- **Límites:** dirección solo lectura, cotización y aceptación manuales, sin conexión operativa externa.
+- **Siguiente paso recomendado:** editor de datos/dirección con invalidación de cotización; en paralelo validar contrato oficial de órdenes Dropi.
+
+### 2026-10-19 · Documento maestro y protocolo de actualización
+
+- **Cambio:** creado este documento, checklist independiente de la fase nueva, índice y `AGENTS.md` con instrucciones de continuidad; enlazado desde README.
+- **Verificación:** lectura de estructura, migraciones y guías; validación de enlaces locales y coherencia con la última entrega. No se reejecutaron pruebas funcionales por cambios exclusivamente documentales.
+- **Pendiente externo:** correos reales, hosting definitivo, permisos de órdenes Dropi y subcuenta/WhatsApp de GHL.
+
+### 2026-10-19 · Correcciones de pedidos, ofertas y preparación Dropi
+
+- **Cambio:** edición de comprador/dirección, vuelta de confirmados a revisión, historial de datos/aceptación, ofertas por cantidad con vigencia y versiones, variantes en cotización y lista de preparación sin envío.
+- **Esquema:** migración 012 aplicada en Supabase y PostgreSQL local; tablas de ofertas/versiones y snapshots de oferta/variante. No se crearon ofertas ni se editaron pedidos reales durante las pruebas.
+- **Comprobado:** 107 checks generales, 38 base y 52 ampliados, build y revisión de escritorio/móvil. Sintaxis de los servicios PHP afectados comprobada.
+- **Contrato comercial:** un cambio real invalida cotización/aceptación; si cambia dirección, también flete. Reabrir exige motivo y nueva aceptación. Una oferta modificada no reescribe cotizaciones anteriores; el precio de oferta se resuelve en servidor.
+- **Límites:** una partida, ofertas internas sin publicación automática en landings, stock/cobertura/flete manuales. Preparación Dropi no habilita envío.
+- **Siguiente paso:** validar contrato y acceso autorizado de órdenes Dropi; después cotización/registro externo seguro. Ofertas/variantes públicas y combos necesitan su propia ampliación.
+
+### Plantilla para la próxima actualización
+
+```text
+AAAA-MM-DD · Nombre del cambio
+- Cambio: comportamiento final y archivos/guías afectados.
+- Checklist: marcar solo lo concluido; mantener dependencias pendientes.
+- Comprobado: comandos, entorno y resultados reales.
+- Datos reales: migraciones, despliegue o acciones externas efectuadas, si hubo.
+- Límites y siguiente paso: qué falta y qué acceso/decisión lo desbloquea.
+```
+
+El historial no sustituye la actualización de los apartados de estado actual. Cuando se complete un pendiente, actualizar su casilla y su explicación además de añadir el hito.

@@ -8,11 +8,19 @@ Si ya tienes `GHL_WEBHOOK_URL` en el entorno privado, puedes importarlo explíci
 
 ## Payload del webhook
 
+En Consultas recibidas, cada tarjeta resume contacto, producto, fecha y estado. «Ver detalle» abre un diálogo con dirección, precios e historial. El diálogo admite Escape, conserva un área desplazable y devuelve el foco al botón de apertura. La reprogramación de envíos fallidos se realiza desde el detalle; los estados siguen describiendo la entrega al webhook, no el avance de un pedido ni la creación de una oportunidad en GHL.
+
 | Campo | Uso en GHL |
 |---|---|
 | `lead_id`, `idempotency_key` | Identificador estable de la consulta para deduplicación |
 | `first_name`, `last_name` | Nombre y apellido del contacto |
 | `email`, `phone` | Identificación/actualización del contacto |
+| `phone_country` | País del teléfono (ISO); `phone` ya incluye el prefijo internacional |
+| `address`, `address_details` | Dirección y apartamento/indicaciones; mapear a Address y campo adicional si corresponde |
+| `country_code`, `country` | País de entrega: `CO` y `Colombia`; usar el código ISO para el selector Country |
+| `state`, `department_code` | Departamento de entrega y su código DIVIPOLA |
+| `city`, `city_code` | Municipio de entrega y su código DIVIPOLA |
+| `postal_code` | Código postal opcional de seis dígitos, sin perder ceros iniciales |
 | `product_id` | ID original de Dropi, campo personalizado |
 | `product_name` | Nombre comercial editado de la landing |
 | `sku` | SKU de la copia del producto |
@@ -29,7 +37,7 @@ Si ya tienes `GHL_WEBHOOK_URL` en el entorno privado, puedes importarlo explíci
 1. Configura el trigger de inbound webhook en tu workflow y guarda su URL en la sección Webhook del panel privado.
 2. Recibe un lead de prueba autorizado para que GHL permita mapear los campos. No uses secretos del webhook en React.
 3. Antes de crear acciones, comprueba si `lead_id` ya fue procesado. Guarda el identificador en un campo/registro que permita reconocer esa consulta, no solo el email. Si ya existe, termina sin crear otra oportunidad.
-4. Crea o actualiza el contacto mapeando nombre, apellido, email y teléfono. Configura deduplicación de contactos por email/teléfono conforme a tus reglas.
+4. Crea o actualiza el contacto mapeando nombre, apellido, email, teléfono, dirección, ciudad, departamento, país y código postal. Guarda indicaciones, códigos DIVIPOLA y país del teléfono en campos adicionales si los necesitas. Los leads históricos pueden enviar ubicación nula: no sobrescribas una dirección existente con valores vacíos. Configura deduplicación de contactos por email/teléfono conforme a tus reglas.
 5. Mapea campos de producto a campos personalizados del contacto/oportunidad; agrega los tags recibidos.
 6. Crea/actualiza una oportunidad en el pipeline y etapa que tú elijas. Incluye producto y `lead_id` en la identificación de la oportunidad. Evita crear otra por un reintento del mismo lead.
 7. Ejecuta las notificaciones y automatizaciones que correspondan. Verifica el resultado en GHL; el código no configura automáticamente el workflow.

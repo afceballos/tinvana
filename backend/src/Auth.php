@@ -11,7 +11,7 @@ final class Auth {
   if(isset($_SESSION['last_active'])&&time()-$_SESSION['last_active']>(int)Support::env('SESSION_LIFETIME','7200')){$_SESSION=[];session_regenerate_id(true);}
   $_SESSION['last_active']=time();$_SESSION['csrf']??=bin2hex(random_bytes(32));
  }
- public static function user(): array { if(empty($_SESSION['user_id']))throw new HttpError(401,'Inicia sesión para continuar.');$u=Database::one('SELECT id,email,role FROM users WHERE id=?',[$_SESSION['user_id']]);if(!$u)throw new HttpError(401,'Sesión inválida.');return $u; }
+ public static function user(): array { if(empty($_SESSION['user_id']))throw new HttpError(401,'Inicia sesión para continuar.');$u=Database::one('SELECT id,email,role,profile,avatar_id,session_version,email_verified_at FROM users WHERE id=?',[$_SESSION['user_id']]);if(!$u||!$u['email_verified_at'])throw new HttpError(401,'Sesión inválida.');if((int)($_SESSION['session_version']??0)!==(int)$u['session_version']){unset($_SESSION['user_id']);throw new HttpError(401,'La sesion ha terminado.');}$profile=json_decode($u['profile'],true);$u['first_name']=$profile['first_name']??'';$u['last_name']=$profile['last_name']??'';$u['avatar']=$u['avatar_id']?'/api/profile/avatar?v='.$u['avatar_id']:null;unset($u['profile'],$u['avatar_id'],$u['session_version'],$u['email_verified_at']);return $u; }
  public static function csrf(): void { $token=$_SERVER['HTTP_X_CSRF_TOKEN']??$_POST['csrf']??'';if(!is_string($token)||!hash_equals($_SESSION['csrf']??'', $token))throw new HttpError(419,'La sesión del formulario venció. Recarga e intenta nuevamente.'); }
  public static function limit(string $bucket,int $max,int $seconds): void {
   $key=hash('sha256',$bucket);
@@ -23,10 +23,10 @@ final class Auth {
   self::limit('login-ip:'.($_SERVER['REMOTE_ADDR']??''),30,900);self::limit('login-email:'.$email,8,900);
   $u=Database::one('SELECT * FROM users WHERE email=?',[$email]);
   $hash=$u['password_hash']??password_hash(bin2hex(random_bytes(32)),PASSWORD_DEFAULT);
-  if(!password_verify($pass,$hash)||!$u)throw new HttpError(401,'Email o contraseña incorrectos.');
-  session_regenerate_id(true);$_SESSION['user_id']=$u['id'];$_SESSION['csrf']=bin2hex(random_bytes(32));
+  if(!password_verify($pass,$hash)||!$u||!$u['email_verified_at'])throw new HttpError(401,'Email o contraseña incorrectos.');
+  session_regenerate_id(true);$_SESSION['user_id']=$u['id'];$_SESSION['session_version']=(int)$u['session_version'];$_SESSION['csrf']=bin2hex(random_bytes(32));
   if(password_needs_rehash($hash,PASSWORD_DEFAULT))Database::query('UPDATE users SET password_hash=?,updated_at=now() WHERE id=?',[password_hash($pass,PASSWORD_DEFAULT),$u['id']]);
-  return ['user'=>['id'=>$u['id'],'email'=>$u['email'],'role'=>$u['role']],'csrf'=>$_SESSION['csrf']];
+  return ['user'=>self::user(),'csrf'=>$_SESSION['csrf']];
  }
  public static function logout(): void { $_SESSION=[];session_destroy();setcookie(session_name(),'', ['expires'=>time()-3600,'path'=>'/','secure'=>Support::env('SESSION_SECURE')==='true','httponly'=>true,'samesite'=>Support::env('SESSION_SAMESITE','Lax')]); }
 }
