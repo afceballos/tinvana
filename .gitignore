@@ -12,3 +12,4 @@ tmp/
 test-results/
 backend/storage/*
 !backend/storage/.gitkeep
+output/deploy/

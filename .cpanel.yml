@@ -1,0 +1,12 @@
+---
+# Despliegue cPanel (Git Version Control -> Deploy HEAD Commit).
+# Copia el backend privado a ~/tinvana y la raíz pública a ~/public_html.
+# No toca ~/tinvana/.env, ~/tinvana/vendor ni ~/tinvana/storage (datos del servidor).
+deployment:
+  tasks:
+    - /bin/mkdir -p $HOME/tinvana/storage/sessions $HOME/tinvana/storage/media $HOME/tinvana/storage/avatars $HOME/tinvana/public/brand
+    - /bin/chmod 700 $HOME/tinvana/storage $HOME/tinvana/storage/sessions
+    - /bin/cp -R backend/src backend/migrations backend/resources backend/bin $HOME/tinvana/
+    - /bin/cp backend/bootstrap.php backend/blocks.json backend/composer.json backend/composer.lock $HOME/tinvana/
+    - /bin/cp -R backend/public/brand/. $HOME/tinvana/public/brand/
+    - /bin/cp -R backend/public/. $HOME/public_html/

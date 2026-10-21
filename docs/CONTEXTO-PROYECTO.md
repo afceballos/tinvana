@@ -376,6 +376,13 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado:** el `git push` terminó con `master -> master`; la rama local sigue `origin/master`. No se desplegó código en GoDaddy ni se ejecutaron migraciones allí.
 - **Siguiente paso:** comprobar en el cPanel Economy PHP y `pdo_pgsql`, conexión TLS a Supabase, raíz pública y Git Version Control; preparar despliegue a pruebas antes de producción.
 
+### 2026-10-21 · Preparación del despliegue en cPanel (GoDaddy)
+
+- **Cambio:**  localiza el backend privado en el directorio padre o, si no existe allí, en  (para  + ). Se añadió  (copia backend privado a  y la parte pública a  sin tocar ,  ni ) y  (genera , ignorado por git).
+- **Comprobado:**  de ; el script generó el zip de  con Composer sin dependencias de desarrollo. No se probó el despliegue real ni la carga del sitio en cPanel.
+- **Límites:**  en el hosting, PHP 8.2+, salida TLS a Supabase, SSH/Terminal, cron y SMTP siguen sin verificar en GoDaddy.  lee el logo en  (lo copia ).
+- **Siguiente paso:** seguir [DEPLOYMENT.md](DEPLOYMENT.md#cpanel-git-version-control), ejecutar  y probar login/landing.
+
 ### Plantilla para la próxima actualización
 
 ```text

@@ -75,3 +75,16 @@ Ajusta la versión/socket de PHP-FPM. Agrega redirección HTTP a HTTPS en un blo
 ```
 
 El worker no imprime payloads ni URLs secretas. No se envían leads al webhook durante el request público: la respuesta informa «guardada, envío pendiente». Cron debe usar el mismo entorno/claves que PHP web. Monitoriza envíos fallidos en el panel. Configura backups de PostgreSQL y una copia segura de la clave de cifrado.
+
+## cPanel (Git Version Control)
+
+Estructura:  = contenido de ;  = backend privado (, , , , etc.).  detecta  automáticamente.
+
+1. En cPanel → *Select PHP Version*: PHP 8.2+, extensiones , , , , , . Activa AutoSSL.
+2. En el PC: Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.. Sube  a  y descomprímelo (queda ). Repite solo si cambia .
+3. Crea  (basado en , permisos 600): , , ,  de Supabase con  (o  con  apuntando a un certificado subido a ), la misma  ya en uso y correo.
+4. cPanel → *Git™ Version Control* → Create: clonar  (rama ) → *Manage* → *Deploy HEAD Commit*. Ejecuta las tareas de . El árbol del servidor debe estar limpio.
+5. Terminal/SSH: . Sin terminal, ejecútalo desde el PC contra la misma base.
+6. Cron (cPanel → *Cron Jobs*):  y  cada minuto;  diario.
+7. Tras cambios de React: , commit de  y *Deploy HEAD Commit* de nuevo.

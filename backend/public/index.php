@@ -5,14 +5,15 @@ header('X-Content-Type-Options: nosniff');header('Referrer-Policy: strict-origin
 header("Content-Security-Policy: default-src 'self'; img-src 'self' https: http: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'self'; base-uri 'none'");
 $path=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH)?:'/';$method=$_SERVER['REQUEST_METHOD']??'GET';
 $api=str_starts_with($path,'/api/');
+$root=is_file(dirname(__DIR__).'/bootstrap.php')?dirname(__DIR__):dirname(__DIR__).'/tinvana';
 try {
- require dirname(__DIR__).'/bootstrap.php';
+ require $root.'/bootstrap.php';
  if(Support::env('APP_ENV')==='production')header('Strict-Transport-Security: max-age=31536000');
  if($path==='/sitemap.xml'){
   header('Content-Type: application/xml; charset=utf-8');$rows=Database::all("SELECT COALESCE(published_slug,slug) AS slug,published_at AS updated_at FROM landing_pages WHERE status='published'");echo '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';foreach($rows as $r)echo '<url><loc>'.Support::escape(rtrim(Support::env('APP_URL'),'/').'/p/'.$r['slug']).'</loc><lastmod>'.gmdate('c',strtotime($r['updated_at'])).'</lastmod></url>';echo '</urlset>';exit;
  }
  if($path==='/datos-geograficos'){if($method!=='GET')throw new HttpError(405,'Use GET.');header('Content-Type: text/html; charset=utf-8');echo App\GeographyAttribution::html();exit;}
- if(in_array($path,['/geography-data/world.zip','/geography-data/colombia.json'],true)){if($method!=='GET')throw new HttpError(405,'Use GET.');$world=$path==='/geography-data/world.zip';$file=dirname(__DIR__).'/resources/geo/'.($world?'world/world.zip':'colombia.json');header('Content-Type: '.($world?'application/zip':'application/json; charset=utf-8'));header('Cache-Control: public, max-age=86400');header('Content-Disposition: attachment; filename="'.($world?'zenzales-world-geography.zip':'zenzales-colombia-divipola.json').'"');readfile($file);exit;}
+ if(in_array($path,['/geography-data/world.zip','/geography-data/colombia.json'],true)){if($method!=='GET')throw new HttpError(405,'Use GET.');$world=$path==='/geography-data/world.zip';$file=$root.'/resources/geo/'.($world?'world/world.zip':'colombia.json');header('Content-Type: '.($world?'application/zip':'application/json; charset=utf-8'));header('Cache-Control: public, max-age=86400');header('Content-Disposition: attachment; filename="'.($world?'zenzales-world-geography.zip':'zenzales-colombia-divipola.json').'"');readfile($file);exit;}
  if(preg_match('~^/api/geography/(countries|states|cities)$~',$path,$geo)){if($method!=='GET')throw new HttpError(405,'Use GET.');header('Content-Type: application/json; charset=utf-8');header('Cache-Control: public, max-age=3600');echo Support::json(App\Geography::listing($geo[1],$_GET));exit;}
  Auth::start();header('Cache-Control: no-store');if(preg_match('~^/(registro|verificar-correo|reenviar-verificacion|recuperar-contrasena|restablecer-contrasena)$~',$path)){header('Referrer-Policy: no-referrer');header('X-Robots-Tag: noindex, nofollow');}
  if(preg_match('~^/media/([a-f0-9-]+)\.webp$~',$path,$m)){
