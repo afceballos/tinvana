@@ -78,13 +78,12 @@ El worker no imprime payloads ni URLs secretas. No se envían leads al webhook d
 
 ## cPanel (Git Version Control)
 
-Estructura:  = contenido de ;  = backend privado (, , , , etc.).  detecta  automáticamente.
+Estructura: `~/public_html` = contenido de `backend/public`; `~/tinvana` = backend privado (`src`, `vendor`, `.env`, `storage`, etc.). `index.php` detecta `../tinvana` automáticamente.
 
-1. En cPanel → *Select PHP Version*: PHP 8.2+, extensiones , , , , , . Activa AutoSSL.
-2. En el PC: Windows PowerShell
-Copyright (C) Microsoft Corporation. All rights reserved.. Sube  a  y descomprímelo (queda ). Repite solo si cambia .
-3. Crea  (basado en , permisos 600): , , ,  de Supabase con  (o  con  apuntando a un certificado subido a ), la misma  ya en uso y correo.
-4. cPanel → *Git™ Version Control* → Create: clonar  (rama ) → *Manage* → *Deploy HEAD Commit*. Ejecuta las tareas de . El árbol del servidor debe estar limpio.
-5. Terminal/SSH: . Sin terminal, ejecútalo desde el PC contra la misma base.
-6. Cron (cPanel → *Cron Jobs*):  y  cada minuto;  diario.
-7. Tras cambios de React: , commit de  y *Deploy HEAD Commit* de nuevo.
+1. En cPanel → *Select PHP Version*: PHP 8.2+ y extensiones `pdo_pgsql`, `curl`, `mbstring`, `dom`, `gd`, `openssl`. Activa AutoSSL.
+2. En el PC: `powershell -File scripts/package-vendor.ps1`. Sube `output/deploy/tinvana-vendor.zip` a `~/tinvana` y descomprímelo (queda `~/tinvana/vendor`). Repite solo si cambia `composer.lock`.
+3. Crea `~/tinvana/.env` (basado en `backend/.env.example`, permisos 600): `APP_ENV=production`, `APP_URL`, `SESSION_SECURE=true`, `DB_*` de Supabase con `DB_SSLMODE=require` (o `verify-full` con `DB_SSLROOTCERT` apuntando a un certificado subido a `~/tinvana/storage`), la misma `TOKEN_ENCRYPTION_KEY` ya en uso y la configuración de correo.
+4. cPanel → *Git™ Version Control* → Create: clonar `https://github.com/afceballos/tinvana.git` (rama `master`) → *Manage* → *Deploy HEAD Commit*. Ejecuta las tareas de `.cpanel.yml`. El árbol del servidor debe estar limpio.
+5. Terminal/SSH: `php ~/tinvana/bin/console.php check`. Sin terminal, ejecútalo desde el PC contra la misma base.
+6. Cron (cPanel → *Cron Jobs*): `php ~/tinvana/bin/console.php webhooks:work 20` y `mail:work` cada minuto; `maintenance` diario.
+7. Tras cambios de React: `npm run build`, commit de `backend/public/app` y *Deploy HEAD Commit* de nuevo.

@@ -378,10 +378,10 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 
 ### 2026-10-21 · Preparación del despliegue en cPanel (GoDaddy)
 
-- **Cambio:**  localiza el backend privado en el directorio padre o, si no existe allí, en  (para  + ). Se añadió  (copia backend privado a  y la parte pública a  sin tocar ,  ni ) y  (genera , ignorado por git).
-- **Comprobado:**  de ; el script generó el zip de  con Composer sin dependencias de desarrollo. No se probó el despliegue real ni la carga del sitio en cPanel.
-- **Límites:**  en el hosting, PHP 8.2+, salida TLS a Supabase, SSH/Terminal, cron y SMTP siguen sin verificar en GoDaddy.  lee el logo en  (lo copia ).
-- **Siguiente paso:** seguir [DEPLOYMENT.md](DEPLOYMENT.md#cpanel-git-version-control), ejecutar  y probar login/landing.
+- **Cambio:** `backend/public/index.php` localiza el backend privado en el directorio padre o, si no existe allí, en `../tinvana` (para `public_html` + `~/tinvana`). Se añadió `.cpanel.yml` (copia el backend privado a `~/tinvana` y la parte pública a `~/public_html` sin tocar `.env`, `vendor` ni `storage`) y `scripts/package-vendor.ps1` (genera `output/deploy/tinvana-vendor.zip`, ignorado por git).
+- **Comprobado:** `php -l` de `index.php`; el script generó el zip de `vendor` con Composer sin dependencias de desarrollo. No se probó el despliegue real ni la carga del sitio en cPanel.
+- **Límites:** `pdo_pgsql` en el hosting, PHP 8.2+, salida TLS a Supabase, SSH/Terminal, cron y SMTP siguen sin verificar en GoDaddy. `AccountMail` lee el logo en `~/tinvana/public/brand` (lo copia `.cpanel.yml`).
+- **Siguiente paso:** seguir [DEPLOYMENT.md](DEPLOYMENT.md#cpanel-git-version-control), ejecutar `console.php check` y probar login y landing.
 
 ### Plantilla para la próxima actualización
 
