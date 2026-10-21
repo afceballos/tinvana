@@ -1,6 +1,6 @@
 # Tinvana: documento maestro de contexto y continuidad
 
-Última actualización: **19 de octubre de 2026**.
+Última actualización: **21 de octubre de 2026**.
 
 Documento vivo para el propietario del proyecto, desarrolladores y otras IA. Describe el estado conocido al cerrar la última implementación; no garantiza que un túnel, proceso o servicio externo siga activo en otra sesión.
 
@@ -12,7 +12,7 @@ Documento vivo para el propietario del proyecto, desarrolladores y otras IA. Des
 - **Última entrega funcional:** edición de comprador/dirección, revisión de confirmados, ofertas por cantidad versionadas y variantes en cotización. Preparación local para Dropi, sin envío externo.
 - **Todavía no:** creación de órdenes en Dropi, agente vendedor de WhatsApp, sincronización bidireccional de GHL, logística ni conciliación financiera.
 - **Últimas comprobaciones funcionales:** 107 checks HTTP generales, 38 de pedidos base y 52 de edición/ofertas/preparación; build aprobado y revisión visual de escritorio/móvil. Los checks externos se distinguen de las pruebas aisladas.
-- **Solicitud actual:** continuar en orden con edición de pedidos, revisión de confirmados, ofertas/variantes y preparación de Dropi, manteniendo la documentación actualizada.
+- **Siguiente paso operativo:** validar PHP 8.2+, `pdo_pgsql` y salida TLS hacia PostgreSQL desde GoDaddy Economy antes de desplegar; el código fuente ya está en GitHub.
 
 Leyenda:
 
@@ -35,6 +35,8 @@ Leyenda:
 Referencia original, que debe permanecer intacta: `C:\Users\andre\Desktop\Proyectos\Dropi - GHL\catalogo`.
 
 Workspace actual: `C:\Users\andre\Desktop\Zenzales\Dropi + Zenzales`. La marca cambió; no renombrar carpetas ni contratos técnicos automáticamente.
+
+Repositorio GitHub: `https://github.com/afceballos/tinvana`, rama `master`. El código está publicado; esto no significa que se haya desplegado en GoDaddy.
 
 ## 3. Arquitectura y organización
 
@@ -366,6 +368,13 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Contrato comercial:** un cambio real invalida cotización/aceptación; si cambia dirección, también flete. Reabrir exige motivo y nueva aceptación. Una oferta modificada no reescribe cotizaciones anteriores; el precio de oferta se resuelve en servidor.
 - **Límites:** una partida, ofertas internas sin publicación automática en landings, stock/cobertura/flete manuales. Preparación Dropi no habilita envío.
 - **Siguiente paso:** validar contrato y acceso autorizado de órdenes Dropi; después cotización/registro externo seguro. Ofertas/variantes públicas y combos necesitan su propia ampliación.
+
+### 2026-10-21 · Publicación del código en GitHub
+
+- **Cambio:** se conectó el remoto `origin` y se publicó el commit `16733bb` en `master` del repositorio `afceballos/tinvana`; contiene la aplicación, migraciones, documentación, pruebas y recursos de marca.
+- **Protección:** `.env`, certificados, sesiones, almacenamiento privado, `.tools`, `node_modules`, skills descargadas y temporales locales quedaron excluidos. No se encontraron patrones de claves en el historial ni en el conjunto preparado.
+- **Comprobado:** el `git push` terminó con `master -> master`; la rama local sigue `origin/master`. No se desplegó código en GoDaddy ni se ejecutaron migraciones allí.
+- **Siguiente paso:** comprobar en el cPanel Economy PHP y `pdo_pgsql`, conexión TLS a Supabase, raíz pública y Git Version Control; preparar despliegue a pruebas antes de producción.
 
 ### Plantilla para la próxima actualización
 
