@@ -52,8 +52,9 @@ try {
   Webhooks::save($user['id'],['provider'=>'ghl','enabled'=>true,'url'=>Support::env('GHL_WEBHOOK_URL')]);
   echo "Webhook del entorno importado y cifrado para el usuario indicado.\n";exit;
  }
+ if($command==='mail:test'){$to=(string)($argv[2]??'');if(!filter_var($to,FILTER_VALIDATE_EMAIL)){fwrite(STDERR,"Uso: php bin/console.php mail:test correo@dominio\n");exit(1);}$r=App\AccountMail::diagnose($to);echo implode(PHP_EOL,$r['lines']).PHP_EOL;exit($r['ok']?0:1);}
  if($command==='mail:work'){echo Support::json(App\AccountMail::work(min(100,max(1,(int)($argv[2]??20))))).PHP_EOL;exit;}
  if($command==='webhooks:work'){echo Support::json(Leads::deliver(min(100,max(1,(int)($argv[2]??20)))))."\n";exit;}
  if($command==='maintenance'){Database::query("UPDATE account_mail SET status='cancelled',payload_ciphertext=null,updated_at=now() WHERE status IN ('pending','failed') AND token_id IN (SELECT id FROM account_tokens WHERE expires_at<now() OR used_at IS NOT NULL)");Database::query("DELETE FROM account_tokens WHERE expires_at<now()-interval '7 days'");Database::query('DELETE FROM rate_limits WHERE expires_at<now()-interval \'1 day\'');echo "Límites vencidos eliminados.\n";exit;}
- echo "Comandos: check, key:generate, migrate, admin:create [email], integration:import email, ai:import email, webhook:import email, webhooks:work [20], mail:work [20], maintenance\n";
+ echo "Comandos: check, key:generate, migrate, admin:create [email], integration:import email, ai:import email, webhook:import email, webhooks:work [20], mail:work [20], mail:test correo@dominio, maintenance\n";
 }catch(Throwable $e){$driver=Support::env('DB_DRIVER','pgsql');fwrite(STDERR,'Error: '.($e instanceof PDOException?strtoupper($driver).' no disponible o consulta inválida. Comprueba la conexión y las migraciones.':$e->getMessage())."\n");exit(1);}

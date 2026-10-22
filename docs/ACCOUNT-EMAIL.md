@@ -64,3 +64,30 @@ El dominio público debe tener HTTPS y `APP_URL` debe ser fijo y confiable; nunc
 `php backend/tests/account-resend.php`: transporte API interceptado y protegido por la misma configuración local, sin conectar con Resend. Comprueba destino fijo, TLS, estructura, logo, idempotencia y errores sin secretos.
 
 La entrega a un buzón real y la verificación DNS quedan pendientes hasta disponer de una cuenta del proveedor. No se implementó SMS.
+
+## Hosting cPanel (GoDaddy): configuración y diagnóstico
+
+Los correos de cuenta no salen en la solicitud: se encolan y los envía el cron `mail:work`. Sin ese cron, o sin variables de correo, el registro y la recuperación fallan o los mensajes quedan en la cola. Pasos:
+
+1. **Buzón remitente.** En cPanel → *Email Accounts* crea, por ejemplo, `admin@tinbana.com`. Si tu plan no incluye buzones, usa Resend (sección anterior), que necesita registros DNS de verificación pero no buzón.
+2. **Variables** en `~/tinvana/.env` (la contraseña del buzón nunca se escribe en documentos ni repositorios):
+   ```dotenv
+   MAIL_TRANSPORT=smtp
+   MAIL_FROM_ADDRESS=admin@tinbana.com
+   SMTP_HOST=localhost
+   SMTP_PORT=465
+   SMTP_ENCRYPTION=smtps
+   SMTP_USERNAME=admin@tinbana.com
+   SMTP_PASSWORD=
+   APP_URL=https://tinbana.com
+   ```
+   Con `SMTP_HOST=localhost` (o `127.0.0.1`) el correo sale por el servidor del propio hosting y no se valida el nombre del certificado, que casi nunca coincide con `localhost`; el tráfico no sale de la máquina. Con cualquier otro host se verifica el certificado: usa el nombre exacto que figura en él. El remitente debe ser el mismo buzón que autentica.
+3. **Cron** (cada minuto): `php /home/USUARIO/tinvana/bin/console.php mail:work`.
+4. **Probar.** Con Terminal: `php ~/tinvana/bin/console.php mail:test admin@tinbana.com`. Sin Terminal, el script de un solo uso de la guía de despliegue llama a `App\AccountMail::diagnose()`. Imprime qué variables faltan (sin sus valores), si el servidor SMTP responde, si su certificado es válido, el resultado de un envío de prueba y el estado de la cola; termina con código 1 si algo falla.
+5. **Si un envío de la cola falla**, el motivo queda en el `error_log` de PHP como `Zenzales mail: Clase: mensaje`, sin direcciones, enlaces ni credenciales. La base solo guarda un texto genérico.
+
+Los mensajes usan la marca Tinvana (logo `backend/public/brand/tinvana-mail.png`, incrustado en SMTP y enlazado desde `APP_URL` con Resend). `.cpanel.yml` copia ese logo a `~/tinvana/public/brand`.
+
+### Comprobaciones añadidas
+
+`node tests/mail-local.mjs`: ejecuta `AccountMail::diagnose` por el código SMTP real contra un servidor TLS local (puerto 2525), sin base de datos ni servicios externos. Verifica configuración, entrega, remitente y asunto, cuerpo con marca y sin restos de Zenzales, logo incrustado, alternativa de texto, destinatario rechazado sin filtrar la dirección ni credenciales. La entrega a un buzón real de `tinbana.com` y la entrega en bandeja de entrada (SPF/DKIM) no se han comprobado.
