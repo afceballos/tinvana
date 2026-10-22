@@ -411,6 +411,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Corrección de auditoría:** se preserva el resultado nulo de `INSERT ... ON CONFLICT DO NOTHING RETURNING` cuando no se insertó la fila, evitando duplicar entregas/eventos en reintentos idempotentes.
 - **Límites:** el PHP local carece de `pdo_mysql` y no hay servidor MySQL local disponible. No se desplegó ni se alteró la base GoDaddy. El soporte local implementado aún no equivale a compatibilidad integral demostrada.
 - **Siguiente paso:** ejecutar `check`/`migrate` desde GoDaddy con la versión/extensión confirmadas y probar los flujos esenciales con datos controlados; no activar tráfico real hasta que terminen.
+
+### 2026-10-21 · Candidato MySQL publicado en GitHub
+
+- **Commit:** `884af33` en `master` de `afceballos/tinvana`; incluye backend MySQL, esquema, build React y guías actualizadas.
+- **Comprobado:** `git push` completado. No se desplegó en cPanel, no se modificó `~/tinvana/.env` y no se ejecutaron consultas/migraciones en la base GoDaddy.
+- **Siguiente paso:** desplegar HEAD desde cPanel, configurar `DB_DRIVER=mysql` y variables MySQL en el `.env` privado; correr `check` y `migrate` y devolver los resultados sin incluir la contraseña.
 ### Plantilla para la próxima actualización
 
 ```text
