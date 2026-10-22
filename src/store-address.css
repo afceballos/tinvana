@@ -1,0 +1,12 @@
+.profile-layout .store-card{grid-column:1/-1;order:-1;display:grid;gap:10px}
+.store-card h2{margin:0}
+.store-form{display:grid;gap:10px;max-width:640px}
+.store-form p{margin:0}
+.store-input input{min-width:0;flex:1}
+.store-input span{white-space:nowrap;padding:0 14px 0 4px;font-weight:600;color:var(--muted)}
+.store-hint{color:var(--muted);font-size:12px}
+.store-hint.bad{color:#c2410c}
+.store-preview{font-size:13px;overflow-wrap:anywhere}
+.store-preview em{font-style:normal;color:var(--muted)}
+.store-warning{font-size:13px}
+.store-actions{display:flex;gap:12px;align-items:center}

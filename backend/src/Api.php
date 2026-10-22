@@ -31,6 +31,7 @@ final class Api {
   }
   if($path==='/api/media'){if($method==='DELETE')return Media::remove($owner,self::body());if($method==='GET')return Media::listing($owner,$_GET);if($method==='POST')return ['image'=>Media::upload(null,$owner)];}
   if($path==='/api/profile'){if($method==='GET')return ['profile'=>Profile::view($owner)];if($method==='PUT')return ['profile'=>Profile::save($owner,self::body())];}
+  if($path==='/api/profile/store'&&$method==='PUT')return ['profile'=>Store::save($owner,self::body())];
   if($path==='/api/profile/password'&&$method==='POST')return Profile::password($owner,self::body());
   if($path==='/api/profile/avatar'&&in_array($method,['POST','DELETE'],true))return ['profile'=>Profile::photo($owner,$method==='DELETE')];
   if($path==='/api/ai/connections'&&$method==='GET')return AiConnections::view($owner);
@@ -71,7 +72,7 @@ final class Api {
    }
   }
   if($path==='/api/products'){
-   if($method==='GET'){$rows=Database::all('SELECT p.*,l.id AS landing_id,COALESCE(l.published_slug,l.slug) AS slug,l.published_subdomain,l.status AS publication_status FROM selected_products p LEFT JOIN landing_pages l ON l.selected_product_id=p.id WHERE p.user_id=? ORDER BY p.created_at DESC',[$owner]);foreach($rows as &$p){$p['product']=json_decode($p['mapped_data'],true);$p['public_url']=$p['publication_status']==='published'&&!empty($p['published_subdomain'])?Landing::publicUrl((string)$p['slug'],$p['published_subdomain']):null;unset($p['original_data'],$p['mapped_data'],$p['published_subdomain']);}return ['products'=>$rows];}
+   if($method==='GET'){$rows=Database::all('SELECT p.*,l.id AS landing_id,COALESCE(l.published_slug,l.slug) AS slug,l.status AS publication_status FROM selected_products p LEFT JOIN landing_pages l ON l.selected_product_id=p.id WHERE p.user_id=? ORDER BY p.created_at DESC',[$owner]);$store=Store::subdomainOf($owner);foreach($rows as &$p){$p['product']=json_decode($p['mapped_data'],true);$p['public_url']=$p['publication_status']==='published'?Store::landingUrl((string)$p['slug'],$store):null;unset($p['original_data'],$p['mapped_data']);}return ['products'=>$rows];}
    if($method==='POST'){
     $b=self::body();$integration=self::owned('integrations',(string)($b['integration_id']??''),$owner);$id=(string)($b['dropi_id']??'');if(!preg_match('/^[1-9][0-9]{0,17}$/',$id))throw new HttpError(422,'ID de producto inválido.');
     $raw=null;foreach($_SESSION['catalog_pages'][$integration['id']]??[] as $page)if($page['at']>time()-900)foreach($page['objects'] as $p)if((string)$p['id']===$id)$raw=$p;
@@ -102,8 +103,8 @@ final class Api {
   if(preg_match('~^/api/landings/([^/]+)(?:/(publish|unpublish|preview-link|images|render))?$~',$path,$m)){
    $r=self::owned('landing_pages',$m[1],$owner);$action=$m[2]??'';
    if($method==='POST'&&$action==='images')return ['image'=>Media::upload($r,$owner)];
-   if($method==='GET'&&$action==='')return ['landing'=>Landing::decode($r)];
-   if($method==='PUT'&&$action===''){$b=self::body();$c=Landing::content($b['content']??[]);Blocks::ownedProducts($c['blocks'],$owner);$db=Database::connection();$db->beginTransaction();try{Database::query('SELECT id FROM landing_pages WHERE id=? AND user_id=? FOR UPDATE',[$r['id'],$owner]);Media::validateReferences(Blocks::imageUrls($c),$owner,$r['id']);$slug=Landing::slug($b['slug']??'');Landing::checkSlug($slug,$r['id']);$subdomain=Landing::subdomain($b['subdomain']??null);Landing::checkSubdomain($subdomain,$r['id']);Database::query('UPDATE landing_pages SET slug=?,subdomain=?,content=?::jsonb,updated_at=now() WHERE id=? AND user_id=?',[$slug,$subdomain,Support::json($c),$r['id'],$owner]);$db->commit();}catch(\Throwable $e){$db->rollBack();throw $e;}return ['landing'=>Landing::decode(self::owned('landing_pages',$r['id'],$owner))];}
+   if($method==='GET'&&$action==='')return ['landing'=>Store::decorate(Landing::decode($r))];
+   if($method==='PUT'&&$action===''){$b=self::body();$c=Landing::content($b['content']??[]);Blocks::ownedProducts($c['blocks'],$owner);$db=Database::connection();$db->beginTransaction();try{Database::query('SELECT id FROM landing_pages WHERE id=? AND user_id=? FOR UPDATE',[$r['id'],$owner]);Media::validateReferences(Blocks::imageUrls($c),$owner,$r['id']);$slug=Landing::slug($b['slug']??'');Landing::checkSlug($slug,$r['id']);Database::query('UPDATE landing_pages SET slug=?,content=?::jsonb,updated_at=now() WHERE id=? AND user_id=?',[$slug,Support::json($c),$r['id'],$owner]);$db->commit();}catch(\Throwable $e){$db->rollBack();throw $e;}return ['landing'=>Store::decorate(Landing::decode(self::owned('landing_pages',$r['id'],$owner)))];}
    if($method==='POST'&&$action==='render'){$b=self::body();$c=Landing::content($b['content']??[]);Blocks::ownedProducts($c['blocks'],$owner);Media::validateReferences(Blocks::imageUrls($c),$owner,$r['id']);$r['content']=$c;$r['slug']=Landing::slug($b['slug']??$r['slug']);$_GET['expires']=time()+900;$_GET['signature']=hash_hmac('sha256',$r['id'].':'.$_GET['expires'],base64_decode(Support::env('TOKEN_ENCRYPTION_KEY'),true));return ['html'=>Landing::render($r,true)];}
    if($method==='POST'&&$action==='publish'){Landing::publish($r);return ['ok'=>true];}
    if($method==='POST'&&$action==='unpublish'){Database::query("UPDATE landing_pages SET status='draft',published_at=null,updated_at=now() WHERE id=? AND user_id=?",[$r['id'],$owner]);return ['ok'=>true];}

@@ -4,7 +4,7 @@ namespace App;
 final class Profile {
  public static function view(string $owner):array {
   $r=Database::one('SELECT id,email,profile,avatar_id,updated_at FROM users WHERE id=?',[$owner]);
-  return ['id'=>$r['id'],'email'=>$r['email'],'username'=>$r['email'],'countries'=>array_column(Geography::countries(),'id'),'fields'=>json_decode($r['profile'],true),'avatar'=>$r['avatar_id']?'/api/profile/avatar?v='.$r['avatar_id']:null];
+  return ['id'=>$r['id'],'email'=>$r['email'],'username'=>$r['email'],'countries'=>array_column(Geography::countries(),'id'),'fields'=>json_decode($r['profile'],true),'store'=>Store::view($owner),'avatar'=>$r['avatar_id']?'/api/profile/avatar?v='.$r['avatar_id']:null];
  }
  public static function save(string $owner,array $b):array {
   $allowed=['company_name','first_name','last_name','phone','country','state','city','address','address_details','postal_code','state_code','city_code'];

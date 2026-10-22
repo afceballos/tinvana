@@ -68,7 +68,3 @@ Antes de migrar se verificó una copia de las tres landings y ajustes de plantil
 Para desplegar: PHP necesita `ext-dom` además de las extensiones existentes, ejecutar migraciones y `npm run build`. Distribuir `backend/blocks.json`, los nuevos PHP/CSS, `backend/public/app` y `backend/public/landing-assets`. `console.php check` comprueba DOM. No cambia la configuración de Dropi ni el destino del webhook.
 
 La entrega real a una cuenta GHL y sus custom fields depende del webhook/workflow del negocio y no se ejecutó en pruebas. Para próximas iteraciones: historial de versiones, deshacer/rehacer, autosave con control de concurrencia, más variantes específicas y auditoría Lighthouse bajo la infraestructura final. Las métricas Core Web Vitals no se certifican con capturas locales.
-
-## Enlace público: normal o subdominio
-
-En *Producto y página* el usuario elige entre `/p/<slug>` y un subdominio propio (`<nombre>.<dominio>`), con el nombre limitado a minúsculas, números y guiones. Reglas, API, router y despliegue: [LANDING-SUBDOMAINS.md](LANDING-SUBDOMAINS.md).

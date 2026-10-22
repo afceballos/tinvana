@@ -42,8 +42,6 @@
 :root[data-theme=dark] .thumbnail{border-color:var(--line);background:var(--surface)}
 :root[data-theme=dark] .details-list{color:var(--muted)}
 :root[data-theme=dark] .details-list strong{color:var(--ink)}
-:root[data-theme=dark] .webhook-current{background:var(--surface)}
-:root[data-theme=dark] .webhook-address{background:var(--surface)}
 :root[data-theme=dark] .space-label small{color:var(--muted)}
 :root[data-theme=dark] .intro{border-color:var(--line)}
 :root[data-theme=dark] .intro .eyebrow{color:var(--ink)}
@@ -55,7 +53,6 @@
 :root[data-theme=dark] .card-image{background:var(--surface);border-bottom-color:var(--line)}
 :root[data-theme=dark] .skeleton{background:var(--surface)}
 :root[data-theme=dark] .empty{background:var(--surface)}
-:root[data-theme=dark] .webhook-address{background:var(--soft)}
 :root[data-theme=dark] .login-form{background:var(--surface)}
 :root[data-theme=dark] .image-upload .thumbnails button{background:var(--surface)}
 :root[data-theme=dark] .media-manager{background:var(--surface)}
@@ -128,7 +125,6 @@
 :root[data-theme=dark] .auth-form-container .account-access-check{background:var(--soft)}
 :root[data-theme=dark] .loading-glyph>span{background:var(--soft)}
 :root[data-theme=dark] .catalog-skeleton-image{background:var(--soft)}
-:root[data-theme=dark] .builder-live-notice{background:var(--surface)}
 :root[data-theme=dark] .builder-structure,:root[data-theme=dark] .builder-properties{background:var(--surface)}
 :root[data-theme=dark] .builder-add-section,:root[data-theme=dark] .builder-add-item{background:var(--surface)}
 :root[data-theme=dark] .builder-section{background:var(--surface)}
@@ -209,7 +205,6 @@
 :root[data-theme=dark] .lead-state{background:var(--surface)}
 :root[data-theme=dark] .lead-state.accepted{background:var(--surface)}
 :root[data-theme=dark] .lead-state.failed{background:var(--soft)}
-:root[data-theme=dark] .lead-last-error{background:var(--surface)}
 :root[data-theme=dark] .account-trigger{background:var(--surface)}
 :root[data-theme=dark] .account-options{background:var(--surface)}
 :root[data-theme=dark] .account-options nav a,:root[data-theme=dark] .account-options nav button{background:var(--surface)}
@@ -253,11 +248,6 @@
 :root[data-theme=dark] .geo-attribution{color:var(--muted)}
 :root[data-theme=dark] .geo-clear{border-bottom-color:var(--line);background:var(--surface)}
 :root[data-theme=dark] .geo-clear:hover{background:var(--surface)}
-:root[data-theme=dark] .toast{background:var(--surface);border-color:var(--line)}
-:root[data-theme=dark] .toast-close:hover{background:var(--surface)}
-:root[data-theme=dark] .toast-error{border-color:var(--line)}
-:root[data-theme=dark] .toast-warning{border-color:var(--line)}
-:root[data-theme=dark] .toast-info{border-color:var(--line)}
 :root[data-theme=dark] .delivery-fields{border-top-color:var(--line)}
 :root[data-theme=dark] .delivery-fields legend{color:var(--ink)}
 :root[data-theme=dark] #lead-form select{border-color:var(--line);background:var(--surface)}

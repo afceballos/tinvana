@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN store_subdomain VARCHAR(40) NULL, ADD UNIQUE KEY users_store_subdomain_uq (store_subdomain), ADD CONSTRAINT users_store_subdomain_ck CHECK (store_subdomain IS NULL OR store_subdomain REGEXP '^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$')

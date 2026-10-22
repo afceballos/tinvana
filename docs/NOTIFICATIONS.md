@@ -13,3 +13,18 @@ La información permanente de contexto y el historial de entregas siguen en su s
 Build TypeScript/Vite completado. `tests/notifications.mjs` comprobó en Edge: posición flotante sin desplazar contenido, deduplicación, pausa al pasar el ratón, cierre automático de éxitos, errores persistentes, cierre con Escape, botones accesibles sobre diálogo nativo sin robar foco, pila con espaciado en móvil de 375 px y movimiento reducido. No hubo errores JavaScript. Se utilizó sesión temporal autorizada y respuestas de guardado controladas exclusivamente por la prueba; no se cambiaron datos en Supabase.
 
 Capturas locales: `test-results/notification-error-desktop.png` y `test-results/notifications-mobile.png`. Actualización disponible en el build que sirve el túnel temporal.
+
+## Colores por tipo y estilo moderno (sin borde lateral)
+
+Las notificaciones flotantes y los mensajes en línea comparten una paleta definida en `modern.css` (variables `--ok-*`, `--info-*`, `--warn-*` y `--bad-*`, con versión para el tema oscuro). Cada tipo fija su tono con `--t-fg`, `--t-bg`, `--t-bd`, `--t-ic` y `--t-icon`:
+
+| Tipo | Color | Dónde |
+|---|---|---|
+| Éxito | verde | `toast-success` |
+| Error | rojo | `toast-error`, `.error`, `.lead-last-error`, aviso `p[role=alert]` de pedidos |
+| Advertencia | ámbar | `toast-warning`, `.store-warning` |
+| Información | azul | `toast-info`, `.notice`, `.builder-live-notice` |
+
+Las notificaciones flotantes son tarjetas redondeadas con degradado tenue del tono, borde del mismo color, brillo suave y un chip de icono sólido; el título toma el color del tipo. Los mensajes en línea llevan un icono (máscara SVG) a la izquierda del texto y el mismo fondo y borde tonales. **Se eliminó el borde/barra lateral de color** (`.toast::before`, `border-left` de `.notice`, `.error`, `.builder-live-notice` y `.lead-last-error`) y las variables antiguas `--toast-accent/--toast-soft`. Un tipo nuevo solo necesita fijar las cinco variables `--t-*`. Los roles ARIA no cambian (`alert` para errores, `status` para el resto).
+
+No se tocaron los estados de las páginas públicas (por ejemplo el estado del formulario de consultas), que siguen la identidad de cada landing. Prueba: `node tests/alerts.mjs` (18 comprobaciones, API simulada). `tests/notifications.mjs` apunta a una dirección de túnel externa que ya no existe y no se pudo ejecutar.

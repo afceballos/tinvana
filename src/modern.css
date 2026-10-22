@@ -44,10 +44,6 @@ html{scroll-behavior:smooth}
 :root[data-theme=dark] table,:root[data-theme=dark] th,:root[data-theme=dark] td{border-color:var(--line)}
 :root[data-theme=dark] th{background:#221c16;color:var(--muted)}
 :root[data-theme=dark] tr:hover td{background:#241d17}
-:root[data-theme=dark] .toast{background:var(--surface);color:var(--ink);--toast-soft:#2a211a;border-color:var(--line)}
-:root[data-theme=dark] .toast-error{--toast-soft:#35201b;--toast-accent:#ff8b73}
-:root[data-theme=dark] .toast-warning{--toast-soft:#352b17;--toast-accent:#f0be6b}
-:root[data-theme=dark] .toast-info,:root[data-theme=dark] .toast{--toast-accent:#ff9a57}
 :root[data-theme=dark] footer{color:var(--muted);border-color:var(--line);background:transparent}
 :root[data-theme=dark] .startup-loader,:root[data-theme=dark] .brand-entrance,:root[data-theme=dark] .auth-layout.login-layout{background:var(--paper)}
 :root[data-theme=dark] .startup-brand img{filter:brightness(0) invert(1)}
@@ -188,3 +184,41 @@ dialog[open]::backdrop{animation:backdrop-in .35s ease-out}
 *{scrollbar-width:thin;scrollbar-color:var(--sb-thumb) transparent}
 *:hover{scrollbar-color:var(--sb-thumb-hover) transparent}
 .app-sidebar nav,.app-sidebar nav:hover{scrollbar-width:none}
+
+/* Webhook actual: rounded card with a soft brand glow, status chip and a URL well (no coloured edge). */
+.panel.webhook-current{position:relative;display:grid;gap:16px;padding:22px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(160deg,color-mix(in srgb,var(--brand-accent) 9%,var(--surface)),var(--surface) 62%);box-shadow:0 18px 40px -28px color-mix(in srgb,var(--brand-accent) 60%,transparent);overflow:hidden}
+.webhook-current::before{content:"";position:absolute;top:-90px;right:-70px;width:240px;height:240px;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--brand-accent) 20%,transparent),transparent);pointer-events:none}
+.webhook-current>*{position:relative}
+.webhook-current p{margin:0}
+.webhook-head{display:flex;align-items:center;gap:14px}
+.webhook-head h3{margin:2px 0 0}
+.webhook-logo{display:grid;place-items:center;flex:none;width:46px;height:46px;border-radius:14px;color:#fff;background:linear-gradient(135deg,var(--brand-accent),color-mix(in srgb,var(--brand-accent) 70%,#7a2e00));box-shadow:0 10px 20px -10px var(--brand-accent)}
+.webhook-logo .icon{width:22px;height:22px}
+.webhook-state{margin-left:auto;display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:12px;font-weight:700;white-space:nowrap}
+.webhook-state::before{content:"";width:8px;height:8px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 0 #16a34a66;animation:webhook-pulse 2.2s ease-out infinite}
+.webhook-state.off::before{background:#a8a29e;animation:none}
+@keyframes webhook-pulse{0%{box-shadow:0 0 0 0 #16a34a66}70%,100%{box-shadow:0 0 0 7px #16a34a00}}
+.webhook-url{display:flex;align-items:center;gap:10px;min-width:0;padding:12px 14px;border:1px dashed var(--line);border-radius:14px;background:color-mix(in srgb,var(--ink) 5%,var(--surface))}
+.webhook-url .icon{flex:none;width:18px;height:18px;color:var(--brand-accent)}
+.webhook-url code{min-width:0;padding:0;background:none;color:var(--ink);font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
+@media (max-width:560px){.webhook-head{flex-wrap:wrap}.webhook-state{margin-left:0}}
+@media (prefers-reduced-motion:reduce){.webhook-state::before{animation:none}}
+:root[data-theme=dark] .panel.webhook-current{background:linear-gradient(160deg,color-mix(in srgb,var(--brand-accent) 12%,var(--surface)),var(--surface) 62%);border-color:var(--line)}
+.webhook-current .row{margin:0}
+
+/* ---------- Alerts and notices: one palette, colour by meaning, no coloured edge ---------- */
+:root{--ok-fg:#166534;--ok-bg:#ecfdf3;--ok-bd:#a7e3bd;--ok-ic:#16a34a;--info-fg:#1e40af;--info-bg:#eff6ff;--info-bd:#bcd4fb;--info-ic:#2563eb;--warn-fg:#92400e;--warn-bg:#fffbeb;--warn-bd:#f6d58c;--warn-ic:#d97706;--bad-fg:#991b1b;--bad-bg:#fef2f2;--bad-bd:#f7c0c0;--bad-ic:#dc2626;
+ --icon-ok:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m5 12 4 4L19 6'/></svg>");--icon-info:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 11v5m0-8h.01'/></svg>");--icon-warn:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m12 3 10 18H2L12 3Z'/><path d='M12 9v5m0 3h.01'/></svg>");--icon-bad:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='m9.5 9.5 5 5m0-5-5 5'/></svg>")}
+:root[data-theme=dark]{--ok-fg:#86efac;--ok-bg:#0f2a1b;--ok-bd:#1f5a38;--ok-ic:#22c55e;--info-fg:#93c5fd;--info-bg:#0f1e3a;--info-bd:#1e3a6e;--info-ic:#3b82f6;--warn-fg:#fcd34d;--warn-bg:#2b2110;--warn-bd:#6b4a12;--warn-ic:#f59e0b;--bad-fg:#fca5a5;--bad-bg:#2e1414;--bad-bd:#6b2323;--bad-ic:#ef4444}
+.toast,.toast-info,.notice,.builder-live-notice{--t-fg:var(--info-fg);--t-bg:var(--info-bg);--t-bd:var(--info-bd);--t-ic:var(--info-ic);--t-icon:var(--icon-info)}
+.toast-success{--t-fg:var(--ok-fg);--t-bg:var(--ok-bg);--t-bd:var(--ok-bd);--t-ic:var(--ok-ic);--t-icon:var(--icon-ok)}
+.toast-warning,.store-warning{--t-fg:var(--warn-fg);--t-bg:var(--warn-bg);--t-bd:var(--warn-bd);--t-ic:var(--warn-ic);--t-icon:var(--icon-warn)}
+.toast-error,.error,.lead-last-error,.order-customer-form p[role=alert]{--t-fg:var(--bad-fg);--t-bg:var(--bad-bg);--t-bd:var(--bad-bd);--t-ic:var(--bad-ic);--t-icon:var(--icon-bad)}
+.notice,.error,.builder-live-notice,.lead-last-error,.store-warning,.order-customer-form p[role=alert]{position:relative;padding:13px 16px 13px 46px;border:1px solid var(--t-bd);border-radius:14px;background:var(--t-bg);color:var(--t-fg);box-shadow:0 10px 22px -18px var(--t-ic)}
+.notice::before,.error::before,.builder-live-notice::before,.lead-last-error::before,.store-warning::before,.order-customer-form p[role=alert]::before{content:"";position:absolute;left:15px;top:13px;width:20px;height:20px;background:var(--t-ic);-webkit-mask:var(--t-icon) center/contain no-repeat;mask:var(--t-icon) center/contain no-repeat}
+.notice a,.builder-live-notice a{color:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.lead-last-error{color:var(--t-fg)}
+.geo-load-error{color:var(--bad-fg)}
+/* The generated dark rules for the legacy classes must not win over the tones. */
+:root[data-theme=dark] .notice,:root[data-theme=dark] .builder-live-notice,:root[data-theme=dark] .error,:root[data-theme=dark] .lead-last-error,:root[data-theme=dark] .store-warning,:root[data-theme=dark] .order-customer-form p[role=alert]{background:var(--t-bg);border-color:var(--t-bd);color:var(--t-fg)}
+:root[data-theme=dark] .toast,:root[data-theme=dark] .toast-error,:root[data-theme=dark] .toast-warning,:root[data-theme=dark] .toast-info,:root[data-theme=dark] .toast-success{background:linear-gradient(135deg,var(--t-bg),color-mix(in srgb,var(--t-bg) 55%,var(--surface)));border-color:var(--t-bd);color:var(--ink)}

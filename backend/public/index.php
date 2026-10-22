@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-use App\{Support,Auth,Api,Database,Landing,Leads,HttpError,Media,Blocks};
+use App\{Support,Auth,Api,Database,Landing,Leads,HttpError,Media,Blocks,Store};
 header('X-Content-Type-Options: nosniff');header('Referrer-Policy: strict-origin-when-cross-origin');header('X-Frame-Options: SAMEORIGIN');
 header("Content-Security-Policy: default-src 'self'; img-src 'self' https: http: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'self'; base-uri 'none'");
 $path=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH)?:'/';$method=$_SERVER['REQUEST_METHOD']??'GET';
@@ -8,15 +8,21 @@ $api=str_starts_with($path,'/api/');
 $root=is_file(dirname(__DIR__).'/bootstrap.php')?dirname(__DIR__):dirname(__DIR__).'/tinvana';
 try {
  require $root.'/bootstrap.php';
- // <nombre>.<dominio de APP_URL> sirve la landing publicada con ese subdominio; /p/<slug> sigue funcionando.
- $appHost=Landing::subdomainBase();$host=strtolower(explode(':',(string)($_SERVER['HTTP_HOST']??''))[0]);
- if($appHost!==null&&$path==='/'&&in_array($method,['GET','HEAD'],true)&&str_ends_with($host,'.'.$appHost)&&preg_match('~^([a-z0-9-]+)\.'.preg_quote($appHost,'~').'$~',$host,$sub)&&!Landing::isReservedSubdomain($sub[1])){
-  $found=Database::one("SELECT COALESCE(published_slug,slug) AS slug FROM landing_pages WHERE published_subdomain=? AND status='published'",[$sub[1]]);
-  if(!$found)throw new HttpError(404,'Página no encontrada.');$path='/p/'.$found['slug'];
+ // <tienda>.<dominio de APP_URL>: cada usuario es una tienda y solo sirve sus propias landings publicadas bajo /p/<slug>.
+ $storeBase=Store::base();$host=strtolower(explode(':',(string)($_SERVER['HTTP_HOST']??''))[0]);
+ if($storeBase!==null&&str_ends_with($host,'.'.$storeBase)){
+  $label=substr($host,0,-strlen('.'.$storeBase));
+  if(!Store::isReserved($label)){
+   $storeOwner=preg_match('/^[a-z0-9-]+$/',$label)?Store::owner($label):null;
+   if($storeOwner===null)throw new HttpError(404,'Tienda no encontrada.');
+   if(preg_match('~^/p/([a-z0-9]+(?:-[a-z0-9]+)*)(?:/lead)?$~',$path,$mine)){
+    if(!Database::one("SELECT id FROM landing_pages WHERE COALESCE(published_slug,slug)=? AND user_id=? AND status='published'",[$mine[1],$storeOwner]))throw new HttpError(404,'Producto no encontrado.');
+   }elseif($path==='/')throw new HttpError(404,'Esta tienda aún no tiene página de inicio.');
+  }
  }
  if(Support::env('APP_ENV')==='production')header('Strict-Transport-Security: max-age=31536000');
  if($path==='/sitemap.xml'){
-  header('Content-Type: application/xml; charset=utf-8');$rows=Database::all("SELECT COALESCE(published_slug,slug) AS slug,published_subdomain,published_at AS updated_at FROM landing_pages WHERE status='published'");echo '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';foreach($rows as $r)echo '<url><loc>'.Support::escape(Landing::publicUrl((string)$r['slug'],$r['published_subdomain']??null)).'</loc><lastmod>'.gmdate('c',strtotime($r['updated_at'])).'</lastmod></url>';echo '</urlset>';exit;
+  header('Content-Type: application/xml; charset=utf-8');$rows=Database::all("SELECT COALESCE(l.published_slug,l.slug) AS slug,u.store_subdomain,l.published_at AS updated_at FROM landing_pages l JOIN users u ON u.id=l.user_id WHERE l.status='published'");echo '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';foreach($rows as $r)echo '<url><loc>'.Support::escape(Store::landingUrl((string)$r['slug'],$r['store_subdomain']??null)).'</loc><lastmod>'.gmdate('c',strtotime($r['updated_at'])).'</lastmod></url>';echo '</urlset>';exit;
  }
  if($path==='/datos-geograficos'){if($method!=='GET')throw new HttpError(405,'Use GET.');header('Content-Type: text/html; charset=utf-8');echo App\GeographyAttribution::html();exit;}
  if(in_array($path,['/geography-data/world.zip','/geography-data/colombia.json'],true)){if($method!=='GET')throw new HttpError(405,'Use GET.');$world=$path==='/geography-data/world.zip';$file=$root.'/resources/geo/'.($world?'world/world.zip':'colombia.json');header('Content-Type: '.($world?'application/zip':'application/json; charset=utf-8'));header('Cache-Control: public, max-age=86400');header('Content-Disposition: attachment; filename="'.($world?'zenzales-world-geography.zip':'zenzales-colombia-divipola.json').'"');readfile($file);exit;}

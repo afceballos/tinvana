@@ -88,7 +88,7 @@ final class LandingRenderer {
   return '<section id="section-'.$e($b['id']).'" class="'.$classes.'" data-block-id="'.$e($b['id']).'"><div class="block-inner">'.$html.'</div></section>';
  }
  public static function render(array $row,bool $preview=false,string $notice=''):string {
-  $r=$preview?Landing::decode($row):Landing::published($row);$c=$r['content'];$v=$c['visual'];$e=fn($s)=>Support::escape($s);$url=$preview?rtrim(Support::env('APP_URL'),'/').'/p/'.$r['slug']:Landing::publicUrl((string)$r['slug'],$r['subdomain']??null);
+  $r=$preview?Landing::decode($row):Landing::published($row);$c=$r['content'];$v=$c['visual'];$e=fn($s)=>Support::escape($s);$url=$preview?rtrim(Support::env('APP_URL'),'/').'/p/'.$r['slug']:Store::landingUrl((string)$r['slug'],Store::subdomainOf((string)$r['user_id']));
   if($preview&&isset($_GET['expires'],$_GET['signature'])){
    $sign=function(string $image)use($r){return str_starts_with($image,rtrim(Support::env('APP_URL'),'/').'/media/')?$image.'?'.http_build_query(['landing'=>$r['id'],'expires'=>$_GET['expires'],'signature'=>$_GET['signature']]):$image;};$c['images']=array_map($sign,$c['images']);$c['header']['logo']=$sign($c['header']['logo']);foreach($c['blocks'] as &$block){if(isset($block['data']['image']))$block['data']['image']=$sign($block['data']['image']);if(isset($block['data']['images']))$block['data']['images']=array_map($sign,$block['data']['images']);foreach($block['data']['items']??[] as $key=>$item)$block['data']['items'][$key]['image']=$sign($item['image']);}unset($block);
   }

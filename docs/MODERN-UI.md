@@ -50,3 +50,7 @@ Sigue editando los mismos cuatro valores (`primaryColor`, `backgroundColor`, `bu
 - `node tests/compact.mjs`: 27 comprobaciones con API simulada: tarjetas, filtros y búsqueda de productos, creación de landing, contadores y filtro de consultas, panel lateral, filas y chips de pedidos con filtro de servidor, resumen tipo factura, paneles de cotización y preparación conservados, línea de tiempo, clic en cualquier parte de la fila, sin desbordamiento a 1440 y 390 px y sin errores de JavaScript.
 - Capturas locales con datos simulados en claro y oscuro (`test-results/`).
 - **Sin verificar:** datos reales de producción en estas pantallas; las pruebas existentes con base local (`tests/orders.mjs`, `order-editing.mjs`, `tinvana-ui.mjs`, `motion.mjs`, `brand.mjs`) no se ejecutaron en esta etapa aunque se conservaron sus selectores; despliegue en GoDaddy.
+
+## Tarjeta «Webhook actual»
+
+Sustituye la tarjeta plana con borde izquierdo de color por una tarjeta redondeada con brillo suave de marca: icono de envío, nombre del proveedor, chip de estado (*Activo* con punto pulsante, o *Pausado*) y la URL en un recuadro propio. Estilos en `modern.css` (sección «Webhook actual»), con variables de tema, por lo que el tema oscuro se adapta solo; el punto pulsante se detiene con `prefers-reduced-motion`. Se retiraron las reglas antiguas `.webhook-current` y `.webhook-address` de `style.css`, `premium.css` y `tinvana.css`, y se regeneró `dark.css`. Prueba: `node tests/webhook-card.mjs` (13 comprobaciones, API simulada).

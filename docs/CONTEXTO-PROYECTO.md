@@ -483,9 +483,24 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 
 ### 2026-10-22 · Subdominio opcional por landing y certificado comodín
 - **Infraestructura (en producción):** registro DNS `A` `*`, CNAME `_acme-challenge` hacia acme-dns, certificado comodín de Let's Encrypt (`tinbana.com` y `*.tinbana.com`) emitido con `acme.sh --dns dns_acmedns` desde cron e instalado con `cpanel_uapi`, y dominio `*.tinbana.com` en cPanel. Comprobado desde fuera: `tinbana.com`, `www` y subdominios arbitrarios sirven el certificado nuevo (vence el 20 de enero de 2027) y responden HTTP 200 con la app.
-- **Cambio de código (ampliación expresamente pedida, no solo visual):** cada landing elige enlace normal `/p/<slug>` o subdominio con el nombre que escoja el usuario (solo minúsculas, números y guiones). Migración 013 en PostgreSQL y MySQL, validación y reservados en servidor y base, router por `HTTP_HOST`, URL pública en consultas, mapa del sitio y «Mis productos», selector en el constructor. Guía: [LANDING-SUBDOMAINS.md](LANDING-SUBDOMAINS.md).
-- **Comprobado (local, base PostgreSQL aislada y datos propios eliminados):** `landing-subdomain.php` 46, `subdomain-router.mjs` 12, `landing-address.mjs` 18; regresión: `backend/tests/run.php` 69, `blocks.php` 101, `header.php` 15, `mysql-dialect.php` 16, `compact.mjs` 27, `modern.mjs` 17, `preload.mjs` 12; `tsc -b` y compilación sin errores.
-- **Limitaciones / pendiente:** la migración MySQL no se probó con un MySQL real; hay que desplegar, ejecutar `migrate` en el servidor y probar con una landing publicada en un subdominio; confirmar que la primera renovación automática del comodín (diciembre de 2026) se instale sola; las cron de `maintenance` y `webhooks:work` necesitan `-d register_argc_argv=1` (ver DEPLOYMENT.md).
+- **Cambio de código inicial (histórico, sustituido el mismo día):** subdominio elegido por cada landing (migración 013, commit `9353369`). Se reemplazó por el subdominio de tienda de la entrada siguiente; las columnas `landing_pages.subdomain` y `published_subdomain` quedaron sin uso.
+- **Comprobado (histórico):** las pruebas de ese diseño (46, 12 y 18 comprobaciones) se retiraron junto con él.
+- **Limitaciones / pendiente:** confirmar que la primera renovación automática del comodín (diciembre de 2026) se instale sola; las cron de `maintenance` y `webhooks:work` necesitan `-d register_argc_argv=1` (ver DEPLOYMENT.md).
+
+### 2026-10-22 · Subdominio por usuario (tienda)
+- **Decisión del usuario:** cada usuario es una tienda; el subdominio es del usuario, no de cada producto, y los enlaces de sus productos quedan en él con las mismas reglas de nombre. Ampliación expresamente pedida (no solo visual).
+- **Cambio:** `users.store_subdomain` (migración 014 en PostgreSQL y MySQL), clase `Store`, tarjeta «Tu tienda» en el perfil (`PUT /api/profile/store`), enlaces `<tienda>.<dominio>/p/<slug>` en la página, consultas, mapa del sitio, «Mis productos» y constructor; router que aísla cada tienda (solo sirve sus landings publicadas; tienda inexistente o raíz de tienda: 404). Se retiró el selector por landing. Guía: [STORE-SUBDOMAIN.md](STORE-SUBDOMAIN.md).
+- **Comprobado (local, base PostgreSQL aislada, datos propios eliminados):** `store-subdomain.php` 50, `store-router.mjs` 20, `store-address.mjs` 20; regresión: `backend/tests/run.php` 69, `blocks.php` 101, `header.php` 15, `mysql-dialect.php` 16, `compact.mjs` 27, `modern.mjs` 17, `preload.mjs` 12; `tsc -b` y compilación sin errores.
+- **Limitaciones / pendiente:** la migración MySQL no se probó con un MySQL real; hay que desplegar, ejecutar `migrate` (aplica 013 y 014) en el servidor y probar con una tienda real; la raíz de la tienda (`<tienda>.tinbana.com/`) devuelve 404 hasta que exista una página de inicio de tienda; cambiar el nombre de la tienda invalida los enlaces anteriores.
+
+### 2026-10-22 · Tarjeta «Webhook actual» rediseñada
+- **Cambio visual (sin tocar la API ni la lógica):** se quitó el borde izquierdo de color; tarjeta redondeada con icono, chip de estado y la URL enmascarada en un recuadro. Detalle en [MODERN-UI.md](MODERN-UI.md#tarjeta-webhook-actual).
+- **Comprobado:** `tests/webhook-card.mjs` 13, y sin regresiones en `modern.mjs` 17, `compact.mjs` 27, `preload.mjs` 12 y `store-address.mjs` 20; `tsc -b` y compilación sin errores. Revisión visual en tema claro y oscuro. No se probó con un webhook real.
+
+### 2026-10-22 · Alertas e informativos con color por tipo
+- **Cambio visual (sin tocar lógica ni roles ARIA):** éxito verde, error rojo, advertencia ámbar e información azul, en notificaciones flotantes y mensajes en línea, con tema oscuro propio y sin borde lateral de color. Detalle en [NOTIFICATIONS.md](NOTIFICATIONS.md#colores-por-tipo-y-estilo-moderno-sin-borde-lateral).
+- **Comprobado:** `tests/alerts.mjs` 18; sin regresiones en `modern.mjs` 17, `compact.mjs` 27, `preload.mjs` 12, `store-address.mjs` 20 y `webhook-card.mjs` 13; `tsc -b` y compilación sin errores; revisión visual en tema claro y oscuro.
+- **No comprobado:** `tests/notifications.mjs` (usa un túnel externo caducado); los mensajes de las landings públicas no se modificaron.
 
 ### Plantilla para la próxima actualización
 

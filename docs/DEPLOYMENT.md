@@ -111,9 +111,9 @@ El hosting no ofrece AutoSSL ni Terminal. Se resolvió con tareas de cPanel → 
 
 Let's Encrypt acorta la vida de sus certificados (de 90 a 64 días desde el 10 de febrero de 2027 y a 45 días en 2028); la renovación automática es imprescindible. Tras cada renovación, comprueba en *SSL/TLS Status* que cambió la fecha de vencimiento. Fuente: https://letsencrypt.org/2025/12/02/from-90-to-45.html
 
-## Certificado comodín para los subdominios de landings
+## Certificado comodín para los subdominios de tiendas
 
-Cada landing puede publicarse en `<nombre>.tinbana.com` (ver [LANDING-SUBDOMAINS.md](LANDING-SUBDOMAINS.md)). Sin migrar el DNS a otro proveedor, el comodín se valida por DNS delegando solo el desafío con un CNAME a `acme-dns`:
+Cada usuario puede tener su tienda en `<nombre>.tinbana.com` y publicar allí sus landings (ver [STORE-SUBDOMAIN.md](STORE-SUBDOMAIN.md)). Sin migrar el DNS a otro proveedor, el comodín se valida por DNS delegando solo el desafío con un CNAME a `acme-dns`:
 
 1. DNS: `A` `*` hacia la IP del hosting y, tras la primera ejecución, `CNAME` `_acme-challenge` hacia el nombre `<id>.auth.acme-dns.io` que escribe `acme.sh` en su registro. El servidor público de acme-dns solo puede responder ese desafío.
 2. cPanel → *Domains*: crear `*.tinbana.com` con raíz `public_html`.

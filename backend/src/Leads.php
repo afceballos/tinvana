@@ -7,7 +7,7 @@ final class Leads {
   return ['product_id'=>$p['id'],'product_name'=>$c['title'],'dropi_product_name'=>$p['name'],
    'sku'=>$p['sku']??null,'dropi_price'=>$p['price']??null,'public_price'=>$c['publicPrice'],
    'inflated_price'=>$c['publicPrice'],'image'=>$c['images'][0]??null,
-   'landing_url'=>Landing::publicUrl((string)($landing['published_slug']??$r['slug']),$landing['published_subdomain']??null),
+   'landing_url'=>Store::landingUrl((string)($landing['published_slug']??$r['slug']),isset($landing['user_id'])?Store::subdomainOf((string)$landing['user_id']):null),
    'quantity'=>$quantity,'unit_price'=>$c['publicPrice'],'total'=>$c['publicPrice']===null?null:round($c['publicPrice']*$quantity,2),
    'dropi_id'=>$p['id'],'category'=>array_values(array_filter(array_column($p['categories']??[],'name'))),
    'tags'=>['dropi-product-lead','product-'.$p['id']]];
