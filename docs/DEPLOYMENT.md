@@ -16,6 +16,14 @@ No se publicó la plataforma ni se modificó el catálogo de referencia. Desplie
 6. Ejecuta migraciones y crea el administrador en terminal privada. Configura el webhook y cron. Mantén `display_errors=Off` en producción.
 7. Prueba login/logout, permisos, conexión Dropi real, selección, borrador 404, publicación, formulario, cron y workflow GHL desde este hosting. No basta que haya pasado localmente.
 
+### Diagnóstico de base de datos en cPanel
+
+Si la web muestra un error de conexión, confirma primero que desplegaste el HEAD del repositorio y que el `.env` privado está en `~/tinvana/.env` (junto a `bootstrap.php`), con `DB_DRIVER=mysql` explícito. No coloques ese archivo en `public_html` ni en el repositorio.
+
+Desde Terminal/SSH de GoDaddy, ejecuta `php ~/tinvana/bin/console.php check`. El resultado debe indicar `MYSQL: conexión OK`; si dice `pgsql`, el proceso no está leyendo el driver MySQL esperado. Si indica que falta `pdo_mysql`, actívalo en la selección de extensiones PHP del cPanel. Si falla con MySQL, revisa host, puerto, nombre de base y usuario del cPanel en el `.env` privado. Después ejecuta `php ~/tinvana/bin/console.php migrate` para verificar el esquema, sin importar ni borrar datos.
+
+El API registra únicamente el motor y el SQLSTATE en el log PHP; no expone detalles de conexión ni secretos. Tras desplegar la corrección, el error visible también nombra el motor que la aplicación intentó usar. Un `MYSQL: conexión OK` desde CLI aún debe contrastarse con la versión/extensiones del PHP web de cPanel.
+
 ## Build
 
 ```sh

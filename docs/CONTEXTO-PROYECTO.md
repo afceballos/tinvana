@@ -425,6 +425,15 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Protección de transición:** tokens Dropi, webhook y claves de IA se descifraron en memoria y se volvieron a cifrar con una clave nueva, entregada en un archivo `.env` privado separado. Los enlaces de cuenta se invalidan y las entregas GHL pendientes/en proceso se marcan fallidas para revisión manual antes de reintentar.
 - **Archivos locales excluidos de Git:** `.tools/tinvana-mysql-data.sql`, `.tools/tinvana-mysql-encryption.env` y `.tools/tinvana-media.zip`. Los medios se trasladan aparte del SQL.
 - **Límite:** la base MySQL de GoDaddy aún no ha sido importada ni comprobada. Importar datos requiere tablas vacías con `backend/mysql/schema.sql` ya aplicado; verificar claves, relaciones, medios y login antes del corte. El dump contiene datos personales y se debe mantener privado.
+
+### 2026-10-21 · Diagnóstico del error de conexión en producción
+
+- **Reporte:** el usuario sigue viendo “PostgreSQL no está disponible” al completar una operación en el sitio.
+- **Hallazgo de código:** `backend/public/index.php` imprimía ese texto fijo ante cualquier `PDOException`, aunque `DB_DRIVER=mysql`; el mensaje no permitía concluir qué motor estaba activo.
+- **Cambio local:** el error visible ahora nombra el motor configurado y los logs registran solo driver y SQLSTATE. También se reconoce el SQLSTATE/clave de duplicado MySQL para responder conflicto correctamente, sin registrar DSN, credenciales ni mensaje PDO.
+- **Documentación:** `docs/DEPLOYMENT.md` explica confirmar el HEAD desplegado, ubicación privada del `.env`, `DB_DRIVER=mysql`, `pdo_mysql` y ejecutar `php ~/tinvana/bin/console.php check` seguido de `migrate` desde cPanel.
+- **Comprobado:** inspección del código y edición local. No se ha desplegado esta corrección ni probado el PHP/MySQL productivo; por tanto, la causa de la conexión sigue pendiente.
+- **Siguiente paso:** desplegar el cambio y obtener el resultado literal de `php ~/tinvana/bin/console.php check` (sin mostrar variables ni secretos). Si no hay Terminal en el plan, revisar el error log de PHP de cPanel y confirmar que el commit HEAD se desplegó.
 ### Plantilla para la próxima actualización
 
 ```text

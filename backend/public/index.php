@@ -53,7 +53,11 @@ try {
  $file=__DIR__.'/app/index.html';if(!is_file($file))throw new HttpError(503,'Compila el frontend con npm run build.');readfile($file);
 }catch(HttpError $e){http_response_code($e->status);if($api||str_contains($_SERVER['CONTENT_TYPE']??'','application/json')){header('Content-Type: application/json; charset=utf-8');echo json_encode(['error'=>$e->getMessage()]+$e->details,JSON_UNESCAPED_UNICODE);}else {header('Content-Type: text/html; charset=utf-8');echo '<!doctype html><html lang="es"><meta charset="utf-8"><title>Error '.$e->status.'</title><link rel="stylesheet" href="/landing.css"><main><h1>'.htmlspecialchars($e->getMessage(),ENT_QUOTES,'UTF-8').'</h1><p>Vuelve atrás para revisar el formulario o la dirección.</p></main></html>';}
 }catch(\PDOException $e){
- error_log('Zenzales PostgreSQL code='.(string)$e->getCode());$conflict=$e->getCode()==='23505';http_response_code($conflict?409:503);$message=$conflict?'El slug o registro ya existe. Elige un valor único.':'PostgreSQL no está disponible. Revisa la conexión y las migraciones.';
+ $driver='pgsql';try{$driver=Database::driver();}catch(\Throwable){}
+ $state=(string)$e->getCode();error_log('Tinvana database driver='.$driver.' sqlstate='.$state);
+ $mysqlDuplicate=$driver==='mysql'&&isset($e->errorInfo[1])&&(int)$e->errorInfo[1]===1062;
+ $conflict=$state==='23505'||$mysqlDuplicate;http_response_code($conflict?409:503);
+ $engine=$driver==='mysql'?'MySQL':'PostgreSQL';$message=$conflict?'El slug o registro ya existe. Elige un valor único.':$engine.' no está disponible. Revisa la conexión y las migraciones.';
  if($api||str_contains($_SERVER['CONTENT_TYPE']??'','application/json')){header('Content-Type: application/json; charset=utf-8');echo json_encode(['error'=>$message]);}else{echo '<!doctype html><html lang="es"><meta charset="utf-8"><title>Servicio no disponible</title><h1>'.$message.'</h1></html>';}
 }catch(\Throwable $e){
  // Log classes/codes only: exception messages may include credentials, request data or DSNs.
