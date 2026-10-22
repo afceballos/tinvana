@@ -1,0 +1,190 @@
+/* Modern layer: smoother motion, depth and a dark theme. Visual only; markup and behavior live elsewhere. */
+:root{--ease-out:cubic-bezier(.16,1,.3,1);--ease-spring:cubic-bezier(.34,1.45,.64,1);--ease-soft:cubic-bezier(.4,0,.2,1);--orange:#ff6a00;--orange-glow:#ff6a0040;
+ --surface-glass:color-mix(in srgb,var(--surface) 78%,transparent);--stroke:#eddfd3;--lift:0 14px 34px -14px #6c300c33;--lift-sm:0 6px 18px -8px #6c300c26;
+ --page-glow-a:#ffe0cd;--page-glow-b:#ffd9a8;--text-soft:#806959;--field:#fff;--hover-fill:#fff0e5}
+html{scroll-behavior:smooth}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+/* ---------- Dark theme ---------- */
+:root[data-theme=dark]{--ink:#f6eee7;--forest:#f6eee7;--paper:#14110e;--surface:#1d1915;--soft:#272019;--muted:#b9a797;--line:#3a2e25;--lime:#3b2517;--brand-mint:#3b2517;
+ --shadow:0 8px 28px #00000040;--tinvana-link:#ff9a57;--stroke:#3a2e25;--lift:0 18px 40px -16px #000000b3;--lift-sm:0 8px 22px -10px #00000099;
+ --page-glow-a:#ff6a0024;--page-glow-b:#ff9a5714;--text-soft:#b9a797;--field:#211c17;--hover-fill:#2c231b;--surface-glass:color-mix(in srgb,var(--surface) 72%,transparent);color-scheme:dark}
+:root[data-theme=dark] body,:root[data-theme=dark] html{background:var(--paper);color:var(--ink)}
+:root[data-theme=dark] h1,:root[data-theme=dark] h2,:root[data-theme=dark] h3,:root[data-theme=dark] h4,:root[data-theme=dark] label,:root[data-theme=dark] strong{color:var(--ink)}
+:root[data-theme=dark] .muted,:root[data-theme=dark] .eyebrow,:root[data-theme=dark] .small{color:var(--muted)}
+:root[data-theme=dark] .header{background:var(--surface-glass);border-bottom-color:var(--line)}
+:root[data-theme=dark] .breadcrumb,:root[data-theme=dark] .breadcrumb strong{color:var(--ink)}
+:root[data-theme=dark] .account-trigger{background:var(--surface);border-color:var(--line);color:var(--ink)}
+:root[data-theme=dark] .account-trigger-copy small{color:var(--muted)}
+:root[data-theme=dark] .account-avatar{background:var(--lime);border-color:#5a3a24;color:#ffb27d}
+:root[data-theme=dark] .account-options{background:var(--surface);border-color:var(--line);box-shadow:0 20px 50px #000000a0;color:var(--ink)}
+:root[data-theme=dark] .account-options nav a:hover,:root[data-theme=dark] .account-options nav button:hover{background:var(--hover-fill)}
+:root[data-theme=dark] .app-sidebar{background:#0f0d0b;box-shadow:inset 0 0 0 1px #ffffff12}
+:root[data-theme=dark] .panel,:root[data-theme=dark] .card,:root[data-theme=dark] .inline-loading,:root[data-theme=dark] .catalog-skeleton{background:var(--surface);border-color:var(--line);color:var(--ink)}
+:root[data-theme=dark] .card:hover{border-color:#6b4125}
+:root[data-theme=dark] .card-image,:root[data-theme=dark] .gallery-main,:root[data-theme=dark] .catalog-skeleton-image{background:#262019}
+:root[data-theme=dark] .card-category{color:#c9a68a}
+:root[data-theme=dark] .card-bottom,:root[data-theme=dark] .skeleton-bottom,:root[data-theme=dark] .details-list{border-color:var(--line)}
+:root[data-theme=dark] .skeleton-line,:root[data-theme=dark] .skeleton-dot{background:#2a231c}
+:root[data-theme=dark] .intro{background:linear-gradient(135deg,#34200f,#2a1a10 60%,#1f1610);border-color:#4a2c18;color:var(--ink)}
+:root[data-theme=dark] .intro .eyebrow,:root[data-theme=dark] .intro p,:root[data-theme=dark] .art-caption,:root[data-theme=dark] .sidebar-note{color:#e8d6c6}
+:root[data-theme=dark] .intro h1{color:#fff4ea}
+:root[data-theme=dark] input,:root[data-theme=dark] select,:root[data-theme=dark] textarea{background:var(--field);color:var(--ink);border-color:var(--line)}
+:root[data-theme=dark] input::placeholder,:root[data-theme=dark] textarea::placeholder{color:#8b7a6b}
+:root[data-theme=dark] input:hover,:root[data-theme=dark] select:hover,:root[data-theme=dark] textarea:hover{border-color:#6b4a33}
+:root[data-theme=dark] .search-form{background:var(--surface);border-color:var(--line)}
+:root[data-theme=dark] .search-form input{background:transparent}
+:root[data-theme=dark] .filters label{color:var(--muted)}
+:root[data-theme=dark] .secondary,:root[data-theme=dark] .pagination button,:root[data-theme=dark] .icon-button{background:var(--surface);color:var(--ink);border-color:var(--line)}
+:root[data-theme=dark] .secondary:hover:not(:disabled){background:var(--hover-fill)}
+:root[data-theme=dark] .text-button{color:#ff9a57}
+:root[data-theme=dark] dialog{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+:root[data-theme=dark] dialog::backdrop{background:#000000a8}
+:root[data-theme=dark] .live-label{background:var(--surface);border-color:var(--line);color:var(--ink)}
+:root[data-theme=dark] table,:root[data-theme=dark] th,:root[data-theme=dark] td{border-color:var(--line)}
+:root[data-theme=dark] th{background:#221c16;color:var(--muted)}
+:root[data-theme=dark] tr:hover td{background:#241d17}
+:root[data-theme=dark] .toast{background:var(--surface);color:var(--ink);--toast-soft:#2a211a;border-color:var(--line)}
+:root[data-theme=dark] .toast-error{--toast-soft:#35201b;--toast-accent:#ff8b73}
+:root[data-theme=dark] .toast-warning{--toast-soft:#352b17;--toast-accent:#f0be6b}
+:root[data-theme=dark] .toast-info,:root[data-theme=dark] .toast{--toast-accent:#ff9a57}
+:root[data-theme=dark] footer{color:var(--muted);border-color:var(--line);background:transparent}
+:root[data-theme=dark] .startup-loader,:root[data-theme=dark] .brand-entrance,:root[data-theme=dark] .auth-layout.login-layout{background:var(--paper)}
+:root[data-theme=dark] .startup-brand img{filter:brightness(0) invert(1)}
+:root[data-theme=dark] .loader-track{background:#3a2e25}:root[data-theme=dark] .loader-track>span{background:#ff6a00}
+:root[data-theme=dark] .loading-glyph>span{background:#f6eee7}
+:root[data-theme=dark] .startup-center h1>span{color:#ff9a57}
+:root[data-theme=dark] .login-form,:root[data-theme=dark] .auth-form-container{background:var(--surface);border-color:var(--line);color:var(--ink)}
+:root[data-theme=dark] .lead-delivery{background:var(--soft);border-color:var(--line)}
+@media(prefers-color-scheme:dark){:root:not([data-theme]) .startup-loader{background:#14110e;color:#f6eee7}:root:not([data-theme]) .startup-brand img{filter:brightness(0) invert(1)}}
+
+/* ---------- Atmosphere: soft drifting glow behind the content ---------- */
+.app-content{position:relative;isolation:isolate}
+.app-content::before{content:'';position:fixed;inset:-20% -10% auto auto;width:min(70vw,900px);height:min(70vw,900px);z-index:-1;pointer-events:none;border-radius:50%;
+ background:radial-gradient(circle at 30% 30%,var(--page-glow-a),transparent 62%),radial-gradient(circle at 70% 70%,var(--page-glow-b),transparent 60%);filter:blur(30px);opacity:.75;animation:glow-drift 26s ease-in-out infinite alternate}
+@keyframes glow-drift{to{transform:translate3d(-8%,6%,0) scale(1.12)}}
+
+/* ---------- Floating sidebar with a gliding active pill ---------- */
+@media(min-width:901px){
+ .app-sidebar{top:12px;height:calc(100dvh - 24px);margin:12px 0 12px 12px;border-radius:26px;box-shadow:0 24px 60px -24px #000000a0;transition:width .35s var(--ease-out),padding .35s var(--ease-out)}
+ .app-shell{grid-template-columns:260px minmax(0,1fr);transition:grid-template-columns .35s var(--ease-out)}
+ .app-shell.is-collapsed{grid-template-columns:96px minmax(0,1fr)}
+}
+@media(min-width:901px) and (max-width:1200px){.app-shell{grid-template-columns:230px minmax(0,1fr)}.app-shell.is-collapsed{grid-template-columns:96px minmax(0,1fr)}}
+.app-sidebar nav{position:relative}
+.nav-pill{position:absolute;left:0;right:0;top:0;height:var(--pill-h,48px);transform:translateY(var(--pill-y,0));opacity:var(--pill-o,0);border-radius:12px;background:linear-gradient(135deg,#ff7a1a,#ff6a00);box-shadow:0 10px 24px -10px #ff6a00cc;pointer-events:none;transition:transform .45s var(--ease-spring),height .3s var(--ease-out),opacity .25s}
+.app-sidebar nav a{position:relative;z-index:1;transition:color .25s var(--ease-soft),background-color .25s var(--ease-soft),transform .3s var(--ease-out)}
+.app-sidebar nav a.active{background:transparent;color:#1e1e1e}
+.app-sidebar nav a:not(.active):hover{transform:translateX(4px)}
+.app-sidebar nav a .icon{transition:transform .35s var(--ease-spring)}
+.app-sidebar nav a:hover .icon{transform:scale(1.14) rotate(-4deg)}
+.app-sidebar nav a .nav-chevron{transition:transform .3s var(--ease-out),opacity .3s}
+.app-sidebar nav a:hover .nav-chevron{opacity:.7;transform:translateX(3px)}
+.workspace-avatar img{transition:transform .6s var(--ease-spring)}
+.space-label:hover .workspace-avatar img{transform:rotate(-12deg) scale(1.12)}
+@media(max-width:900px){.nav-pill{display:none}.app-sidebar nav a.active{background:var(--orange)}}
+
+/* ---------- Header: frosted glass, sticky ---------- */
+.header{position:sticky;top:0;z-index:20;background:var(--surface-glass);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);transition:box-shadow .3s}
+.header-actions{margin-left:auto;display:flex;align-items:center;gap:12px}
+.theme-toggle{position:relative;width:44px;height:44px;border-radius:14px;border:1px solid var(--stroke);background:var(--surface);color:var(--ink);display:grid;place-items:center;cursor:pointer;overflow:hidden;transition:transform .3s var(--ease-spring),border-color .2s,box-shadow .3s,background .2s}
+.theme-toggle:hover{transform:translateY(-2px) rotate(-8deg);box-shadow:var(--lift-sm);border-color:var(--orange)}
+.theme-toggle:active{transform:scale(.92)}
+.theme-icon{grid-area:1/1;width:20px;height:20px;transition:transform .55s var(--ease-spring),opacity .3s}
+.theme-sun{transform:rotate(0) scale(1);color:#e25800}.theme-moon{transform:rotate(-90deg) scale(.3);opacity:0;color:#ffb27d}
+:root[data-theme=dark] .theme-sun{transform:rotate(90deg) scale(.3);opacity:0}:root[data-theme=dark] .theme-moon{transform:rotate(0) scale(1);opacity:1}
+.theme-toggle-floating{position:absolute;top:18px;right:18px;z-index:5}
+.login-form{position:relative}
+::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
+::view-transition-old(root){z-index:1}::view-transition-new(root){z-index:2}
+
+/* ---------- Surfaces & depth ---------- */
+.panel,.card,.account-trigger,.search-form{transition:transform .4s var(--ease-out),box-shadow .4s var(--ease-out),border-color .25s,background-color .3s}
+.panel{border-radius:20px}
+.panel:hover{box-shadow:var(--lift-sm)}
+.card{border-radius:18px;position:relative;will-change:transform}
+.card:hover{transform:translateY(-6px);box-shadow:var(--lift);border-color:#ffb98a}
+.card .card-image{overflow:hidden;border-radius:12px}
+.card .card-image img{transition:transform .7s var(--ease-out)}
+.card:hover .card-image img{transform:scale(1.07)}
+.card::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .4s;background:radial-gradient(420px circle at var(--mx,50%) var(--my,0%),#ff6a0018,transparent 45%)}
+.card:hover::after{opacity:1}
+.select-button{transition:transform .35s var(--ease-spring),background .2s,box-shadow .3s}
+.card:hover .select-button{transform:scale(1.08)}
+.select-button:hover{box-shadow:0 8px 20px -6px var(--orange-glow)}
+.intro{position:relative;overflow:hidden;border-radius:26px}
+.intro::before{content:'';position:absolute;inset:auto -10% -60% auto;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,#ff6a0033,transparent 65%);animation:glow-drift 14s ease-in-out infinite alternate;pointer-events:none}
+.intro h1,.intro p,.intro .eyebrow{position:relative}
+.intro .discovery-art{transition:transform .8s var(--ease-out)}
+.intro:hover .discovery-art{transform:translate3d(-6px,-4px,0) rotate(-1.5deg)}
+.price,.amt,.stat,td,.order-total{font-variant-numeric:tabular-nums}
+
+/* ---------- Buttons ---------- */
+.primary,.secondary{position:relative;overflow:hidden;transition:transform .3s var(--ease-spring),box-shadow .35s var(--ease-out),background-color .2s,filter .2s}
+.primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 14px 28px -12px #ff6a00b3}
+.primary:active:not(:disabled),.secondary:active:not(:disabled){transform:translateY(0) scale(.97)}
+.secondary:hover:not(:disabled){transform:translateY(-1px);box-shadow:var(--lift-sm)}
+.primary::after{content:'';position:absolute;inset:0;transform:translateX(-120%) skewX(-20deg);background:linear-gradient(90deg,transparent,#ffffff55,transparent);pointer-events:none}
+.primary:hover:not(:disabled)::after{transform:translateX(120%) skewX(-20deg);transition:transform .8s var(--ease-out)}
+.icon-button,.text-button{transition:transform .3s var(--ease-spring),background-color .2s,color .2s}
+.icon-button:hover{transform:scale(1.08)}
+
+/* ---------- Fields ---------- */
+input,select,textarea{transition:border-color .2s,box-shadow .3s var(--ease-out),background-color .3s,transform .3s var(--ease-out)}
+input:focus,select:focus,textarea:focus{border-color:var(--orange);box-shadow:0 0 0 4px #ff6a001f;outline:none}
+input[type=color]{cursor:pointer;transition:transform .3s var(--ease-spring),box-shadow .3s}
+input[type=color]:hover{transform:scale(1.02)}
+:focus-visible{outline-color:var(--orange)}
+
+/* ---------- Dialogs & toasts ---------- */
+dialog[open]{animation:dialog-in .45s var(--ease-spring)}
+dialog[open]::backdrop{animation:backdrop-in .35s ease-out}
+@keyframes dialog-in{from{opacity:0;transform:translateY(24px) scale(.96)}}
+@keyframes backdrop-in{from{opacity:0}}
+.toast{animation:toast-in .5s var(--ease-spring)}
+@keyframes toast-in{from{opacity:0;transform:translate3d(24px,0,0) scale(.96)}}
+
+/* ---------- Scroll reveal (progressive enhancement; Chromium/Safari 26) ---------- */
+@supports (animation-timeline:view()){
+ @media(prefers-reduced-motion:no-preference){
+  .panel-main .panel,.panel-main .asset-card,.panel-main .section-heading{animation:reveal-up linear both;animation-timeline:view();animation-range:entry 0% entry 38%}
+  @keyframes reveal-up{from{opacity:0;transform:translate3d(0,26px,0) scale(.985)}}
+ }
+}
+
+/* ---------- Skeleton shimmer, calmer and theme-aware ---------- */
+.skeleton-line:after,.catalog-skeleton-image:after{background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--surface) 70%,transparent),transparent)}
+
+/* ---------- Reduced motion ---------- */
+@media(prefers-reduced-motion:reduce){
+ .app-content::before,.intro::before{animation:none}
+ .card:hover,.primary:hover:not(:disabled),.secondary:hover:not(:disabled),.theme-toggle:hover{transform:none}
+ .card:hover .card-image img{transform:none}
+ dialog[open],dialog[open]::backdrop,.toast{animation:none}
+ .nav-pill{transition:none}
+}
+
+/* Hand-tuned dark fixes that the generated file cannot infer. */
+:root[data-theme=dark] .pill{background:#2e241b;color:var(--ink);border-color:var(--line)}
+:root[data-theme=dark] .ai-open-button,:root[data-theme=dark] .ai-section-button,:root[data-theme=dark] .ai-dialog-footer .ai-generate-button{color:#fff4ea!important;background:linear-gradient(115deg,#2c231b,#1f1914) padding-box,conic-gradient(from var(--ai-border-angle),#ff6a00,#ffba3d 20%,#7a4a2a 38%,#ff8a3d 54%,#d54b00 72%,#ff6a00) border-box!important}
+:root[data-theme=dark] .builder-preview-toolbar button.active{background:#3a2e25;color:var(--ink)}
+
+/* ---------- Sidebar: header and footer stay put, only the nav list scrolls (scrollbar hidden) ---------- */
+@property --ft{syntax:'<length>';inherits:false;initial-value:0px}
+@property --fb{syntax:'<length>';inherits:false;initial-value:0px}
+.app-sidebar{overflow:hidden}
+.app-sidebar nav{flex:1 1 auto;min-height:0;margin-inline:-8px;padding-inline:8px;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;scroll-padding-block:34px;padding-block:6px;
+ --ft:0px;--fb:0px;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 var(--ft),#000 calc(100% - var(--fb)),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 var(--ft),#000 calc(100% - var(--fb)),transparent 100%);transition:--ft .3s var(--ease-out),--fb .3s var(--ease-out)}
+.app-sidebar nav::-webkit-scrollbar{display:none}
+.app-sidebar nav[data-fade-top=true]{--ft:28px}
+.app-sidebar nav[data-fade-bottom=true]{--fb:28px}
+.app-sidebar .sidebar-note{margin-top:12px;flex:none}
+.app-sidebar .brand,.app-sidebar .space-label,.app-sidebar .collapse-toggle{flex:none}
+@media(max-height:800px){.app-sidebar .sidebar-note{display:none}}
+
+/* ---------- Subtle scrollbars everywhere else ---------- */
+:root{--sb-thumb:#8b4b2530;--sb-thumb-hover:#8b4b2566}
+:root[data-theme=dark]{--sb-thumb:#ffffff1f;--sb-thumb-hover:#ffffff4d}
+*{scrollbar-width:thin;scrollbar-color:var(--sb-thumb) transparent}
+*:hover{scrollbar-color:var(--sb-thumb-hover) transparent}
+.app-sidebar nav,.app-sidebar nav:hover{scrollbar-width:none}

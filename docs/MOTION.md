@@ -15,3 +15,11 @@ Se usaron las instrucciones locales UI/UX Pro Max y GSAP React/Core. El buscador
 Build TypeScript/Vite del panel y runtime público completado. `tests/motion.mjs` verifica con Edge y el enlace HTTPS real: escritorio, móvil de 375 px, espera prolongada, salida de carga al responder la sesión, movimiento reducido, tarjetas del catálogo, actividad de red y cambios de sección sin contenido invisible ni errores JavaScript. Las peticiones se retrasan para observar las cargas pero continúan hacia PHP/Dropi: no se sustituyen los datos. La sesión de revisión es temporal y se elimina al terminar. No se modifican productos ni se crean leads.
 
 Capturas locales en `test-results/loading-desktop.png`, `loading-mobile.png`, `catalog-loading-desktop.png`, `catalog-loading-mobile.png` y `route-motion-mobile.png`. El build actualizado se sirve también en el enlace temporal; no requiere reiniciar el túnel.
+
+## Capa moderna posterior
+
+Las interacciones añadidas después (tarjetas, botones, barra lateral con píldora, diálogos, modo oscuro) están en [MODERN-UI.md](MODERN-UI.md). Respetan `prefers-reduced-motion` como el resto.
+
+## Pantalla de carga: una sola disposición
+
+El HTML inicial (`index.html` + `/brand/brand.css`) y `LoadingScreen` comparten la misma disposición: contenido centrado en vertical, logo arriba a la izquierda y pie abajo, ambos con posición absoluta. No reintroducir `justify-content:space-between` en `.startup-loader`: sacaba el contenido hacia arriba. `tests/preload.mjs` lo comprueba.

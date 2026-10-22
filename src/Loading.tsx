@@ -1,4 +1,3 @@
-import {BrandLogo} from './Brand';
 import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
 import gsap from 'gsap';
 import {useGSAP} from '@gsap/react';
@@ -8,7 +7,7 @@ import {Icon} from './ui';
 export function LoadingScreen(){
  const [slow,setSlow]=useState(false);
  useEffect(()=>{const timer=setTimeout(()=>setSlow(true),7000);return()=>clearTimeout(timer);},[]);
- return <main className="startup-loader"><div className="startup-brand"><BrandLogo compact decorative/><span className="brand-wordmark">Tinvana</span></div>
+ return <main className="startup-loader"><div className="startup-brand"><img src="/brand/tinvana-dark.svg" width="190" height="46" alt="Tinvana"/></div>
  <section className="startup-center" role="status" aria-live="polite"><img className="startup-origami" src="/brand/tinvana-origami.svg" width="180" height="125" alt=""/>
  <h1>Tu espacio está tomando vuelo.</h1><p>{slow?'La conexión está tardando un poco más. Seguimos verificando tu sesión.':'Estamos verificando tu sesión para continuar.'}</p><div className="loader-track" aria-hidden="true"><span/></div></section><p className="startup-footer">Tinvana. Hecho para emprender.</p></main>;
 }

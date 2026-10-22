@@ -434,6 +434,40 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Documentación:** `docs/DEPLOYMENT.md` explica confirmar el HEAD desplegado, ubicación privada del `.env`, `DB_DRIVER=mysql`, `pdo_mysql` y ejecutar `php ~/tinvana/bin/console.php check` seguido de `migrate` desde cPanel.
 - **Comprobado:** inspección del código y edición local. No se ha desplegado esta corrección ni probado el PHP/MySQL productivo; por tanto, la causa de la conexión sigue pendiente.
 - **Siguiente paso:** desplegar el cambio y obtener el resultado literal de `php ~/tinvana/bin/console.php check` (sin mostrar variables ni secretos). Si no hay Terminal en el plan, revisar el error log de PHP de cPanel y confirmar que el commit HEAD se desplegó.
+### 2026-10-21 · Capa visual moderna, modo oscuro y plantilla de marca
+
+- **Cambio:** solo frontend. Nueva capa de movimiento y profundidad (barra lateral flotante con píldora deslizante, encabezado de vidrio, tarjetas y botones con micro-interacciones, diálogos y avisos con entrada suave), modo oscuro con interruptor y revelado circular, y rediseño de «Plantilla de marca» con paletas, contraste y vista previa en vivo. Guía: [MODERN-UI.md](MODERN-UI.md).
+- **Comprobado:** `npm run build`; `node tests/modern.mjs` con 17 comprobaciones sobre API simulada; el `PUT /api/template-settings` sigue enviando los mismos cuatro campos. Capturas locales en claro y oscuro de login, catálogo, plantilla y constructor.
+- **Límites:** modo oscuro revisado con datos simulados y estados vacíos en el resto de pantallas; sin ejecutar las pruebas con base local ni probar en GoDaddy. Las landings publicadas no cambian.
+- **Siguiente paso:** revisar pedidos, archivos y consultas con datos reales en oscuro; decidir si se moderniza también el diseño de las landings públicas.
+
+### 2026-10-22 · Barra lateral con scroll interno y scrolls sutiles
+
+- **Cambio:** solo frontend. La barra lateral deja fijos cabecera y pie; solo la lista de opciones se desplaza, sin barra visible y con desvanecidos de borde. El resto de scrolls usan barras finas y translúcidas, con variante oscura. Detalle en [MODERN-UI.md](MODERN-UI.md).
+- **Comprobado:** `npm run build`; `node tests/modern.mjs` (17 comprobaciones); revisión con ventana baja en claro y oscuro (sin scroll en la barra, lista desplazable, botón de contraer visible, estado contraído).
+- **Límites:** los scrolls internos se revisaron visualmente solo en el constructor con datos simulados; sin pruebas con base local ni en GoDaddy.
+
+### 2026-10-22 · Listas compactas de productos, consultas y pedidos
+
+- **Cambio:** solo frontend. Tarjetas compactas en Mis productos con filtros y búsqueda, filas con avatar, contadores y chips en Consultas y Pedidos, detalle de consulta como panel lateral y ficha del pedido con resumen tipo factura y línea de tiempo. Sin cambios de API, datos ni flujos. Detalle en [MODERN-UI.md](MODERN-UI.md).
+- **Comprobado:** `npm run build`; `node tests/compact.mjs` con 27 comprobaciones y `node tests/modern.mjs` con 17, ambos con API simulada; capturas en claro y oscuro.
+- **Ajuste posterior:** toda la fila de consultas y pedidos es clicable; el botón es una flecha con nombre accesible.
+- **Límites:** los contadores de consultas y pedidos son de la página cargada; no se añadieron datos de pago ni acciones inexistentes en el sistema; pruebas con base local y despliegue en GoDaddy sin ejecutar.
+
+### 2026-10-22 · Corrección de la pantalla de carga inicial
+
+- **Problema:** al cargar la hoja principal, el contenido de la pantalla de carga saltaba de estar centrado a quedar pegado arriba y se mantenía así mientras se verificaba la sesión. Causa: `backend/public/brand/brand.css` (logo y pie fijos, contenido centrado) y `src/motion.css` (logo y pie en el flujo con `space-between`) definían `.startup-loader` de forma incompatible.
+- **Cambio:** `motion.css` usa el mismo esquema (contenido centrado, logo y pie fijos) y `LoadingScreen` usa el mismo logo que el HTML inicial, para que el paso del HTML a React no mueva ni cambie nada.
+- **Comprobado:** medición cuadro a cuadro con la sesión retrasada, en claro y oscuro; `node tests/preload.mjs` (12 comprobaciones, API simulada): contenido centrado y sin movimiento entre el HTML y React a 1440 y 390 px. `tests/modern.mjs` (17) y `tests/compact.mjs` (27) siguen aprobando.
+- **Límites:** los primeros milisegundos antes de que termine de cargar el CSS dependen del navegador y la red; no se probó en GoDaddy. `tests/motion.mjs` (con base local) no se ejecutó.
+
+### 2026-10-22 · Correos de cuenta: marca, diagnóstico y configuración en cPanel
+
+- **Hallazgos:** en producción faltaban `SMTP_*`/`RESEND_API_KEY` (solo existía `MAIL_FROM_ADDRESS`), por lo que registro y recuperación respondían «El envío de correos de cuenta todavía no está configurado»; además los envíos de la cola requieren el cron `mail:work`, y los errores de entrega no quedaban registrados.
+- **Cambio:** plantilla con la marca Tinvana (logo PNG `tinvana-mail.png`, colores y textos), remitente «Tinvana», `SMTP_HOST=localhost` sin verificación de certificado (tráfico local), registro en `error_log` del motivo de cada fallo sin datos personales, `AccountMail::diagnose()` y comando `php bin/console.php mail:test correo@dominio`. Guía en [ACCOUNT-EMAIL.md](ACCOUNT-EMAIL.md).
+- **Comprobado:** `node tests/mail-local.mjs` (8 comprobaciones) contra SMTP TLS local; `php backend/tests/account-resend.php` actualizado y aprobado; vista previa visual de los dos correos. **No** se envió ningún correo real ni se accedió a tinbana.com.
+- **Pendiente:** crear el buzón (o cuenta Resend), completar el `.env` del servidor, crear el cron `mail:work` y ejecutar `mail:test` allí; confirmar que la consulta de cola funciona en MySQL (no hay MySQL local).
+
 ### Plantilla para la próxima actualización
 
 ```text
