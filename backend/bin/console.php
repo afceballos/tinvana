@@ -15,11 +15,13 @@ try {
  $command=$argv[1]??'help';
  if($command==='key:generate'){echo base64_encode(random_bytes(32))."\n";exit;}
  if($command==='check'){
-  echo 'PHP '.PHP_VERSION."\n";foreach(['curl','pdo','pdo_pgsql','openssl','mbstring','gd','dom'] as $ext){echo $ext.': '.(extension_loaded($ext)?'OK':'FALTA')."\n";if(!extension_loaded($ext))exit(1);}if(!function_exists('imagewebp'))throw new RuntimeException('GD necesita soporte WebP.');
-  if(Support::env('DB_HOST')===''){echo "PostgreSQL: pendiente de configurar DB_HOST\n";exit(1);}
-  Database::one('SELECT 1');echo "PostgreSQL: conexión OK\n";Crypto::decrypt(Crypto::encrypt('check','check'),'check');echo "Cifrado: OK\n";exit;
+  $driver=Database::driver();$databaseExtension=$driver==='mysql'?'pdo_mysql':'pdo_pgsql';
+  echo 'PHP '.PHP_VERSION."\n";foreach(['curl','pdo',$databaseExtension,'openssl','mbstring','gd','dom'] as $ext){echo $ext.': '.(extension_loaded($ext)?'OK':'FALTA')."\n";if(!extension_loaded($ext))exit(1);}if(!function_exists('imagewebp'))throw new RuntimeException('GD necesita soporte WebP.');
+  if(Support::env('DB_HOST')===''){echo strtoupper($driver).": pendiente de configurar DB_HOST\n";exit(1);}
+  Database::one('SELECT 1');echo strtoupper($driver).": conexión OK\n";Crypto::decrypt(Crypto::encrypt('check','check'),'check');echo "Cifrado: OK\n";exit;
  }
  if($command==='migrate'){
+  if(Database::driver()==='mysql'){App\MySqlMigrations::run();exit;}
   $db=Database::connection();$db->exec('CREATE TABLE IF NOT EXISTS schema_migrations(version text PRIMARY KEY,checksum text NOT NULL,applied_at timestamptz NOT NULL DEFAULT now())');
   $db->query('SELECT pg_advisory_lock(804202601)');try{foreach(glob(dirname(__DIR__).'/migrations/*.sql') as $file){$name=basename($file);$hash=hash_file('sha256',$file);$row=Database::one('SELECT checksum FROM schema_migrations WHERE version=?',[$name]);if($row){if($row['checksum']!==$hash)throw new RuntimeException('Migración aplicada modificada: '.$name);continue;}$db->beginTransaction();try{$db->exec(file_get_contents($file));Database::query('INSERT INTO schema_migrations(version,checksum) VALUES(?,?)',[$name,$hash]);$db->commit();echo "Aplicada: $name\n";}catch(Throwable $e){$db->rollBack();throw $e;}}}finally{$db->query('SELECT pg_advisory_unlock(804202601)');}exit;
  }
@@ -54,4 +56,4 @@ try {
  if($command==='webhooks:work'){echo Support::json(Leads::deliver(min(100,max(1,(int)($argv[2]??20)))))."\n";exit;}
  if($command==='maintenance'){Database::query("UPDATE account_mail SET status='cancelled',payload_ciphertext=null,updated_at=now() WHERE status IN ('pending','failed') AND token_id IN (SELECT id FROM account_tokens WHERE expires_at<now() OR used_at IS NOT NULL)");Database::query("DELETE FROM account_tokens WHERE expires_at<now()-interval '7 days'");Database::query('DELETE FROM rate_limits WHERE expires_at<now()-interval \'1 day\'');echo "Límites vencidos eliminados.\n";exit;}
  echo "Comandos: check, key:generate, migrate, admin:create [email], integration:import email, ai:import email, webhook:import email, webhooks:work [20], mail:work [20], maintenance\n";
-}catch(Throwable $e){fwrite(STDERR,'Error: '.($e instanceof PDOException?'PostgreSQL no disponible o consulta inválida. Comprueba la conexión y las migraciones.':$e->getMessage())."\n");exit(1);}
+}catch(Throwable $e){$driver=Support::env('DB_DRIVER','pgsql');fwrite(STDERR,'Error: '.($e instanceof PDOException?strtoupper($driver).' no disponible o consulta inválida. Comprueba la conexión y las migraciones.':$e->getMessage())."\n");exit(1);}

@@ -16,7 +16,20 @@ final class AiLanding {
  }
  public static function reserve(string $owner):void {
   Auth::limit('ai-minute:'.$owner,2,60);
-  $r=Database::one("INSERT INTO rate_limits(bucket,attempts,expires_at) VALUES(?,1,now()+interval '24 hours') ON CONFLICT(bucket) DO UPDATE SET attempts=CASE WHEN rate_limits.expires_at<now() THEN 1 ELSE rate_limits.attempts+1 END,expires_at=CASE WHEN rate_limits.expires_at<now() THEN excluded.expires_at ELSE rate_limits.expires_at END,updated_at=now() WHERE rate_limits.expires_at<now() OR rate_limits.attempts<? RETURNING attempts",[hash('sha256','ai-day:'.$owner),self::limit()]);
+  $bucket=hash('sha256','ai-day:'.$owner);$limit=self::limit();
+  if(Database::driver()==='mysql'){
+   Database::query('INSERT IGNORE INTO rate_limits(bucket,attempts,expires_at) VALUES(?,0,UTC_TIMESTAMP(6))',[$bucket]);
+   $db=Database::connection();$db->beginTransaction();try{
+    $r=Database::one('SELECT attempts,expires_at FROM rate_limits WHERE bucket=? FOR UPDATE',[$bucket]);
+    $expired=strtotime((string)$r['expires_at'])<=time();$used=$expired?0:(int)$r['attempts'];
+    if($used>=$limit){$db->commit();throw new HttpError(429,'Llegaste al límite de generaciones de IA de las últimas 24 horas.');}
+    $attempts=$used+1;
+    if($expired)Database::query('UPDATE rate_limits SET attempts=?,expires_at=DATE_ADD(UTC_TIMESTAMP(6), INTERVAL 24 HOUR),updated_at=UTC_TIMESTAMP(6) WHERE bucket=?',[$attempts,$bucket]);
+    else Database::query('UPDATE rate_limits SET attempts=?,updated_at=UTC_TIMESTAMP(6) WHERE bucket=?',[$attempts,$bucket]);
+    $db->commit();return;
+   }catch(\Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
+  }
+  $r=Database::one("INSERT INTO rate_limits(bucket,attempts,expires_at) VALUES(?,1,now()+interval '24 hours') ON CONFLICT(bucket) DO UPDATE SET attempts=CASE WHEN rate_limits.expires_at<now() THEN 1 ELSE rate_limits.attempts+1 END,expires_at=CASE WHEN rate_limits.expires_at<now() THEN excluded.expires_at ELSE rate_limits.expires_at END,updated_at=now() WHERE rate_limits.expires_at<now() OR rate_limits.attempts<? RETURNING attempts",[$bucket,$limit]);
   if(!$r)throw new HttpError(429,'Llegaste al límite de generaciones de IA de las últimas 24 horas.');
  }
  public static function object(array $properties):array {return ['type'=>'object','properties'=>$properties,'required'=>array_keys($properties),'additionalProperties'=>false];}

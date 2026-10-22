@@ -15,6 +15,17 @@ final class Auth {
  public static function csrf(): void { $token=$_SERVER['HTTP_X_CSRF_TOKEN']??$_POST['csrf']??'';if(!is_string($token)||!hash_equals($_SESSION['csrf']??'', $token))throw new HttpError(419,'La sesión del formulario venció. Recarga e intenta nuevamente.'); }
  public static function limit(string $bucket,int $max,int $seconds): void {
   $key=hash('sha256',$bucket);
+  if(Database::driver()==='mysql'){
+   Database::query('INSERT IGNORE INTO rate_limits(bucket,attempts,expires_at) VALUES(?,0,UTC_TIMESTAMP(6))',[$key]);
+   $db=Database::connection();$db->beginTransaction();try{
+    $r=Database::one('SELECT attempts,expires_at FROM rate_limits WHERE bucket=? FOR UPDATE',[$key]);
+    $expired=strtotime((string)$r['expires_at'])<=time();$attempts=$expired?1:(int)$r['attempts']+1;
+    if($expired)Database::query('UPDATE rate_limits SET attempts=1,expires_at=DATE_ADD(UTC_TIMESTAMP(6), INTERVAL ? SECOND),updated_at=UTC_TIMESTAMP(6) WHERE bucket=?',[$seconds,$key]);
+    else Database::query('UPDATE rate_limits SET attempts=?,updated_at=UTC_TIMESTAMP(6) WHERE bucket=?',[$attempts,$key]);
+    $db->commit();
+   }catch(\Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
+   if($attempts>$max)throw new HttpError(429,'Demasiados intentos. Espera antes de volver a intentar.');return;
+  }
   $r=Database::one("INSERT INTO rate_limits(bucket,attempts,expires_at) VALUES(?,1,now()+(? * interval '1 second')) ON CONFLICT(bucket) DO UPDATE SET attempts=CASE WHEN rate_limits.expires_at<now() THEN 1 ELSE rate_limits.attempts+1 END,expires_at=CASE WHEN rate_limits.expires_at<now() THEN excluded.expires_at ELSE rate_limits.expires_at END,updated_at=now() RETURNING attempts",[$key,$seconds]);
   if((int)$r['attempts']>$max)throw new HttpError(429,'Demasiados intentos. Espera antes de volver a intentar.');
  }

@@ -46,7 +46,7 @@ final class ProductOffers {
   $settings=['active'=>$s['active'],'tiers'=>array_values($tiers),'starts_at'=>$start,'ends_at'=>$end];
   if(!is_int($b['version']??null)||$b['version']<0)throw new HttpError(422,'Versión de oferta inválida.');
   $db=Database::connection();$db->beginTransaction();try{
-   Database::query("SELECT pg_advisory_xact_lock(hashtextextended(?,0))",['product-offers:'.$id]);
+   Database::one('SELECT id FROM selected_products WHERE id=? AND user_id=? FOR UPDATE',[$id,$owner]);
    $old=Database::one('SELECT version FROM product_offers WHERE selected_product_id=? AND user_id=? FOR UPDATE',[$id,$owner]);$version=$old?(int)$old['version']:0;
    if($version!==$b['version'])throw new HttpError(409,'La oferta cambió. Recarga antes de guardar.');
    $version++;Database::query('INSERT INTO product_offers(selected_product_id,user_id,version,settings) VALUES(?,?,?,?::jsonb) ON CONFLICT(selected_product_id) DO UPDATE SET version=excluded.version,settings=excluded.settings,updated_at=now()',[$id,$owner,$version,Support::json($settings)]);

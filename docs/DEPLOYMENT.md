@@ -1,3 +1,5 @@
+> **Estado MySQL:** el backend ya incluye selección PDO, adaptación de consultas, rutas específicas para operaciones condicionales y un esquema MySQL versionado. Las pruebas locales de dialecto y las pruebas funcionales sin base real pasan; aún falta validar en un servidor MySQL/MariaDB y desde GoDaddy. La compatibilidad integral no se considera confirmada hasta esa prueba.
+
 # Despliegue en hosting PHP
 
 Para subir imágenes instala GD con soporte WebP y configura `upload_max_filesize=8M`, `post_max_size=9M` y `memory_limit=256M`. En Nginx usa `client_max_body_size 9m;`. Mantén `backend/storage/media` escribible y fuera de la raíz pública; `/media/` debe pasar por PHP. Consulta [IMAGES.md](IMAGES.md) para permisos y copias de seguridad.
@@ -6,8 +8,8 @@ No se publicó la plataforma ni se modificó el catálogo de referencia. Desplie
 
 ## Comprobaciones antes de publicar
 
-1. `php -v` debe mostrar 8.2 o superior. Confirma `curl`, `PDO`, `pdo_pgsql`, `openssl` y `mbstring` tanto en CLI como en PHP-FPM/Apache: pueden tener distintos `php.ini`.
-2. Ejecuta `php backend/bin/console.php check` desde el servidor. Debe confirmar PostgreSQL y cifrado. Comprueba salida al host y puerto del pooler. Si el proveedor bloquea PostgreSQL externo, repórtalo antes de cambiar arquitectura.
+1. `php -v` debe mostrar 8.2 o superior. Confirma `curl`, `PDO`, `pdo_mysql` (si `DB_DRIVER=mysql`; `pdo_pgsql` si `pgsql`), `openssl`, `mbstring`, `dom` y GD/WebP en CLI y PHP web.
+2. Configura `DB_DRIVER` y las variables `DB_*` para el motor elegido. Ejecuta `php backend/bin/console.php check`; para MySQL, `php backend/bin/console.php migrate` verifica que estén las 18 tablas y registra el esquema base sin recrear tablas.
 3. Configura DNS y HTTPS para el dominio nuevo. Define el `APP_URL` canónico y `SESSION_SECURE=true` con `APP_ENV=production`.
 4. La raíz web debe ser exactamente `backend/public`. `.env`, `vendor`, `src`, migraciones, comandos y pruebas permanecen fuera. Si tu hosting solo ofrece `public_html`, coloca el resto en su directorio padre y ajusta la ruta de bootstrap en `index.php`; no expongas todo `backend`.
 5. Dale al proceso PHP lectura sobre configuración y código, y escritura únicamente sobre `backend/storage/sessions`. Usa permisos mínimos (ej. directorios 750, configuración 600/640 según usuario/grupo); evita 777. `storage/sessions` se crea con 0700 si es necesario.
@@ -74,16 +76,16 @@ Ajusta la versión/socket de PHP-FPM. Agrega redirección HTTP a HTTPS en un blo
 17 3 * * * cd /srv/zenzales && /usr/bin/php backend/bin/console.php maintenance >> /var/log/zenzales-maintenance.log 2>&1
 ```
 
-El worker no imprime payloads ni URLs secretas. No se envían leads al webhook durante el request público: la respuesta informa «guardada, envío pendiente». Cron debe usar el mismo entorno/claves que PHP web. Monitoriza envíos fallidos en el panel. Configura backups de PostgreSQL y una copia segura de la clave de cifrado.
+El worker no imprime payloads ni URLs secretas. No se envían leads al webhook durante el request público: la respuesta informa «guardada, envío pendiente». Cron debe usar el mismo entorno/claves que PHP web. Monitoriza envíos fallidos en el panel. Configura copias de seguridad de MySQL/MariaDB y una copia segura de `TOKEN_ENCRYPTION_KEY`.
 
 ## cPanel (Git Version Control)
 
 Estructura: `~/public_html` = contenido de `backend/public`; `~/tinvana` = backend privado (`src`, `vendor`, `.env`, `storage`, etc.). `index.php` detecta `../tinvana` automáticamente.
 
-1. En cPanel → *Select PHP Version*: PHP 8.2+ y extensiones `pdo_pgsql`, `curl`, `mbstring`, `dom`, `gd`, `openssl`. Activa AutoSSL.
+1. En cPanel → *Select PHP Version*: PHP 8.2+ y extensiones `pdo_mysql`, `curl`, `mbstring`, `dom`, `gd` con WebP y `openssl`. Para seguir usando PostgreSQL, habilita `pdo_pgsql`. Activa SSL.
 2. En el PC: `powershell -File scripts/package-vendor.ps1`. Sube `output/deploy/tinvana-vendor.zip` a `~/tinvana` y descomprímelo (queda `~/tinvana/vendor`). Repite solo si cambia `composer.lock`.
-3. Crea `~/tinvana/.env` (basado en `backend/.env.example`, permisos 600): `APP_ENV=production`, `APP_URL`, `SESSION_SECURE=true`, `DB_*` de Supabase con `DB_SSLMODE=require` (o `verify-full` con `DB_SSLROOTCERT` apuntando a un certificado subido a `~/tinvana/storage`), la misma `TOKEN_ENCRYPTION_KEY` ya en uso y la configuración de correo.
+3. Crea `~/tinvana/.env` (permisos 600), elige `DB_DRIVER=mysql`, y configura `DB_HOST=localhost`, `DB_PORT=3306`, `DB_DATABASE`, `DB_USERNAME` y `DB_PASSWORD` con los datos de cPanel. Conserva la clave `TOKEN_ENCRYPTION_KEY` vigente y la configuración de correo; no copies secretos a Git.
 4. cPanel → *Git™ Version Control* → Create: clonar `https://github.com/afceballos/tinvana.git` (rama `master`) → *Manage* → *Deploy HEAD Commit*. Ejecuta las tareas de `.cpanel.yml`. El árbol del servidor debe estar limpio.
-5. Terminal/SSH: `php ~/tinvana/bin/console.php check`. Sin terminal, ejecútalo desde el PC contra la misma base.
+5. Terminal/SSH: ejecuta `php ~/tinvana/bin/console.php check` y `php ~/tinvana/bin/console.php migrate`. En MySQL, `migrate` exige las tablas importadas y no vuelve a importar ni vaciar el esquema.
 6. Cron (cPanel → *Cron Jobs*): `php ~/tinvana/bin/console.php webhooks:work 20` y `mail:work` cada minuto; `maintenance` diario.
 7. Tras cambios de React: `npm run build`, commit de `backend/public/app` y *Deploy HEAD Commit* de nuevo.

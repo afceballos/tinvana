@@ -62,7 +62,7 @@ final class Media {
   }}
  }
  private static function lockLibrary(string $owner):void {
-  Database::query('SELECT pg_advisory_xact_lock(hashtextextended(?,0))',['media-library:'.$owner]);
+  Database::one('SELECT id FROM users WHERE id=? FOR UPDATE',[$owner]);
  }
  public static function remove(string $owner,array $body):array {
   $ids=$body['ids']??null;

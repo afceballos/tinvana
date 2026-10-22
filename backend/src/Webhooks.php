@@ -66,9 +66,10 @@ final class Webhooks
         $url = Support::text($body['url'] ?? '', 4096, false);
         if ($url === '' && !$row) throw new HttpError(422, 'Introduce la URL del webhook para conectar el formulario.');
         $cipher = $url !== '' ? Crypto::encrypt(self::validateUrl($url), 'webhook-url:' . $owner) : $row['url_ciphertext'];
+        $enabledValue=Database::driver()==='mysql'?($enabled?1:0):($enabled?'true':'false');
         Database::query('INSERT INTO webhook_settings(user_id,provider,url_ciphertext,enabled) VALUES(?,?,?,?)
             ON CONFLICT(user_id) DO UPDATE SET provider=excluded.provider,url_ciphertext=excluded.url_ciphertext,
-            enabled=excluded.enabled,updated_at=now()', [$owner, $provider, $cipher, $enabled ? 'true' : 'false']);
+            enabled=excluded.enabled,updated_at=now()', [$owner, $provider, $cipher, $enabledValue]);
         return self::view($owner);
     }
 

@@ -8,11 +8,12 @@ Documento vivo para el propietario del proyecto, desarrolladores y otras IA. Des
 
 - **Producto:** plataforma privada para administrar integraciones Dropi, seleccionar productos, crear/publicar landings y recibir consultas. Se amplía con pedidos y ventas por WhatsApp.
 - **Marca actual:** Tinvana. Zenzales/Dropi + Zenzales son nombres anteriores que aún aparecen en rutas, configuraciones técnicas y algunos documentos.
-- **Proyecto real:** login PHP y PostgreSQL reales; catálogo obtenido de Dropi. No existe fallback de productos inventados. Los datos de pruebas están aislados.
+- **Proyecto real:** login PHP y PostgreSQL reales en la configuración histórica; catálogo obtenido de Dropi. Se está preparando MySQL para GoDaddy. No existe fallback de productos inventados. Los datos de pruebas están aislados.
 - **Última entrega funcional:** edición de comprador/dirección, revisión de confirmados, ofertas por cantidad versionadas y variantes en cotización. Preparación local para Dropi, sin envío externo.
 - **Todavía no:** creación de órdenes en Dropi, agente vendedor de WhatsApp, sincronización bidireccional de GHL, logística ni conciliación financiera.
 - **Últimas comprobaciones funcionales:** 107 checks HTTP generales, 38 de pedidos base y 52 de edición/ofertas/preparación; build aprobado y revisión visual de escritorio/móvil. Los checks externos se distinguen de las pruebas aisladas.
-- **Siguiente paso operativo:** validar PHP 8.2+, `pdo_pgsql` y salida TLS hacia PostgreSQL desde GoDaddy Economy antes de desplegar; el código fuente ya está en GitHub.
+- **Despliegue GoDaddy:** la salida a Supabase en 5432 y 6543 termina en timeout. El usuario informa que creó `tinvana_bd` con 18 tablas. El backend ya tiene soporte de driver MySQL, esquema, conversión de consultas y rutas explícitas para operaciones condicionales; faltan pruebas con MySQL real y verificación en GoDaddy.
+- **Siguiente paso operativo:** validar versión/extensión `pdo_mysql` en GoDaddy y ejecutar `check`/`migrate` desde ese hosting; `localhost` solo apunta al MySQL de GoDaddy cuando PHP corre allí. Probar luego flujos con datos controlados.
 
 Leyenda:
 
@@ -25,12 +26,13 @@ Leyenda:
 - [x] Proyecto independiente del catálogo original; se reutilizan diseño, comportamiento y mapeo donde corresponde.
 - [x] React + TypeScript + Vite + Tailwind CSS + React Router.
 - [x] PHP 8.2+ con Composer, API REST JSON y autenticación/autorización en servidor.
-- [x] PostgreSQL estándar mediante PDO y pdo_pgsql; Supabase inicialmente solo como proveedor de PostgreSQL.
-- [x] Configuración de conexión por entorno, sin hosts ni IDs de Supabase incrustados en la lógica.
+- [x] PDO conserva PostgreSQL/Supabase como driver legado verificado; la base productiva está aún en PostgreSQL.
+- [x] Configuración por entorno y selector PDO `DB_DRIVER` (`pgsql`/`mysql`); la conversión de consultas y las rutas MySQL específicas están implementadas y cubiertas por pruebas de dialecto locales.
 - [x] React no accede directamente a la base ni recibe secretos de integraciones.
 - [x] Guardar productos seleccionados y copias necesarias; no importar todo Dropi.
 - [x] Una plantilla reutilizable por landing, no un proyecto React por producto.
-- [ ] Migración efectiva a otro servidor PostgreSQL, si se decide: documentada pero no ejecutada.
+- [x] Adaptación de backend para MySQL: capa PDO/dialecto, resultados `RETURNING`, upserts, límites, runner de migraciones y verificación de 18 tablas implementados.
+- [ ] Verificación integral con servidor MySQL/MariaDB real y en GoDaddy: `pdo_mysql`, versión compatible, migración/verificación de esquema y pruebas de los flujos de aplicación.
 
 Referencia original, que debe permanecer intacta: `C:\Users\andre\Desktop\Proyectos\Dropi - GHL\catalogo`.
 
@@ -38,10 +40,12 @@ Workspace actual: `C:\Users\andre\Desktop\Zenzales\Dropi + Zenzales`. La marca c
 
 Repositorio GitHub: `https://github.com/afceballos/tinvana`, rama `master`. El código está publicado; esto no significa que se haya desplegado en GoDaddy.
 
+`backend/mysql/schema.sql` define el esquema inicial de 18 tablas para MySQL 8.0.16+. El usuario informa que lo importó en GoDaddy; no se ha inspeccionado la estructura ni ejecutado una consulta contra ese servidor. `DB_DRIVER=mysql` ya convierte un subconjunto SQL cubierto por pruebas y el comando `migrate` verifica tablas, pero la aplicación aún requiere pruebas de integración para considerarse compatible.
+
 ## 3. Arquitectura y organización
 
 ```text
-Panel React -> API PHP -> PostgreSQL
+Panel React -> API PHP -> PostgreSQL o MySQL (según DB_DRIVER)
                     |-> Dropi: catálogo real por integración
                     |-> OpenAI / Anthropic: propuestas para landings
                     |-> Cola de leads -> webhook GHL u otro receptor
@@ -268,14 +272,14 @@ n8n es opcional, no dependencia instalada obligatoria. Para el piloto se pueden 
 
 ## 6. Entornos, despliegue y secretos
 
-- [x] Supabase PostgreSQL real: conexión PDO con TLS y configuración privada; migraciones hasta 012 aplicadas.
+- [x] Supabase PostgreSQL real: conexión PDO con TLS y configuración privada; migraciones hasta 012 aplicadas en el entorno histórico.
 - [x] Demo por túnel temporal; última URL comprobada: `https://scenes-high-congress-medieval.trycloudflare.com`.
 - [x] Demo utiliza build estático y PHP; no depende de mantener `npm run dev`, pero sí del equipo, PHP, túnel y procesos que la sostienen.
 - [x] Configuraciones y guías Apache/Nginx, frontend compilado y rutas al refrescar.
 - [ ] Despliegue definitivo en `dropizenzales.andresceballos.dev` u otro dominio elegido.
-- [ ] Habilitar pdo_pgsql en Hostinger: la comprobación anterior encontró PHP 8.3 y otras extensiones, pero pdo_pgsql ausente.
-- [ ] Verificar de nuevo conexión externa PostgreSQL/TLS, raíz pública, secretos fuera de ella, permisos, HTTPS y cron en el hosting definitivo.
-- [ ] Backup/restauración real de PostgreSQL y medios, y prueba de recuperación antes de retirar un proveedor.
+- [ ] Confirmar versión MySQL/MariaDB (el esquema requiere MySQL 8.0.16+), extensión `pdo_mysql`, permisos de usuario y acceso PHP local desde GoDaddy.
+- [ ] Verificar MySQL desde PHP web y CLI, secretos fuera de la raíz pública, permisos, HTTPS y cron en GoDaddy; probar los flujos completos de la aplicación.
+- [ ] Crear y restaurar backup MySQL y medios; probar recuperación antes de habilitar producción.
 
 La ruta de destino propuesta en Hostinger era `/home/u527801383/domains/andresceballos.dev/public_html/dropizenzales`. No tratar acceso FTP como garantía de extensiones PHP ni capacidad de ubicar backend privado fuera de la raíz pública. No se subió la plataforma completa a ese destino durante la revisión de hosting.
 
@@ -287,13 +291,17 @@ Ubicaciones privadas a conocer, **sin transcribir su contenido**:
 - `.tools/demo-runtime.json` y archivos PID: estado operativo temporal; comprobar antes de usar.
 - `backend/storage/`: medios, certificados y almacenamiento privado según configuración.
 
-Conservar la clave de cifrado al migrar PostgreSQL y copiar los archivos privados necesarios. Nunca sustituir PostgreSQL por MySQL sin decisión y adaptación explícita.
+Conservar `TOKEN_ENCRYPTION_KEY` y los archivos privados al cambiar el proveedor. El usuario autorizó migrar a MySQL para GoDaddy; producción permanece sin cambios mientras terminan las pruebas.
 
 ## 7. Pruebas y evidencia
 
 | Comprobación | Último estado conocido | Qué acredita / qué no |
 |---|---|---|
 | `npm run build` | Aprobado en la etapa de pedidos | TypeScript/Vite y runtime. Advertencias conocidas de tamaño de chunks y assets públicos. |
+| `backend/tests/mysql-dialect.php` | 16 checks aprobados el 2026-10-21 | Conversiones de SQL PostgreSQL y semántica `DO NOTHING` cubiertas; no ejecuta SQL en un servidor MySQL. |
+| `backend/tests/run.php` | 69 checks aprobados el 2026-10-21 | Pruebas unitarias/funcionales sin conexión a MySQL real. |
+| `composer validate` | Correcto el 2026-10-21; advertencia de licencia | Valida manifiesto/lock, no instala ni prueba `pdo_mysql`. |
+| Integración MySQL/GoDaddy | Pendiente | PHP local no tiene `pdo_mysql` y no se conectó a la base del hosting. |
 | `npm test` | 107 checks aprobados | Sesión PHP, permisos, publicación, leads y receptor TLS local; no GHL real. |
 | `node tests/orders.mjs` | 38 checks aprobados | Pedidos locales, permisos, cotización, expiración, precisión, concurrencia por versión, deduplicación y UI. |
 | `node tests/order-editing.mjs` | 52 checks aprobados | Edición/revisión, historial, ofertas versionadas, validación de variantes y preparación bloqueada. Pruebas locales, sin órdenes externas. |
@@ -383,6 +391,26 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Límites:** `pdo_pgsql` en el hosting, PHP 8.2+, salida TLS a Supabase, SSH/Terminal, cron y SMTP siguen sin verificar en GoDaddy. `AccountMail` lee el logo en `~/tinvana/public/brand` (lo copia `.cpanel.yml`).
 - **Siguiente paso:** seguir [DEPLOYMENT.md](DEPLOYMENT.md#cpanel-git-version-control), ejecutar `console.php check` y probar login y landing.
 
+### 2026-10-21 · Diagnóstico de conexión PostgreSQL y borrador MySQL
+
+- **Resultado reportado por el usuario:** PHP 8.3.33, `pdo_pgsql` disponible, certificado CA no legible; conexión a los puertos 5432 y 6543 con timeout. Esto no acredita credenciales incorrectas; la conexión TCP no se establece.
+- **Solicitud:** empezar limpio con una base MySQL que pueda importarse desde phpMyAdmin. Crear ese esquema requiere también adaptar PDO, consultas, migraciones, comandos y pruebas PHP; cambiar solo el SQL no hace compatible la aplicación.
+- **Artefacto:** creado `backend/mysql/schema.sql` para MySQL 8.0.16+; no se ejecutó ni validó en un servidor MySQL. No incluye usuario, password hash, token Dropi, URL de webhook ni API key de IA. Los secretos se deben almacenar cifrados por el backend y la clave maestra fuera de la base.
+- **Pendiente:** conversión integral a MySQL y pruebas contra una instancia MySQL aislada, o habilitación por GoDaddy de salida TCP a PostgreSQL. Corregir también el archivo CA legible manteniendo verificación TLS.
+
+### 2026-10-21 · Inicio de adaptación PDO para GoDaddy MySQL
+
+- **Cambio:** `Database` permite seleccionar `pgsql` o `mysql` mediante `DB_DRIVER`; `.env.example` declara explícitamente `pgsql` como valor actual por defecto, y `console.php check` comprueba la extensión PDO correspondiente y muestra el motor configurado.
+- **Comprobado:** sintaxis PHP de `Database.php` y `console.php`. No se conectó a MySQL ni se ejecutaron migraciones.
+- **Estado y límite:** SQL, migraciones e instalación MySQL siguen pendientes. No desplegar ni cambiar `DB_DRIVER` en producción todavía. El usuario informa que la base MySQL ya existe con tablas; la conexión `localhost` debe probarse desde GoDaddy.
+- **Siguiente paso:** adaptar las consultas y migraciones, probar contra MySQL aislado y después ejecutar diagnóstico desde el hosting. No usar fixtures sobre la base del usuario.
+### 2026-10-21 · Conversión MySQL: capa PDO, dialecto y esquema
+
+- **Cambio:** selector de driver PDO (`pgsql`/`mysql`), comprobación de extensión según driver, conversiones SQL focalizadas (JSON, fechas, upserts, bloqueos y `RETURNING`), rutas MySQL para límites de login/IA, verificador de 18 tablas y registro de esquema base sin recrear tablas. `.cpanel.yml` incluye el paquete privado `backend/mysql`; Composer ya no exige exclusivamente `pdo_pgsql`.
+- **Pruebas ejecutadas:** `backend/tests/mysql-dialect.php` (16 checks); `backend/tests/run.php` (69 checks); lint del código PHP propio; `npm run build`; `composer validate` válido con advertencia informativa de licencia. El build conserva avisos de chunk grande y rutas de banderas resueltas en runtime. No se conectó a un MySQL real.
+- **Corrección de auditoría:** se preserva el resultado nulo de `INSERT ... ON CONFLICT DO NOTHING RETURNING` cuando no se insertó la fila, evitando duplicar entregas/eventos en reintentos idempotentes.
+- **Límites:** el PHP local carece de `pdo_mysql` y no hay servidor MySQL local disponible. No se desplegó ni se alteró la base GoDaddy. El soporte local implementado aún no equivale a compatibilidad integral demostrada.
+- **Siguiente paso:** ejecutar `check`/`migrate` desde GoDaddy con la versión/extensión confirmadas y probar los flujos esenciales con datos controlados; no activar tráfico real hasta que terminen.
 ### Plantilla para la próxima actualización
 
 ```text
