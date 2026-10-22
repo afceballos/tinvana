@@ -8,9 +8,15 @@ $api=str_starts_with($path,'/api/');
 $root=is_file(dirname(__DIR__).'/bootstrap.php')?dirname(__DIR__):dirname(__DIR__).'/tinvana';
 try {
  require $root.'/bootstrap.php';
+ // <nombre>.<dominio de APP_URL> sirve la landing publicada con ese subdominio; /p/<slug> sigue funcionando.
+ $appHost=Landing::subdomainBase();$host=strtolower(explode(':',(string)($_SERVER['HTTP_HOST']??''))[0]);
+ if($appHost!==null&&$path==='/'&&in_array($method,['GET','HEAD'],true)&&str_ends_with($host,'.'.$appHost)&&preg_match('~^([a-z0-9-]+)\.'.preg_quote($appHost,'~').'$~',$host,$sub)&&!Landing::isReservedSubdomain($sub[1])){
+  $found=Database::one("SELECT COALESCE(published_slug,slug) AS slug FROM landing_pages WHERE published_subdomain=? AND status='published'",[$sub[1]]);
+  if(!$found)throw new HttpError(404,'Página no encontrada.');$path='/p/'.$found['slug'];
+ }
  if(Support::env('APP_ENV')==='production')header('Strict-Transport-Security: max-age=31536000');
  if($path==='/sitemap.xml'){
-  header('Content-Type: application/xml; charset=utf-8');$rows=Database::all("SELECT COALESCE(published_slug,slug) AS slug,published_at AS updated_at FROM landing_pages WHERE status='published'");echo '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';foreach($rows as $r)echo '<url><loc>'.Support::escape(rtrim(Support::env('APP_URL'),'/').'/p/'.$r['slug']).'</loc><lastmod>'.gmdate('c',strtotime($r['updated_at'])).'</lastmod></url>';echo '</urlset>';exit;
+  header('Content-Type: application/xml; charset=utf-8');$rows=Database::all("SELECT COALESCE(published_slug,slug) AS slug,published_subdomain,published_at AS updated_at FROM landing_pages WHERE status='published'");echo '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';foreach($rows as $r)echo '<url><loc>'.Support::escape(Landing::publicUrl((string)$r['slug'],$r['published_subdomain']??null)).'</loc><lastmod>'.gmdate('c',strtotime($r['updated_at'])).'</lastmod></url>';echo '</urlset>';exit;
  }
  if($path==='/datos-geograficos'){if($method!=='GET')throw new HttpError(405,'Use GET.');header('Content-Type: text/html; charset=utf-8');echo App\GeographyAttribution::html();exit;}
  if(in_array($path,['/geography-data/world.zip','/geography-data/colombia.json'],true)){if($method!=='GET')throw new HttpError(405,'Use GET.');$world=$path==='/geography-data/world.zip';$file=$root.'/resources/geo/'.($world?'world/world.zip':'colombia.json');header('Content-Type: '.($world?'application/zip':'application/json; charset=utf-8'));header('Cache-Control: public, max-age=86400');header('Content-Disposition: attachment; filename="'.($world?'zenzales-world-geography.zip':'zenzales-colombia-divipola.json').'"');readfile($file);exit;}

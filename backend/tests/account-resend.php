@@ -12,5 +12,5 @@ function curl_exec(object $curl):string {
 function curl_getinfo(object $curl,int $option):int {return $GLOBALS['status'];}
 function curl_close(object $curl):void {}
 ensure(AccountMail::configured());AccountMail::send('recipient@example.test','reset','http://127.0.0.1:8084/restablecer-contrasena#token=synthetic-token','fixed-mail-id');
-$status=401;try{AccountMail::send('recipient@example.test','reset','http://127.0.0.1:8084/restablecer-contrasena#token=synthetic-token','fixed-mail-id');throw new \LogicException('Expected failure.');}catch(\RuntimeException $e){ensure(!str_contains($e->getMessage(),'synthetic-test-api-key'));}
+$status=401;try{AccountMail::send('recipient@example.test','reset','http://127.0.0.1:8084/restablecer-contrasena#token=synthetic-token','fixed-mail-id');throw new \LogicException('Expected failure.');}catch(\RuntimeException $e){ensure(!str_contains($e->getMessage(),'synthetic-test-api-key')&&str_contains($e->getMessage(),'HTTP 401'));}
 echo "PASS Resend fixed URL, TLS verification, timeouts, schema, branded logo, idempotency and secret-safe error handling. Test transport only; no provider contacted.\n";

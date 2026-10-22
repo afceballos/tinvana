@@ -1,0 +1,15 @@
+.address-picker{display:grid;gap:8px;border:0;margin:0;padding:0;min-width:0}
+.address-picker legend{padding:0;margin-bottom:6px;font-size:13px;font-weight:700}
+.address-picker label.address-option{display:flex;flex-direction:row;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;transition:border-color .2s,background .2s,box-shadow .2s}
+.address-picker .address-option input[type=radio]{flex:none;width:18px;height:18px;min-height:0;margin:2px 0 0;padding:0;accent-color:var(--brand-accent)}
+.address-option span{display:grid;gap:2px;min-width:0}
+.address-option strong{font-size:13px}
+.address-option small{color:var(--muted);font-size:12px;font-weight:400;overflow-wrap:anywhere}
+.address-option small em{font-style:normal;font-weight:700;color:var(--ink)}
+.address-picker label.address-option.active{border-color:var(--brand-accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-accent) 16%,transparent)}
+.address-picker label.address-option.disabled{opacity:.6;cursor:not-allowed}
+.address-picker label.address-field{display:grid;gap:6px;margin-top:4px}
+.address-subdomain input{min-width:0;flex:1}
+.address-subdomain span{white-space:nowrap}
+.address-hint{color:var(--muted);font-size:12px;font-weight:400}
+.address-hint.bad{color:#c2410c}

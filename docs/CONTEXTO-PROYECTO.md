@@ -468,6 +468,25 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado:** `node tests/mail-local.mjs` (8 comprobaciones) contra SMTP TLS local; `php backend/tests/account-resend.php` actualizado y aprobado; vista previa visual de los dos correos. **No** se envió ningún correo real ni se accedió a tinbana.com.
 - **Pendiente:** crear el buzón (o cuenta Resend), completar el `.env` del servidor, crear el cron `mail:work` y ejecutar `mail:test` allí; confirmar que la consulta de cola funciona en MySQL (no hay MySQL local).
 
+### 2026-10-22 · Resend como transporte de correo
+
+- **Decisión:** usar Resend (HTTPS) en lugar de SMTP del hosting. El transporte ya existía; se mejoró el diagnóstico: `mail:test` comprueba la conexión HTTPS con `api.resend.com` y los fallos de Resend informan estado HTTP y motivo con la clave oculta.
+- **Comprobado:** `php backend/tests/account-resend.php` (ahora exige el estado HTTP y que la clave no aparezca) y `node tests/mail-local.mjs`. No se contactó con Resend ni se envió ningún correo real.
+- **Pendiente:** cuenta de Resend, verificación DNS de `tinbana.com` en GoDaddy, clave de API, variables en el `.env` del servidor, cron `mail:work` y `mail:test` en el servidor; confirmar la cola en MySQL.
+
+### 2026-10-22 · HTTPS con Let's Encrypt en GoDaddy
+
+- **Contexto:** se canceló el SSL de pago que GoDaddy cobró sin consulta; el hosting no tiene AutoSSL ni Terminal.
+- **Cambio de infraestructura (sin cambios de código):** certificado de Let's Encrypt para `tinbana.com` y `www.tinbana.com` emitido e instalado con `acme.sh` y el gancho `cpanel_uapi` desde tareas de cron. Procedimiento en [DEPLOYMENT.md](DEPLOYMENT.md#https-en-godaddy-sin-autossl-letsencrypt-con-acmesh-por-cron).
+- **Comprobado:** el navegador muestra el certificado de Let's Encrypt; el registro de `acme.sh` informa éxito y la próxima renovación el 21 de diciembre de 2026.
+- **Pendiente de confirmar:** que la primera renovación automática (diciembre de 2026) se instale sola.
+
+### 2026-10-22 · Subdominio opcional por landing y certificado comodín
+- **Infraestructura (en producción):** registro DNS `A` `*`, CNAME `_acme-challenge` hacia acme-dns, certificado comodín de Let's Encrypt (`tinbana.com` y `*.tinbana.com`) emitido con `acme.sh --dns dns_acmedns` desde cron e instalado con `cpanel_uapi`, y dominio `*.tinbana.com` en cPanel. Comprobado desde fuera: `tinbana.com`, `www` y subdominios arbitrarios sirven el certificado nuevo (vence el 20 de enero de 2027) y responden HTTP 200 con la app.
+- **Cambio de código (ampliación expresamente pedida, no solo visual):** cada landing elige enlace normal `/p/<slug>` o subdominio con el nombre que escoja el usuario (solo minúsculas, números y guiones). Migración 013 en PostgreSQL y MySQL, validación y reservados en servidor y base, router por `HTTP_HOST`, URL pública en consultas, mapa del sitio y «Mis productos», selector en el constructor. Guía: [LANDING-SUBDOMAINS.md](LANDING-SUBDOMAINS.md).
+- **Comprobado (local, base PostgreSQL aislada y datos propios eliminados):** `landing-subdomain.php` 46, `subdomain-router.mjs` 12, `landing-address.mjs` 18; regresión: `backend/tests/run.php` 69, `blocks.php` 101, `header.php` 15, `mysql-dialect.php` 16, `compact.mjs` 27, `modern.mjs` 17, `preload.mjs` 12; `tsc -b` y compilación sin errores.
+- **Limitaciones / pendiente:** la migración MySQL no se probó con un MySQL real; hay que desplegar, ejecutar `migrate` en el servidor y probar con una landing publicada en un subdominio; confirmar que la primera renovación automática del comodín (diciembre de 2026) se instale sola; las cron de `maintenance` y `webhooks:work` necesitan `-d register_argc_argv=1` (ver DEPLOYMENT.md).
+
 ### Plantilla para la próxima actualización
 
 ```text

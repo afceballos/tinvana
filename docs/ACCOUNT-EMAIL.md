@@ -91,3 +91,14 @@ Los mensajes usan la marca Tinvana (logo `backend/public/brand/tinvana-mail.png`
 ### Comprobaciones añadidas
 
 `node tests/mail-local.mjs`: ejecuta `AccountMail::diagnose` por el código SMTP real contra un servidor TLS local (puerto 2525), sin base de datos ni servicios externos. Verifica configuración, entrega, remitente y asunto, cuerpo con marca y sin restos de Zenzales, logo incrustado, alternativa de texto, destinatario rechazado sin filtrar la dirección ni credenciales. La entrega a un buzón real de `tinbana.com` y la entrega en bandeja de entrada (SPF/DKIM) no se han comprobado.
+
+### Resend con tinbana.com (recomendado en este hosting)
+
+No requiere buzón ni SMTP, y usa HTTPS (puerto 443) hacia `api.resend.com`.
+
+1. Crea la cuenta en Resend y añade el dominio `tinbana.com` (o un subdominio de envío). Resend muestra los registros DNS exactos: cópialos tal cual en el DNS de GoDaddy (normalmente un TXT de DKIM y, para el retorno de rebotes, un MX y un TXT en un subdominio). No reemplaces los MX ni el SPF existentes del dominio raíz; si ya hay un SPF, combínalo en un único registro.
+2. Espera a que el dominio figure como *Verified* y crea una clave de API con permiso de envío limitado a ese dominio.
+3. En `~/tinvana/.env`: `MAIL_TRANSPORT=resend`, `MAIL_FROM_ADDRESS=no-reply@tinbana.com` (cualquier dirección del dominio verificado), `RESEND_API_KEY=` (la clave) y `APP_URL=https://tinbana.com`. Las variables `SMTP_*` dejan de usarse. El logo del correo se carga desde `APP_URL/brand/tinvana-mail.png`, por lo que el sitio debe ser accesible públicamente por HTTPS.
+4. Mantén el cron `mail:work` cada minuto y ejecuta `mail:test correo@dominio` (o el script de un solo uso).
+
+`mail:test` comprueba que `api.resend.com` responda por HTTPS con certificado válido y, si Resend rechaza el envío, muestra el estado HTTP y su explicación (por ejemplo, dominio sin verificar o clave inválida) con la clave oculta. Esos mismos detalles quedan en el `error_log` cuando falla un envío de la cola.

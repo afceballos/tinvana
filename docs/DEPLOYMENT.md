@@ -79,6 +79,8 @@ Ajusta la versión/socket de PHP-FPM. Agrega redirección HTTP a HTTPS en un blo
 
 ## Cron
 
+> **cPanel de GoDaddy:** `/usr/bin/php` es PHP CGI/FastCGI y no entrega los argumentos de la línea de comandos. Cada tarea debe llamarse `/usr/bin/php -q -d register_argc_argv=1 /home/USUARIO/tinvana/bin/console.php <comando>`; sin ese ajuste `console.php` solo imprime «Comandos: …» y no hace nada. `/opt/cpanel/ea-php83/…` no existe dentro del entorno de cron. Se comprobó con `mail:work`, que respondió `{"sent":1,"failed":0}`.
+
 ```cron
 * * * * * cd /srv/zenzales && /usr/bin/php backend/bin/console.php webhooks:work 20 >> /var/log/zenzales-webhooks.log 2>&1
 17 3 * * * cd /srv/zenzales && /usr/bin/php backend/bin/console.php maintenance >> /var/log/zenzales-maintenance.log 2>&1
@@ -97,3 +99,24 @@ Estructura: `~/public_html` = contenido de `backend/public`; `~/tinvana` = backe
 5. Terminal/SSH: ejecuta `php ~/tinvana/bin/console.php check` y `php ~/tinvana/bin/console.php migrate`. En MySQL, `migrate` exige las tablas importadas y no vuelve a importar ni vaciar el esquema.
 6. Cron (cPanel → *Cron Jobs*): `php ~/tinvana/bin/console.php webhooks:work 20` y `mail:work` cada minuto; `maintenance` diario.
 7. Tras cambios de React: `npm run build`, commit de `backend/public/app` y *Deploy HEAD Commit* de nuevo.
+
+## HTTPS en GoDaddy sin AutoSSL (Let's Encrypt con acme.sh por cron)
+
+El hosting no ofrece AutoSSL ni Terminal. Se resolvió con tareas de cPanel → *Cron Jobs* que ejecutan `acme.sh` (validación HTTP por `public_html/.well-known/acme-challenge`, que el `.htaccess` deja pasar porque sirve los archivos existentes):
+
+1. Tarea temporal: instalar `acme.sh`, `--issue -d tinbana.com -d www.tinbana.com -w ~/public_html --server letsencrypt --keylength 2048` y `--deploy --deploy-hook cpanel_uapi`, con la salida en un archivo de registro. Se borra tras ejecutarse; una segunda ejecución es inofensiva («Domains not changed»).
+2. Si el despliegue automático falla, los archivos están en `~/.acme.sh/tinbana.com/` y se pegan en *SSL/TLS → Manage SSL sites* (CRT `tinbana.com.cer`, KEY `tinbana.com.key`, CABUNDLE `ca.cer`); en ese caso la renovación no se instalaría sola.
+3. Renovación: `acme.sh` la programa y reinstala con el mismo `deploy-hook`. Comprueba que en *Current Cron Jobs* exista una línea `.acme.sh/acme.sh --cron`; si falta, créala una vez al día.
+4. Después: *Domains → Force HTTPS Redirect*, `APP_URL=https://…` y `SESSION_SECURE=true`.
+
+Let's Encrypt acorta la vida de sus certificados (de 90 a 64 días desde el 10 de febrero de 2027 y a 45 días en 2028); la renovación automática es imprescindible. Tras cada renovación, comprueba en *SSL/TLS Status* que cambió la fecha de vencimiento. Fuente: https://letsencrypt.org/2025/12/02/from-90-to-45.html
+
+## Certificado comodín para los subdominios de landings
+
+Cada landing puede publicarse en `<nombre>.tinbana.com` (ver [LANDING-SUBDOMAINS.md](LANDING-SUBDOMAINS.md)). Sin migrar el DNS a otro proveedor, el comodín se valida por DNS delegando solo el desafío con un CNAME a `acme-dns`:
+
+1. DNS: `A` `*` hacia la IP del hosting y, tras la primera ejecución, `CNAME` `_acme-challenge` hacia el nombre `<id>.auth.acme-dns.io` que escribe `acme.sh` en su registro. El servidor público de acme-dns solo puede responder ese desafío.
+2. cPanel → *Domains*: crear `*.tinbana.com` con raíz `public_html`.
+3. Cron de un solo uso: `acme.sh --issue --force --dnssleep 60 -d tinbana.com -d '*.tinbana.com' --dns dns_acmedns --server letsencrypt --keylength 2048 --home ~/.acme.sh`, con la salida en un archivo. Programarlo **una vez por hora** (no cada minuto: la validación dura más de un minuto y las ejecuciones se pisan) y borrarlo al terminar. Las ejecuciones con `--force` consumen el límite semanal de Let's Encrypt.
+4. Instalación: otro cron de un solo uso con `acme.sh --deploy -d tinbana.com --deploy-hook cpanel_uapi --home ~/.acme.sh`. La renovación diaria (`acme.sh --cron`) reutiliza esos ajustes.
+5. Resultado comprobado desde fuera: `tinbana.com`, `www` y subdominios arbitrarios (`prueba`, `otra`) sirven el certificado de Let's Encrypt que cubre `tinbana.com` y `*.tinbana.com`, con vencimiento el 20 de enero de 2027.
