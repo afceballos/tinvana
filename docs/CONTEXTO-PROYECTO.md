@@ -415,6 +415,7 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 ### 2026-10-21 · Candidato MySQL publicado en GitHub
 
 - **Commit:** `884af33` en `master` de `afceballos/tinvana`; incluye backend MySQL, esquema, build React y guías actualizadas.
+- **Dependencias:** generado `output/deploy/tinvana-vendor.zip` (aprox. 4.0 MB) desde `composer.lock`; verificado que contiene `vendor/autoload.php` y no contiene `.env` ni `storage`. El ZIP es un artefacto local excluido de Git.
 - **Comprobado:** `git push` completado. No se desplegó en cPanel, no se modificó `~/tinvana/.env` y no se ejecutaron consultas/migraciones en la base GoDaddy.
 - **Siguiente paso:** desplegar HEAD desde cPanel, configurar `DB_DRIVER=mysql` y variables MySQL en el `.env` privado; correr `check` y `migrate` y devolver los resultados sin incluir la contraseña.
 ### Plantilla para la próxima actualización
