@@ -418,6 +418,13 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Dependencias:** generado `output/deploy/tinvana-vendor.zip` (aprox. 4.0 MB) desde `composer.lock`; verificado que contiene `vendor/autoload.php` y no contiene `.env` ni `storage`. El ZIP es un artefacto local excluido de Git.
 - **Comprobado:** `git push` completado. No se desplegó en cPanel, no se modificó `~/tinvana/.env` y no se ejecutaron consultas/migraciones en la base GoDaddy.
 - **Siguiente paso:** desplegar HEAD desde cPanel, configurar `DB_DRIVER=mysql` y variables MySQL en el `.env` privado; correr `check` y `migrate` y devolver los resultados sin incluir la contraseña.
+
+### 2026-10-21 · Exportación de datos PostgreSQL para MySQL
+
+- **Cambio:** se generó localmente un SQL de solo inserciones a partir de una transacción PostgreSQL `READ ONLY`; no se cambió ni escribió en Supabase. Incluye las tablas de negocio y no incluye `schema_migrations` ni los límites temporales `rate_limits`.
+- **Protección de transición:** tokens Dropi, webhook y claves de IA se descifraron en memoria y se volvieron a cifrar con una clave nueva, entregada en un archivo `.env` privado separado. Los enlaces de cuenta se invalidan y las entregas GHL pendientes/en proceso se marcan fallidas para revisión manual antes de reintentar.
+- **Archivos locales excluidos de Git:** `.tools/tinvana-mysql-data.sql`, `.tools/tinvana-mysql-encryption.env` y `.tools/tinvana-media.zip`. Los medios se trasladan aparte del SQL.
+- **Límite:** la base MySQL de GoDaddy aún no ha sido importada ni comprobada. Importar datos requiere tablas vacías con `backend/mysql/schema.sql` ya aplicado; verificar claves, relaciones, medios y login antes del corte. El dump contiene datos personales y se debe mantener privado.
 ### Plantilla para la próxima actualización
 
 ```text
