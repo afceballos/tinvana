@@ -33,6 +33,9 @@ final class Api {
   if($path==='/api/media'){if($method==='DELETE')return Media::remove($owner,self::body());if($method==='GET')return Media::listing($owner,$_GET);if($method==='POST')return ['image'=>Media::upload(null,$owner)];}
   if($path==='/api/profile'){if($method==='GET')return ['profile'=>Profile::view($owner)];if($method==='PUT')return ['profile'=>Profile::save($owner,self::body())];}
   if($path==='/api/profile/store'&&$method==='PUT')return ['profile'=>Store::save($owner,self::body())];
+  if($path==='/api/mail-settings'){if($method==='GET')return OrderMail::view($owner);if($method==='PUT')return OrderMail::save($owner,self::body());}
+  if(preg_match('~^/api/mail-settings/preview/([a-z_]+)$~',$path,$m)&&$method==='POST'){$draft=self::body()['settings']??null;return OrderMail::preview($owner,$m[1],is_array($draft)?$draft:null);}
+  if($path==='/api/mail-settings/test'&&$method==='POST'){Auth::limit('mail-test:'.$owner,5,3600);return OrderMail::test($owner,(string)(self::body()['kind']??''));}
   if($path==='/api/profile/password'&&$method==='POST')return Profile::password($owner,self::body());
   if($path==='/api/profile/avatar'&&in_array($method,['POST','DELETE'],true))return ['profile'=>Profile::photo($owner,$method==='DELETE')];
   if($path==='/api/ai/connections'&&$method==='GET')return AiConnections::view($owner);

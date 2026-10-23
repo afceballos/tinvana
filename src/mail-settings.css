@@ -1,0 +1,30 @@
+/* Order email settings (src/MailSettings.tsx). Built on the GHL card pieces in modern.css. */
+.mail-card{display:grid;gap:16px}
+.mail-card label{display:grid;gap:6px}
+.mail-kinds{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.mail-kind{display:grid;gap:12px;padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--surface);transition:border-color .2s ease,box-shadow .2s ease}
+.mail-kind.is-on{border-color:color-mix(in srgb,var(--brand-accent) 40%,var(--line));box-shadow:0 10px 26px -22px var(--brand-accent)}
+.mail-kind-head{display:flex;align-items:center;gap:12px}
+.mail-kind-head>div{flex:1;min-width:0}
+.mail-kind-head strong{display:block;font-size:15px}
+.mail-kind-head p{margin:2px 0 0;font-size:13px;line-height:1.5;color:var(--muted)}
+.mail-kind-icon{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:12px;background:color-mix(in srgb,var(--brand-accent) 13%,var(--surface));color:var(--brand-accent)}
+.mail-kind-icon .icon{width:18px;height:18px}
+.mail-switch{position:relative;display:inline-flex;flex:0 0 auto;cursor:pointer}
+.mail-switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.mail-switch>span[aria-hidden]{width:46px;height:26px;border-radius:999px;background:var(--line);position:relative;transition:background .2s ease}
+.mail-switch>span[aria-hidden]::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 6px #1e1e1e33;transition:transform .2s var(--ease-spring,ease)}
+.mail-switch input:checked+span{background:var(--brand-accent)}
+.mail-switch input:checked+span::after{transform:translateX(20px)}
+.mail-switch input:focus-visible+span{outline:3px solid #ffba3d;outline-offset:2px}
+.mail-message textarea{min-height:80px;resize:vertical}
+.mail-preview-button{justify-self:start}
+.mail-save{position:sticky;bottom:16px;z-index:5;display:flex;align-items:center;gap:14px;flex-wrap:wrap;max-width:620px;margin:4px 0 20px;padding:12px 14px;border:1px solid var(--line);border-radius:16px;background:var(--surface-glass,var(--surface));backdrop-filter:blur(10px);box-shadow:var(--shadow)}
+.mail-preview{width:min(720px,calc(100vw - 24px));max-height:92dvh;padding:0;border:0;border-radius:22px;background:var(--surface);color:var(--ink);display:flex;flex-direction:column}
+.mail-preview:not([open]){display:none}
+.mail-preview header,.mail-preview footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px}
+.mail-preview header{border-bottom:1px solid var(--line)}.mail-preview footer{border-top:1px solid var(--line);flex-wrap:wrap}
+.mail-preview header h2{margin:2px 0;font-size:18px}.mail-preview header p{margin:0}
+.mail-preview header .secondary{display:grid;place-items:center;width:40px;height:40px;padding:0;border-radius:12px}
+.mail-preview iframe{flex:1;width:100%;min-height:60dvh;border:0;background:#fff8f1}
+@media(max-width:600px){.mail-kind-head{align-items:flex-start}.mail-save{bottom:8px}}

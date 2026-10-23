@@ -102,3 +102,29 @@ No requiere buzón ni SMTP, y usa HTTPS (puerto 443) hacia `api.resend.com`.
 4. Mantén el cron `mail:work` cada minuto y ejecuta `mail:test correo@dominio` (o el script de un solo uso).
 
 `mail:test` comprueba que `api.resend.com` responda por HTTPS con certificado válido y, si Resend rechaza el envío, muestra el estado HTTP y su explicación (por ejemplo, dominio sin verificar o clave inválida) con la clave oculta. Esos mismos detalles quedan en el `error_log` cuando falla un envío de la cola.
+
+## Correos de pedidos (2026-10-23)
+
+`OrderMail` envía cuatro correos con la misma plantilla de Tinvana (`AccountMail::layout`) y el mismo transporte (`AccountMail::deliver`, Resend o SMTP):
+
+| Correo | Destinatario | Cuándo |
+|---|---|---|
+| Recibimos tu pedido | Comprador | Consulta nueva desde una landing (no al convertir consultas antiguas) |
+| Nuevo pedido | Usuario (correo de avisos) | Misma consulta; incluye comprador, entrega y botón **Ver pedido** |
+| Tu pedido está confirmado | Comprador | Al registrar la aceptación |
+| Tu pedido fue cancelado | Comprador | Al cancelar el pedido |
+
+- **Cola:** cada correo se encola en `order_mail` (migración 016; en MySQL, 016 y 017) dentro de la misma transacción del cambio. Los datos van cifrados y la clave `dedupe_key` (pedido, tipo y versión) evita duplicados. Lo envía el mismo cron `mail:work`, que ahora devuelve también `orders`. Hay hasta 5 intentos con espera creciente; al enviarse, se borra el contenido cifrado.
+- **Configuración:** en el menú de la cuenta, **Correos de pedidos** (`/panel/correos`, `users.mail_settings`). Permite activar o desactivar cada correo y definir:
+  - el nombre del remitente (saneado para la cabecera From; sale desde `MAIL_FROM_ADDRESS`);
+  - el correo de respuesta (Reply-To de los correos al comprador);
+  - el correo de avisos;
+  - un mensaje adicional de hasta 500 caracteres en cada correo al comprador (solo texto, escapado).
+- **Vista previa y prueba:** vista previa con datos de ejemplo (incluye cambios sin guardar) y **Enviarme una prueba** (5 por hora).
+- **API:** `GET/PUT /api/mail-settings`, `POST /api/mail-settings/preview/{tipo}` y `POST /api/mail-settings/test`.
+
+Pruebas:
+
+- `node tests/order-mail.mjs` (23): configuración, validación, vista previa, encolado al crear, confirmar y cancelar, sin duplicados, correo desactivado e interfaz en claro, oscuro y móvil.
+- `php backend/tests/order-mail-worker.php` (11): trabajador con Resend interceptado (remitente, Reply-To, destinatarios, logo alojado, mensaje escapado, enlace al pedido, idempotencia, reintento sin filtrar detalles).
+- Las consultas nuevas se tradujeron a MySQL/MariaDB y la sintaxis es válida.

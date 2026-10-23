@@ -122,12 +122,12 @@ final class Orders {
     if(($b['accepted']??false)!==true)throw new HttpError(422,'Debes confirmar que verificaste la aceptación del comprador.');
     $confirmation=['quote_id'=>$r['quote_id'],'quoted_version'=>(int)$r['version'],'evidence'=>$evidence,'recorded_by'=>$owner,'recorded_at'=>gmdate('c'),'method'=>'operator_record'];
     $r=Database::one("UPDATE orders SET sale_status='confirmed',confirmation=?::jsonb,version=version+1,updated_at=now() WHERE id=? RETURNING *",[Support::json($confirmation),$id]);
-    self::event($r,'confirmed',$confirmation,$owner);
+    self::event($r,'confirmed',$confirmation,$owner);OrderMail::queue($r,'buyer_confirmed');
    }elseif($action==='cancel'){
     if($r['sale_status']==='cancelled')throw new HttpError(409,'El pedido ya está cancelado.');
     $reason=Support::text($b['reason']??null,1000);
     $r=Database::one("UPDATE orders SET sale_status='cancelled',version=version+1,quote_id=null,quote_expires_at=null,updated_at=now() WHERE id=? RETURNING *",[$id]);
-    self::event($r,'cancelled',['reason'=>$reason],$owner);
+    self::event($r,'cancelled',['reason'=>$reason],$owner);OrderMail::queue($r,'buyer_cancelled');
    }else throw new HttpError(404,'Operación no disponible.');
    $db->commit();return self::detail($owner,$id);
   }catch(\Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}

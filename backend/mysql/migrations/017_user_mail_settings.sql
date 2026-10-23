@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN mail_settings JSON NULL

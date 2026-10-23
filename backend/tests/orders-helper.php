@@ -36,3 +36,5 @@ if(($argv[1]??'')==='shipping-setup'){
  foreach(['content','published_content'] as $col){$l=Database::one("SELECT $col AS c FROM landing_pages WHERE id=? AND user_id=?",[$fixture['landing'],$fixture['owner']]);if(!$l||$l['c']===null)continue;$c=json_decode($l['c'],true);$c['commerce']['dropiShipping']=($argv[2]??'on')==='on';$c['publicPrice']=$c['publicPrice']??25000;Database::query("UPDATE landing_pages SET $col=?::jsonb WHERE id=? AND user_id=?",[Support::json($c),$fixture['landing'],$fixture['owner']]);}
  foreach(glob(dirname(__DIR__).'/storage/cache/shipping/*.json')?:[] as $file)unlink($file);
 }
+if(($argv[1]??'')==='mail-queue')echo Support::json(Database::all('SELECT kind,status,dedupe_key FROM order_mail WHERE user_id=? ORDER BY created_at,kind',[$fixture['owner']]));
+if(($argv[1]??'')==='mail-reset'){Database::query('DELETE FROM order_mail WHERE user_id=?',[$fixture['owner']]);Database::query('UPDATE users SET mail_settings=NULL WHERE id=?',[$fixture['owner']]);}

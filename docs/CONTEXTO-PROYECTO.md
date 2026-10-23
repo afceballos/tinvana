@@ -87,6 +87,7 @@ Formularios -> lead + entrega pendiente + borrador de pedido (misma transacción
 | 012 | Ofertas comerciales, historial de versiones y snapshots de oferta/variante en pedidos; aplicada a Supabase y al entorno local. |
 | 013 | Subdominio por landing (`landing_pages.subdomain`, `published_subdomain`); sustituido por 014, columnas sin uso. |
 | 014 | Subdominio de tienda por usuario (`users.store_subdomain`), en PostgreSQL y MySQL. |
+| 016 | Correos de pedidos: tabla `order_mail` y `users.mail_settings` (en MySQL, archivos 016 y 017). |
 | 015 | Envío a Dropi: estados `sending/sent/failed/unknown`, `orders.dropi_order_id` e `integration_data`, en PostgreSQL y MySQL. Aplicada solo en la base local de pruebas. |
 
 Esquema acumulativo: consultar el SQL real antes de cambiarlo. Hay relaciones de propietario y restricciones de unicidad; la autorización de aplicación sigue siendo obligatoria aunque exista RLS en tablas específicas.
@@ -576,6 +577,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Pedido del usuario:** Integraciones de IA y otros módulos se veían básicos; unificarlos con el estilo de GHL e Integraciones Dropi.
 - **Cambio:** solo interfaz (`AiSettings.tsx`, `StoreAddress.tsx`, `Profile.tsx`, `ui.tsx`, `modern.css`). Detalle en [MODERN-UI.md](MODERN-UI.md).
 - **Comprobado:** `store-address.mjs` 20, `alerts.mjs` 18, `modern.mjs` 17, `compact.mjs` 27, `webhook-card.mjs` 13, `dropi-integrations-ui.mjs` 10 y `profile.mjs`; capturas de escritorio con API simulada.
+
+### 2026-10-23 · Correos de pedidos y su configuración
+- **Pedido del usuario:** correo al comprador al entrar, confirmarse o cancelarse un pedido; correo al usuario por cada pedido nuevo; mismo estilo que los correos de cuenta; configuración en el perfil.
+- **Cambio:** `OrderMail`; `AccountMail` separado en `layout()` y `deliver()` sin cambiar los correos de cuenta; migración 016; cola procesada por `mail:work`; pantalla **Correos de pedidos** con vista previa y prueba. Guía: [ACCOUNT-EMAIL.md](ACCOUNT-EMAIL.md#correos-de-pedidos-2026-10-23).
+- **Comprobado (PostgreSQL local):** `order-mail.mjs` 23, `order-mail-worker.php` 11, `account-resend.php`, `mail-local.mjs` 8; regresión `npm test` 107, `orders.mjs` 38, `order-editing.mjs` 52, `dropi-orders.mjs` 36, `dropi-shipping.mjs` 20, `delivery-ui.mjs`, `lead-success.mjs` 12, `profile.mjs`, `modern.mjs` 17, `compact.mjs` 27, `run.php` 69 y `mysql-dialect.php` 19.
+- **Pendiente en producción:** desplegar, aplicar la migración (cron `migrate:auto` o `migrate`) y probar con **Enviarme una prueba** y un pedido real.
 
 ### Plantilla para la próxima actualización
 
