@@ -187,3 +187,8 @@ dialog.lead-dialog .lead-dialog-footer button{width:100%}
 @media(hover:none){.cx-row:hover{transform:none}}
 .cx-row .cx-open,.cx-row .cx-open:hover,.cx-row .cx-open:active{transform:none!important;box-shadow:none!important}
 .cx-row .cx-open,.cx-row .cx-open:hover,.cx-row .cx-open:active,.cx-row .cx-open:focus-visible{filter:none!important;backdrop-filter:none!important;will-change:auto}
+/* Timeline alignment: line and dots share the same center (11px). .order-history adds its own left padding, so reset it here. */
+.order-history.cx-timeline,.cx-timeline{padding-left:0}
+.cx-timeline::before{left:10px;width:2px}
+.cx-timeline>li{padding-left:32px}
+.cx-timeline>li::before{box-sizing:border-box;left:3px;top:3px;width:16px;height:16px}

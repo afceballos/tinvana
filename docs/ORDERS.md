@@ -76,3 +76,5 @@ Tampoco están implementados todavía empresa con miembros y roles, combos, múl
 Conserva las clases y los textos que usan las pruebas.
 
 **Envío sugerido:** el detalle devuelve `shipping_hint`, sacado del texto de envío de la landing publicada (`commerce.shipping` o el campo «Costo de envío» del bloque de envíos). «Gratis», «Incluido» o «Sin costo» dan 0; si no, se toma el primer monto de al menos 1.000. Si el pedido no tiene flete guardado, el campo de la cotización se rellena con ese valor y lo indica. Solo se guarda al guardar la cotización. El catálogo de Dropi no trae un flete por producto. Prueba: `php backend/tests/shipping-hint.php` (9 comprobaciones).
+
+**Historial alineado (2026-10-23):** `.order-history` añadía 20 px de margen y el punto no tenía `box-sizing` fijo, así que los puntos quedaban a la derecha de la línea. Ahora la línea y los puntos comparten el centro, a 11 px del borde (`compact.css`). Medido en el navegador: diferencia de 0 px en escritorio, móvil y modo oscuro. `compact.mjs` 27 y `modern.mjs` 17 siguen pasando.
