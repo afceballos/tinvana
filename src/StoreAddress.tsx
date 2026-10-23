@@ -1,4 +1,5 @@
 import {useState} from 'react';
+import {Icon} from './ui';
 import {api} from './api';
 import {useFeedbackState} from './Notifications';
 import './store-address.css';
@@ -24,8 +25,9 @@ export function StoreAddress({store,onSaved}:{store:StoreInfo;onSaved:(store:Sto
     try{const r=await api<{profile:{store:StoreInfo}}>('/api/profile/store',{method:'PUT',body:JSON.stringify({subdomain:value||null})});onSaved(r.profile.store);setValue(r.profile.store.subdomain||'');notice(r.profile.store.subdomain?'Tu tienda quedó en '+r.profile.store.url+'.':'Tus productos volvieron al enlace normal.');}
     catch(e){error((e as Error).message);}finally{setBusy(false);}
   }
-  return <section className="panel store-card" aria-labelledby="store-card-title">
-    <h2 id="store-card-title">Tu tienda</h2>
+  return <section className="panel store-card webhook-current" aria-labelledby="store-card-title">
+    <div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name="globe"/></span><div><span className="eyebrow">Dirección de tus landings</span><h2 id="store-card-title">Tu tienda</h2></div><span className={'webhook-state '+(saved?'on':'off')}>{saved?'Activa':'Sin subdominio'}</span></div>
+    {saved&&base&&<div className="webhook-url"><Icon name="link"/><code>{saved}.{base}</code></div>}
     {!base?<p className="muted">El subdominio de tienda estará disponible cuando el sitio use su dominio público.</p>:<form className="store-form" onSubmit={e=>{e.preventDefault();void save();}}>
       <p className="muted">Elige el nombre de tu tienda y todos tus productos publicados quedarán en ese subdominio. Es opcional: sin nombre, usan el enlace normal.</p>
       <label>Nombre de tu tienda

@@ -572,6 +572,11 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado (local, PostgreSQL y Dropi simulado):** `dropi-shipping.mjs` 20, `dropi-shipping.php` 9; regresión `npm test` 107, `orders.mjs` 38, `order-editing.mjs` 52, `dropi-orders.mjs` 36, `delivery-ui.mjs`, `lead-phone-country.mjs` 6, `lead-success.mjs` 12, `builder.mjs`, `webhook-card.mjs` 13 y las pruebas PHP.
 - **No comprobado:** la cotización real desde el formulario en producción; es lo primero que hay que probar tras desplegar.
 
+### 2026-10-23 · IA, perfil y contraseña con el estilo de Conexión GHL
+- **Pedido del usuario:** Integraciones de IA y otros módulos se veían básicos; unificarlos con el estilo de GHL e Integraciones Dropi.
+- **Cambio:** solo interfaz (`AiSettings.tsx`, `StoreAddress.tsx`, `Profile.tsx`, `ui.tsx`, `modern.css`). Detalle en [MODERN-UI.md](MODERN-UI.md).
+- **Comprobado:** `store-address.mjs` 20, `alerts.mjs` 18, `modern.mjs` 17, `compact.mjs` 27, `webhook-card.mjs` 13, `dropi-integrations-ui.mjs` 10 y `profile.mjs`; capturas de escritorio con API simulada.
+
 ### Plantilla para la próxima actualización
 
 ```text

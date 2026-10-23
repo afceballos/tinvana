@@ -225,3 +225,15 @@ dialog[open]::backdrop{animation:backdrop-in .35s ease-out}
 /* Dropi integrations page reuses the GHL webhook card (src/DropiIntegrations.tsx). */
 .dropi-add{display:flex;width:fit-content;margin:0 0 20px}
 .payload-table.dropi-uses{min-width:0}
+/* GHL-style cards reused in AI connections, store, profile and password (2026-10-23). */
+.webhook-head h2{margin:2px 0 0;font-size:19px;line-height:1.3}
+.webhook-current>.webhook-head{margin-bottom:2px}
+.ai-provider-logo svg{width:22px;height:22px;color:#fff}
+.ai-connection-card.is-active{border-color:color-mix(in srgb,var(--brand-accent) 55%,var(--line))}
+.ai-account-note.notice{margin:20px 0;padding:14px 18px 14px 48px;border-radius:16px}
+.ai-account-note.notice p{margin:6px 0 0;color:inherit}
+.profile-photo.webhook-current{text-align:center}
+.profile-photo.webhook-current>.webhook-head{text-align:left;width:100%}
+.profile-form.webhook-current fieldset legend{font-size:15px}
+.profile-photo.webhook-current{justify-items:center}
+.profile-photo.webhook-current>.webhook-head{justify-self:stretch}

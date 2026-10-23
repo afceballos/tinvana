@@ -66,3 +66,21 @@ Sustituye la tarjeta plana con borde izquierdo de color por una tarjeta redondea
 - **Tabla final:** explica qué hace el servidor con el token. A diferencia de la de GHL, no tiene ancho mínimo (`.dropi-uses`) y se ajusta al móvil.
 
 No cambia la API ni el comportamiento. Prueba: `node tests/dropi-integrations-ui.mjs` (10 comprobaciones, API simulada); también pasan `webhook-card.mjs` 13 y `modern.mjs` 17.
+
+## Estilo de tarjetas unificado en IA, perfil y contraseña (2026-10-23)
+
+Integraciones de IA, Editar perfil y Cambiar contraseña usan las mismas piezas que Conexión GHL e Integraciones Dropi:
+
+- **`webhook-current`:** degradado y brillo de fondo.
+- **`webhook-head`:** icono naranja en degradado, eyebrow y título.
+- **`webhook-state`:** chip con punto de estado.
+- **`webhook-url`:** recuadro punteado para el dato clave.
+
+En cada pantalla:
+
+- **IA:** cada proveedor muestra «En uso / Configurada / Sin conectar» y la clave cifrada con su fecha de comprobación. El aviso de usar clave de API toma el tono informativo azul.
+- **Tu tienda:** chip «Activa / Sin subdominio» y el subdominio guardado en el recuadro.
+- **Foto de perfil y Datos de la cuenta:** cabeceras con icono.
+- **Contraseña:** icono de candado (nuevo `lock` en `ui.tsx`) y chip «Sesión protegida».
+
+Se conservan títulos, textos y lógica. Pasan `store-address.mjs` 20, `alerts.mjs` 18, `modern.mjs` 17, `compact.mjs` 27, `webhook-card.mjs` 13, `dropi-integrations-ui.mjs` 10 y `profile.mjs`. Revisadas además Plantilla, Consultas, Pedidos, Mis productos y Mis archivos, que ya tenían el estilo moderno.
