@@ -9,7 +9,7 @@ Documento vivo para el propietario del proyecto, desarrolladores y otras IA. Des
 - **Producto:** plataforma privada para administrar integraciones Dropi, seleccionar productos, crear/publicar landings y recibir consultas. Se amplía con pedidos y ventas por WhatsApp.
 - **Marca actual:** Tinvana. Zenzales/Dropi + Zenzales son nombres anteriores que aún aparecen en rutas, configuraciones técnicas y algunos documentos.
 - **Proyecto real:** en producción en **`https://tinbana.com`** (GoDaddy cPanel) con PHP + MySQL (`DB_DRIVER=mysql`); catálogo obtenido de Dropi. Supabase PostgreSQL queda como entorno histórico. No existe fallback de productos inventados. Los datos de pruebas están aislados.
-- **Estado de producción (confirmado por el usuario el 2026-10-23):** despliegue, migraciones hasta 014, login y flujos de la aplicación, correo con Resend, HTTPS Let's Encrypt (raíz y comodín `*.tinbana.com`), subdominio por tienda y cron de trabajadores funcionando. El asistente no lo comprobó directamente.
+- **Estado de producción (confirmado por el usuario el 2026-10-23):** despliegue sobre **MariaDB 10.11.19** (no MySQL), login y flujos de la aplicación, correo con Resend, HTTPS Let's Encrypt (raíz y comodín `*.tinbana.com`), subdominio por tienda y cron de trabajadores funcionando. El asistente no lo comprobó directamente.
 - **Última entrega funcional:** envío de pedidos confirmados a Dropi (migración 015), con estado `PENDIENTE CONFIRMACION` y cobro contra entrega, probado contra un Dropi simulado. **Sin desplegar y sin orden real de prueba todavía.**
 - **Todavía no:** sincronización de estados/guías desde Dropi, agente vendedor de WhatsApp, sincronización bidireccional de GHL, logística ni conciliación financiera.
 - **Últimas comprobaciones locales:** ver la bitácora del 2026-10-22 (subdominio de tienda, interfaz y regresiones). Los checks externos se distinguen de las pruebas aisladas.
@@ -276,7 +276,7 @@ n8n es opcional, no dependencia instalada obligatoria. Para el piloto se pueden 
 - [x] Demo histórica por túnel temporal de Cloudflare; ya no es el entorno de referencia.
 - [x] Configuraciones y guías Apache/Nginx, frontend compilado y rutas al refrescar.
 - [x] Despliegue definitivo en GoDaddy cPanel con dominio `tinbana.com`: backend privado en `~/tinvana`, público en `~/public_html`, vía `.cpanel.yml` (confirmado por el usuario el 2026-10-23).
-- [x] MySQL con `pdo_mysql`, migraciones hasta 014, HTTPS (Let's Encrypt raíz y comodín) y cron `mail:work`, `webhooks:work` y `maintenance` funcionando en GoDaddy (confirmado por el usuario el 2026-10-23).
+- [x] MariaDB 10.11.19 con `pdo_mysql`, HTTPS (Let's Encrypt raíz y comodín) y cron `mail:work`, `webhooks:work` y `maintenance` funcionando en GoDaddy (confirmado por el usuario el 2026-10-23).
 - [ ] Crear y restaurar backup MySQL y medios; probar recuperación.
 - [ ] Confirmar que la primera renovación automática de los certificados (diciembre de 2026) se instala sola.
 
@@ -515,6 +515,13 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado (local, PostgreSQL aislado, Dropi simulado):** `dropi-orders.php` 27, `dropi-orders.mjs` 36; regresión `npm test` 107, `orders.mjs` 38, `order-editing.mjs` 52, `run.php` 69, `mysql-dialect.php` 16, `compact.mjs` 27, `modern.mjs` 17; `tsc -b` y compilación sin errores. Fixtures retirados y servicios de prueba detenidos.
 - **No comprobado:** ninguna llamada a la API real de Dropi; migración 015 sin aplicar en MySQL de GoDaddy.
 - **Siguiente paso:** desplegar, `migrate`, y una orden real de prueba autorizada por el usuario; revisarla y cancelarla o confirmarla en Dropi.
+
+### 2026-10-23 · Migraciones por cron en GoDaddy (MariaDB)
+- **Resultado reportado por el usuario (log del cron):** `Aplicada: 014_store_subdomain.sql` y servidor `10.11.19-MariaDB`. La 014 **no estaba aplicada** hasta hoy, aunque antes se había registrado como aplicada; queda corregido. Después, `migrate:auto` empezó la 015 sin escribir resultado.
+- **Causa:** `DROP CHECK` en `backend/mysql/migrations/015` es sintaxis exclusiva de MySQL y MariaDB la rechaza; la sentencia es única y no aplicó nada. El error no apareció porque PHP CGI del cron no define `STDERR`.
+- **Cambio:** la 015 usa `DROP CONSTRAINT` (MariaDB 10.2+ y MySQL 8.0.19+); `console.php` envía los errores a la salida cuando no hay `STDERR` e incluye el SQLSTATE. Comando `migrate:auto` para cron cada minuto. El paso `migrate` de `.cpanel.yml` se retiró porque el despliegue se quedó cargando.
+- **Comprobado:** `php -l`, `mysql-dialect.php` 16 y `migrate:auto` dos veces contra PostgreSQL local. Sin MariaDB local: la 015 corregida no se ha ejecutado contra MariaDB.
+- **Siguiente paso:** desplegar, revisar en `~/migrate.log` que diga `Aplicada: 015_dropi_order_submission.sql`, y después hacer la orden real de prueba en Dropi.
 
 ### Plantilla para la próxima actualización
 

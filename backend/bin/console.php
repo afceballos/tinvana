@@ -2,6 +2,8 @@
 declare(strict_types=1);
 use App\{Support,Database,Crypto,Leads,Webhooks};
 require dirname(__DIR__).'/bootstrap.php';
+// cPanel cron runs PHP CGI, which has no STDERR constant: send errors to the output captured by the cron log.
+if(!defined('STDERR'))define('STDERR',fopen('php://output','w'));
 function hiddenPassword(): string {
  if(PHP_OS_FAMILY==='Windows'){
   // PowerShell reads from the user's terminal. Nothing sensitive appears in argv or command history.
@@ -65,4 +67,4 @@ try {
  if($command==='webhooks:work'){echo Support::json(Leads::deliver(min(100,max(1,(int)($argv[2]??20)))))."\n";exit;}
  if($command==='maintenance'){Database::query("UPDATE account_mail SET status='cancelled',payload_ciphertext=null,updated_at=now() WHERE status IN ('pending','failed') AND token_id IN (SELECT id FROM account_tokens WHERE expires_at<now() OR used_at IS NOT NULL)");Database::query("DELETE FROM account_tokens WHERE expires_at<now()-interval '7 days'");Database::query('DELETE FROM rate_limits WHERE expires_at<now()-interval \'1 day\'');echo "Límites vencidos eliminados.\n";exit;}
  echo "Comandos: check, key:generate, migrate, migrate:auto, admin:create [email], integration:import email, ai:import email, webhook:import email, webhooks:work [20], mail:work [20], mail:test correo@dominio, maintenance\n";
-}catch(Throwable $e){$driver=Support::env('DB_DRIVER','pgsql');fwrite(STDERR,'Error: '.($e instanceof PDOException?strtoupper($driver).' no disponible o consulta inválida. Comprueba la conexión y las migraciones.':$e->getMessage())."\n");exit(1);}
+}catch(Throwable $e){$driver=Support::env('DB_DRIVER','pgsql');fwrite(STDERR,'Error: '.($e instanceof PDOException?strtoupper($driver).' no disponible o consulta inválida (SQLSTATE '.$e->getCode().'). Comprueba la conexión y las migraciones.':$e->getMessage())."\n");exit(1);}

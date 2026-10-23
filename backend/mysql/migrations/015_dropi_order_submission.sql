@@ -1,1 +1,1 @@
-ALTER TABLE orders DROP CHECK orders_integration_status_ck, ADD CONSTRAINT orders_integration_status_v2_ck CHECK (integration_status IN ('not_sent','sending','sent','failed','unknown')), ADD COLUMN dropi_order_id VARCHAR(64) NULL, ADD COLUMN integration_data JSON NULL
+ALTER TABLE orders DROP CONSTRAINT orders_integration_status_ck, ADD CONSTRAINT orders_integration_status_v2_ck CHECK (integration_status IN ('not_sent','sending','sent','failed','unknown')), ADD COLUMN dropi_order_id VARCHAR(64) NULL, ADD COLUMN integration_data JSON NULL

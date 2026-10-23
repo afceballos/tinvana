@@ -86,7 +86,7 @@ Ajusta la versión/socket de PHP-FPM. Agrega redirección HTTP a HTTPS en un blo
 17 3 * * * cd /srv/zenzales && /usr/bin/php backend/bin/console.php maintenance >> /var/log/zenzales-maintenance.log 2>&1
 ```
 
-El worker no imprime payloads ni URLs secretas. No se envían leads al webhook durante el request público: la respuesta informa «guardada, envío pendiente». Cron debe usar el mismo entorno/claves que PHP web. Monitoriza envíos fallidos en el panel. Configura copias de seguridad de MySQL/MariaDB y una copia segura de `TOKEN_ENCRYPTION_KEY`.
+El worker no imprime payloads ni URLs secretas. No se envían leads al webhook durante el request público: la respuesta informa «guardada, envío pendiente». Cron debe usar el mismo entorno/claves que PHP web. Monitoriza envíos fallidos en el panel. Configura copias de seguridad de MySQL/MariaDB (en GoDaddy el servidor es MariaDB 10.11; las migraciones de `backend/mysql/migrations` deben funcionar en ambos) y una copia segura de `TOKEN_ENCRYPTION_KEY`.
 
 ## cPanel (Git Version Control)
 
