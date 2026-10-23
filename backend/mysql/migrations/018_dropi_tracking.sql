@@ -1,0 +1,1 @@
+ALTER TABLE orders ADD COLUMN dropi_status VARCHAR(64) NULL, ADD COLUMN dropi_tracking JSON NULL, ADD COLUMN dropi_synced_at DATETIME(6) NULL, ADD KEY orders_dropi_sync_idx (integration_status,dropi_synced_at)

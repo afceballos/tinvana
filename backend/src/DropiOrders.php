@@ -79,6 +79,7 @@ final class DropiOrders {
   $data=json_decode($r['integration_data']??'null',true);
   $preview=$ready&&$can?self::summary(self::payload($r,$p)):($data['request']??null);
   $message=match(true){
+   $status==='sent'&&!empty($r['dropi_status'])=>'Orden creada en Dropi. Último estado conocido: '.str_replace('_',' ',(string)$r['dropi_status']).'.',
    $status==='sent'=>'Orden creada en Dropi con estado '.self::STATUS.'. Confírmala en tu panel de Dropi para que genere la guía.',
    $status==='unknown'||self::stale($r)=>'No sabemos si Dropi creó la orden. Búscala en tu panel de Dropi antes de hacer nada y registra aquí lo que encuentres. No se reintenta automáticamente para no duplicarla.',
    $status==='sending'=>'Envío en curso. Actualiza el pedido en unos segundos.',

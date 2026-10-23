@@ -87,6 +87,7 @@ Formularios -> lead + entrega pendiente + borrador de pedido (misma transacción
 | 012 | Ofertas comerciales, historial de versiones y snapshots de oferta/variante en pedidos; aplicada a Supabase y al entorno local. |
 | 013 | Subdominio por landing (`landing_pages.subdomain`, `published_subdomain`); sustituido por 014, columnas sin uso. |
 | 014 | Subdominio de tienda por usuario (`users.store_subdomain`), en PostgreSQL y MySQL. |
+| 017 | Seguimiento de Dropi: `orders.dropi_status`, `dropi_tracking` y `dropi_synced_at` (en MySQL, 018). |
 | 016 | Correos de pedidos: tabla `order_mail` y `users.mail_settings` (en MySQL, archivos 016 y 017). |
 | 015 | Envío a Dropi: estados `sending/sent/failed/unknown`, `orders.dropi_order_id` e `integration_data`, en PostgreSQL y MySQL. Aplicada solo en la base local de pruebas. |
 
@@ -583,6 +584,13 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** `OrderMail`; `AccountMail` separado en `layout()` y `deliver()` sin cambiar los correos de cuenta; migración 016; cola procesada por `mail:work`; pantalla **Correos de pedidos** con vista previa y prueba. Guía: [ACCOUNT-EMAIL.md](ACCOUNT-EMAIL.md#correos-de-pedidos-2026-10-23).
 - **Comprobado (PostgreSQL local):** `order-mail.mjs` 23, `order-mail-worker.php` 11, `account-resend.php`, `mail-local.mjs` 8; regresión `npm test` 107, `orders.mjs` 38, `order-editing.mjs` 52, `dropi-orders.mjs` 36, `dropi-shipping.mjs` 20, `delivery-ui.mjs`, `lead-success.mjs` 12, `profile.mjs`, `modern.mjs` 17, `compact.mjs` 27, `run.php` 69 y `mysql-dialect.php` 19.
 - **Pendiente en producción:** desplegar, aplicar la migración (cron `migrate:auto` o `migrate`) y probar con **Enviarme una prueba** y un pedido real.
+
+### 2026-10-23 · Seguimiento de pedidos en Dropi
+- **Reporte del usuario:** los pedidos ya se envían a Dropi; quiere ver el estado y su historial en Tinvana.
+- **Descubrimiento:** `dropi:order-probe` en producción confirmó `GET orders/myorders/{id}` con estado, historial, guía, transportadora y flete. Detalle en [DROPI-ORDERS.md](DROPI-ORDERS.md#seguimiento-de-órdenes-en-dropi-2026-10-23).
+- **Cambio:** `DropiTracking`, migración 017, cron `dropi:sync`, botón **Actualizar desde Dropi**, historial de estados y diferencia de flete en el detalle; estado de Dropi en la lista.
+- **Comprobado (local, Dropi simulado):** `dropi-tracking.mjs` 19, `dropi-tracking.php` 8; regresión `orders.mjs` 38, `order-editing.mjs` 52, `dropi-orders.mjs` 36, `dropi-shipping.mjs` 20, `order-mail.mjs` 23, `compact.mjs` 27, `modern.mjs` 17 y las pruebas PHP.
+- **Pendiente en producción:** desplegar, migrar, crear el cron `dropi:sync` cada 10 minutos y comprobar con un pedido real.
 
 ### Plantilla para la próxima actualización
 

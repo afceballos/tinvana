@@ -1,0 +1,53 @@
+import {chromium,request} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
+import {createServer} from 'node:https';
+import {execFile} from 'node:child_process';import {promisify} from 'node:util';import assert from 'node:assert/strict';
+// Requires the test server with DROPI_TRACKING_URL=https://127.0.0.1:8445/integrations/orders/myorders/ and HTTP_CA_BUNDLE=.tools/test-cert.pem.
+// The mock answers GET orders/myorders/{id} like the real Dropi (probe of 2026-10-23). Nothing reaches Dropi.
+const base='http://127.0.0.1:8081',f=JSON.parse(await readFile('.tools/test-fixture.json','utf8')),run=promisify(execFile);let checks=0,browser;
+const check=(name,value)=>{assert(value,name);checks++;console.log('PASS '+name);};
+const env={...process.env,DROPI_TRACKING_URL:'https://127.0.0.1:8445/integrations/orders/myorders/',HTTP_CA_BUNDLE:process.cwd()+'/.tools/test-cert.pem'};
+const helper=async(...a)=>(await run('.tools/php/php.exe',['backend/tests/orders-helper.php',...a],{env})).stdout;
+const requests=[];let state={status:'PENDIENTE CONFIRMACION',guide:'',history:[['PENDIENTE CONFIRMACION','2026-10-23T15:48:57']],fail:false};
+const body=()=>({isSuccess:true,status:200,message:'Execution completed',objects:{id:777001,name:'Ana',surname:'Pérez',phone:'3001234567',dir:'Calle 1',status:state.status,shipping_guide:state.guide,shipping_company:'VELOCES',shipping_amount:16450,novedad_servientrega:state.novelty||'',updated_at:'2026-10-24T09:10:00',history:state.history.map(([s,at],i)=>({id:i+1,status:s,created_at:at,novedad_servientrega:'',user:{name:'Operador'}})),distribution_company:{id:6,name:'VELOCES'}}});
+const dropi=createServer({key:await readFile('.tools/test-key.pem'),cert:await readFile('.tools/test-cert.pem')},(req,res)=>{requests.push(req.method+' '+req.url);res.writeHead(state.fail?500:200,{'Content-Type':'application/json'});res.end(state.fail?'{"isSuccess":false}':JSON.stringify(body()));});
+await new Promise(r=>dropi.listen(8445,'127.0.0.1',r));
+const owner=await request.newContext({baseURL:base}),other=await request.newContext({baseURL:base});
+async function login(ctx,email){const s=await(await ctx.get('/api/auth/session')).json();await ctx.post('/api/auth/login',{headers:{'X-CSRF-Token':s.csrf},data:{email,password:f.password}});return (await(await ctx.get('/api/auth/session')).json()).csrf;}
+try{
+ await helper('reset-limits');await helper('reset-orders');
+ const csrf=await login(owner,f.email),otherCsrf=await login(other,f.otherEmail);const H={'X-CSRF-Token':csrf};
+ let o=(await(await owner.get('/api/orders')).json()).orders[0];const path='/api/orders/'+o.id;
+ check('order not in Dropi cannot be synced',(await owner.post(path+'/dropi/sync',{headers:H,data:{}})).status()===409);
+ await owner.post(path+'/quote',{headers:H,data:{version:o.version,quantity:1,unit_price:'59900',shipping_price:'17000',notes:''}});
+ await helper('dropi-mark-sent',o.id,'777001');
+ check('sync requires CSRF',(await owner.post(path+'/dropi/sync',{headers:{'X-CSRF-Token':'bad'},data:{}})).status()===419);
+ check('foreign sync denied',(await other.post(path+'/dropi/sync',{headers:{'X-CSRF-Token':otherCsrf},data:{}})).status()===404);
+ let d=await(await owner.post(path+'/dropi/sync',{headers:H,data:{}})).json();o=d.order;
+ check('manual sync reads GET orders/myorders/{id} only',requests.length===1&&requests[0]==='GET /integrations/orders/myorders/777001');
+ check('status, carrier and Dropi freight stored',o.dropi_status==='PENDIENTE CONFIRMACION'&&o.dropi_tracking.carrier==='VELOCES'&&o.dropi_tracking.shipping_amount===16450);
+ check('buyer data from Dropi is not stored',!JSON.stringify(o.dropi_tracking).includes('Operador')&&!JSON.stringify(o.dropi_tracking).includes('3001234567'));
+ check('first status written to the Tinvana history',d.events.some(e=>e.event_type==='dropi_status_changed'&&e.data.to==='PENDIENTE CONFIRMACION'));
+ state={...state,status:'GUIA_GENERADA',guide:'240012345',history:[...state.history,['GUIA_GENERADA','2026-10-24T09:10:00']]};
+ let cron=JSON.parse(await helper('dropi-sync-due'));d=await(await owner.get(path)).json();o=d.order;
+ check('cron sync picks up the new status and guide',cron.synced===1&&o.dropi_status==='GUIA_GENERADA'&&o.dropi_tracking.guide==='240012345'&&o.dropi_tracking.history.length===2);
+ check('status change recorded once',d.events.filter(e=>e.event_type==='dropi_status_changed').length===2);
+ const before=requests.length;cron=JSON.parse(await helper('dropi-sync-due'));d=await(await owner.get(path)).json();
+ check('unchanged status adds no history event',d.events.filter(e=>e.event_type==='dropi_status_changed').length===2&&requests.length===before+1);
+ check('orders list shows the Dropi status',(await(await owner.get('/api/orders')).json()).orders.find(x=>x.id===o.id).dropi_status==='GUIA_GENERADA');
+ state.fail=true;const r=await owner.post(path+'/dropi/sync',{headers:H,data:{}});d=await(await owner.get(path)).json();
+ check('Dropi failure keeps the last known tracking',r.status()===502&&d.order.dropi_status==='GUIA_GENERADA');
+ state={...state,fail:false,status:'ENTREGADO',history:[...state.history,['ENTREGADO','2026-10-26T11:00:00']]};
+ await helper('dropi-sync-due');const after=requests.length;cron=JSON.parse(await helper('dropi-sync-due'));
+ check('final status is not polled again',cron.synced===0&&requests.length===after);
+ browser=await chromium.launch({channel:'msedge',headless:true});const ctx=await browser.newContext({storageState:await owner.storageState(),viewport:{width:1440,height:1000},reducedMotion:'reduce'});const page=await ctx.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(base+'/panel/pedidos/'+o.id);const card=page.locator('.dropi-tracking');await card.waitFor();
+ check('tracking card shows status, guide and carrier',(await card.innerText()).includes('ENTREGADO')&&(await card.innerText()).includes('240012345')&&(await card.innerText()).includes('VELOCES'));
+ check('shipping margin compares charged and Dropi freight',(await card.locator('.dropi-margin dd').innerText()).includes('550'));
+ check('Dropi history timeline newest first',(await card.locator('.dropi-history li strong').first().innerText())==='ENTREGADO'&&await card.locator('.dropi-history li').count()===3);
+ await card.scrollIntoViewIfNeeded();await page.screenshot({path:'test-results/dropi-tracking.png',fullPage:true});
+ await card.getByRole('button',{name:'Actualizar desde Dropi'}).click();await page.locator('.toast-success',{hasText:'Estado de Dropi actualizado'}).waitFor();check('refresh button works from the UI',true);
+ await page.setViewportSize({width:390,height:900});check('fits mobile',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ check('no browser errors',errors.length===0);
+ console.log(`${checks} Dropi tracking checks passed against a local read-only mock. Nothing reached Dropi.`);
+}finally{await helper('reset-orders').catch(()=>{});await browser?.close();await owner.dispose();await other.dispose();dropi.close();}

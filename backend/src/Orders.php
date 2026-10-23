@@ -40,7 +40,7 @@ final class Orders {
   if(!$r)throw new HttpError(404,'Pedido no encontrado.');return $r;
  }
  public static function view(array $r): array {
-  foreach(['customer','delivery_address','product_data','confirmation','variant_data','offer_snapshot','integration_data'] as $key)$r[$key]=($r[$key]??null)===null?null:json_decode($r[$key],true,512,JSON_THROW_ON_ERROR);
+  foreach(['customer','delivery_address','product_data','confirmation','variant_data','offer_snapshot','integration_data','dropi_tracking'] as $key)$r[$key]=($r[$key]??null)===null?null:json_decode($r[$key],true,512,JSON_THROW_ON_ERROR);
   $r['quantity']=(int)$r['quantity'];$r['version']=(int)$r['version'];
   $r['total']=$r['unit_price']!==null&&$r['shipping_price']!==null?self::decimal(self::cents($r['unit_price'])*$r['quantity']+self::cents($r['shipping_price'])):null;
   return $r;

@@ -38,3 +38,5 @@ if(($argv[1]??'')==='shipping-setup'){
 }
 if(($argv[1]??'')==='mail-queue')echo Support::json(Database::all('SELECT kind,status,dedupe_key FROM order_mail WHERE user_id=? ORDER BY created_at,kind',[$fixture['owner']]));
 if(($argv[1]??'')==='mail-reset'){Database::query('DELETE FROM order_mail WHERE user_id=?',[$fixture['owner']]);Database::query('UPDATE users SET mail_settings=NULL WHERE id=?',[$fixture['owner']]);}
+if(($argv[1]??'')==='dropi-mark-sent')Database::query("UPDATE orders SET integration_status='sent',dropi_order_id=?,dropi_status=NULL,dropi_tracking=NULL,dropi_synced_at=NULL WHERE id=? AND user_id=?",[$argv[3],$argv[2],$fixture['owner']]);
+if(($argv[1]??'')==='dropi-sync-due'){Database::query('UPDATE orders SET dropi_synced_at=NULL WHERE user_id=?',[$fixture['owner']]);echo Support::json(App\DropiTracking::syncDue(40));}

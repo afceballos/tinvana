@@ -68,3 +68,17 @@ Migración `015_dropi_order_submission` en PostgreSQL (`backend/migrations`) y M
 El usuario confirma que los pedidos ya llegan a Dropi. Para mostrar en Tinvana el estado, la guía y el historial hay que confirmar primero cómo se consultan. Copias no oficiales de la documentación mencionan `GET /orders/myorders` (lista, con `result_number` y `start`) y consultas por ID y por guía. También mencionan `PUT /orders/myorders/{id}`, que **cambia el estado** (genera la guía) y nunca debe usarse para consultar.
 
 Comando de solo lectura: `php bin/console.php dropi:order-probe [orden_dropi]`. Usa el último pedido enviado (o el indicado) y su integración, y hace dos `GET`: `orders/myorders/{id}` y `orders/myorders?result_number=3&start=0`. Muestra los nombres de los campos y solo los valores de estado, guía, transportadora, novedad, historial e ID; nunca datos del comprador ni el token.
+
+## Seguimiento de órdenes en Dropi (2026-10-23)
+
+**Contrato confirmado** con `dropi:order-probe` sobre la orden real 94229877: `GET orders/myorders/{id}` devuelve `status`, `history[]` (`status`, `created_at` en hora de Colombia, `novedad_servientrega`), `shipping_company`, `shipping_guide`, `shipping_amount` (flete que cobra Dropi), `novedad_servientrega`, `servientrega_movements` y `updated_at`. Dropi asignó VELOCES aunque la cotización más barata era ENVIA, porque la transportadora depende de la configuración de la cuenta.
+
+**Implementado (`DropiTracking`, migración 017; en MySQL, 018):**
+
+- **Datos guardados:** `orders.dropi_status`, `dropi_tracking` (estado, transportadora, guía, flete de Dropi, novedad, historial con fechas en ISO -05:00) y `dropi_synced_at`. Se descartan los datos del comprador que trae la respuesta.
+- **Historial de Tinvana:** cada cambio de estado añade el evento `dropi_status_changed` (de → a). El estado de Dropi no modifica automáticamente la venta en Tinvana.
+- **Cron:** `php bin/console.php dropi:sync [40]` cada 10 minutos. Consulta los pedidos enviados sin estado final (entregado, cancelado, devolución o rechazado) y no consultados en los últimos 10 minutos. Un fallo de Dropi conserva el último estado conocido.
+- **Panel:** en la tarjeta «Envío a Dropi» aparecen estado, transportadora, guía, flete de Dropi frente a envío cobrado (diferencia), novedades, historial de estados y **Actualizar desde Dropi** (`POST /api/orders/{id}/dropi/sync`, 30 por 10 minutos). La lista de pedidos muestra «Dropi: ESTADO».
+- **Solo lectura:** se usa únicamente GET; nunca el `PUT` que genera la guía.
+
+Pruebas: `php backend/tests/dropi-tracking.php` (8) y `node tests/dropi-tracking.mjs` (19, con un Dropi simulado en 8445). Requiere el servidor con `DROPI_TRACKING_URL=https://127.0.0.1:8445/integrations/orders/myorders/` y `HTTP_CA_BUNDLE`; esa variable solo se acepta fuera de producción y en `127.0.0.1`.
