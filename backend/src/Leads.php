@@ -23,6 +23,8 @@ final class Leads {
   $v=self::validate($b);$r=Landing::decode($landing);$c=$r['content'];$p=$r['product_snapshot'];
   $quantity=filter_var($b['quantity']??1,FILTER_VALIDATE_INT);$max=$c['commerce']['quantityEnabled']?$c['commerce']['maxQuantity']:1;if($quantity===false||$quantity<1||$quantity>$max)throw new HttpError(422,'Cantidad inválida.');
   $data=self::productData($r,$quantity);
+  // Freight is quoted again on the server (never trusted from the browser); without a quote the lead is still saved.
+  if(($c['commerce']['dropiShipping']??false)===true){$q=DropiShipping::forLanding($r,$v['delivery']['city_code'],$quantity);$data['shipping_source']='dropi';$data['shipping_price']=$q['amount']??null;$data['shipping_carrier']=$q['carrier']??null;$data['grand_total']=$q!==null&&$data['total']!==null?round($data['total']+$q['amount'],2):null;}
   $db=Database::connection();$db->beginTransaction();try{
    $lead=Database::one('INSERT INTO leads(id,user_id,landing_page_id,idempotency_key,first_name,last_name,email,phone,phone_country,delivery_address,product_data) VALUES(?,?,?,?,?,?,?,?,?,?::jsonb,?::jsonb) ON CONFLICT(landing_page_id,idempotency_key) DO NOTHING RETURNING id,status',[Support::uuid(),$r['user_id'],$r['id'],$v['key'],$v['first'],$v['last'],$v['email'],$v['phone'],$v['phone_country'],Support::json($v['delivery']),Support::json($data)]);
    if($lead){Database::query('INSERT INTO webhook_deliveries(id,lead_id) VALUES(?,?)',[Support::uuid(),$lead['id']]);Orders::fromLead($r['user_id'],$lead['id']);}

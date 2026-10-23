@@ -1,0 +1,55 @@
+import {chromium,request} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
+import {createServer} from 'node:https';
+import {execFile} from 'node:child_process';import {promisify} from 'node:util';import assert from 'node:assert/strict';
+// Requires the isolated test server started with DROPI_QUOTE_URL=https://127.0.0.1:8444/integrations/orders/cotizaEnvioTransportadoraV2
+// and HTTP_CA_BUNDLE=.tools/test-cert.pem. The mock answers like the real Dropi quote (probe of 2026-10-23); nothing reaches Dropi.
+const base='http://127.0.0.1:8081',f=JSON.parse(await readFile('.tools/test-fixture.json','utf8')),run=promisify(execFile);let checks=0,browser;
+const check=(name,value)=>{assert(value,name);checks++;console.log('PASS '+name);};
+const helper=(...a)=>run('.tools/php/php.exe',['backend/tests/orders-helper.php',...a]);
+const received=[];let mode='ok';
+const carriers=[{transportadora:'VELOCES',transportadora_id:6,objects:{precioEnvio:16450}},{transportadora:'ENVIA',transportadora_id:2,objects:{precioEnvio:16164}},{transportadora:'INTERRAPIDISIMO',transportadora_id:3,error:'No se puede crear una orden menor a $45.000 COP.'}];
+const dropi=createServer({key:await readFile('.tools/test-key.pem'),cert:await readFile('.tools/test-cert.pem')},(req,res)=>{let body='';req.on('data',c=>body+=c);req.on('end',()=>{received.push({path:req.url,key:req.headers['dropi-integration-key'],body:JSON.parse(body)});res.writeHead(mode==='down'?502:200,{'Content-Type':'application/json'});res.end(mode==='down'?'<html>bad gateway</html>':JSON.stringify({isSuccess:true,status:200,objects:carriers}));});});
+await new Promise(r=>dropi.listen(8444,'127.0.0.1',r));
+const owner=await request.newContext({baseURL:base});
+try{
+ await helper('reset-limits');await helper('shipping-setup','on');
+ const s=await(await owner.get('/api/auth/session')).json();await owner.post('/api/auth/login',{headers:{'X-CSRF-Token':s.csrf},data:{email:f.email,password:f.password}});
+ const csrf=(await(await owner.get('/api/auth/session')).json()).csrf;check('fixture landing published',(await owner.post('/api/landings/'+f.landing+'/publish',{headers:{'X-CSRF-Token':csrf}})).status()===200);await helper('shipping-setup','on');
+ const visitor=await request.newContext({baseURL:base});const page=await(await visitor.get('/p/'+f.slug)).text();const token=page.match(/name="csrf" value="([^"]+)"/)[1];
+ const quote=(city,quantity=1)=>visitor.post('/p/'+f.slug+'/shipping',{headers:{'X-CSRF-Token':token},data:{city_code:city,quantity,csrf:token}});
+ check('landing exposes the shipping flag',page.includes('data-shipping="dropi"')&&page.includes('data-summary-shipping'));
+ let r=await quote('11001',2);let d=await r.json();
+ check('quote returns cheapest carrier rounded up',r.status()===200&&d.amount===17000);
+ const sent=received.at(-1);
+ check('server sends the confirmed contract',sent.path==='/integrations/orders/cotizaEnvioTransportadoraV2'&&sent.body.EnvioConCobro===true&&sent.body.ciudad_remitente.cod_dane==='76001000'&&sent.body.ciudad_destino.cod_dane==='11001000'&&typeof sent.key==='string'&&sent.key.startsWith('non-production-test-token-'));
+ check('declared value is public price times quantity',sent.body.ValorDeclarado===50000);
+ check('carrier name and token never reach the browser',!JSON.stringify(d).includes('ENVIA')&&!JSON.stringify(d).includes('non-production-test-token'));
+ const count=received.length;await quote('11001',2);check('same quote is cached',received.length===count);
+ check('quote requires CSRF',(await visitor.post('/p/'+f.slug+'/shipping',{headers:{'X-CSRF-Token':'bad'},data:{city_code:'11001',quantity:1}})).status()===419);
+ check('invalid city rejected',(await quote('1100')).status()===422);
+ check('GET not allowed',(await visitor.get('/p/'+f.slug+'/shipping')).status()===405);
+ mode='down';r=await quote('05001',1);d=await r.json();
+ check('Dropi failure degrades to message without amount',r.status()===200&&d.amount===null&&/confirmará/.test(d.message));
+ mode='ok';
+ browser=await chromium.launch({channel:'msedge',headless:true});const ctx=await browser.newContext({viewport:{width:1280,height:900},reducedMotion:'reduce'});await ctx.route('https://example.test/**',x=>x.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg"/>'}));
+ const p=await ctx.newPage();const errors=[];p.on('pageerror',e=>errors.push(e.message));
+ await p.goto(base+'/p/'+f.slug);await p.locator('[data-buy]').first().click();const m=p.locator('#purchase-dialog');await m.locator('.iti').waitFor();
+ check('shipping starts asking for the city',(await m.locator('[data-summary-shipping]').first().innerText())==='Elige tu ciudad');
+ await m.locator('[name=first_name]').fill('Ana');await m.locator('[name=last_name]').fill('Envío');await m.locator('[name=email]').fill('envio@example.test');await m.locator('[name=phone]').fill('3001234567');
+ await m.locator('[name=department_code]').selectOption('11');await m.locator('[name=city_code]').selectOption('11001');await m.locator('[name=address]').fill('Calle 10 # 20-30');
+ await p.waitForFunction(()=>/17\.000/.test(document.querySelector('[data-summary-shipping]')?.textContent||''));
+ check('buyer sees shipping and grand total in the summary',/17\.000/.test(await m.locator('.order-shipping [data-summary-shipping]').innerText())&&/42\.000/.test(await m.locator('.order-shipping [data-summary-grand]').innerText()));
+ check('the same figures appear next to the submit button',await m.locator('.order-shipping-inline').innerText().then(t=>/17\.000/.test(t)&&/42\.000/.test(t)));
+ await p.screenshot({path:'test-results/dropi-shipping-form.png'});
+ const resp=p.waitForResponse(x=>x.url().endsWith('/lead'));await m.getByRole('button',{name:/Enviar solicitud/}).click();check('lead accepted',(await resp).status()===202);
+ const leads=(await(await owner.get('/api/leads')).json()).leads;const lead=leads.find(l=>l.email==='envio@example.test');
+ check('lead stores server-quoted shipping and carrier',lead.product_data.shipping_price===17000&&lead.product_data.shipping_carrier==='ENVIA'&&lead.product_data.grand_total===42000&&lead.product_data.shipping_source==='dropi');
+ const order=(await(await owner.get('/api/orders')).json()).orders.find(o=>o.lead_id===lead.id);
+ check('order arrives with shipping prefilled',order.shipping_price==='17000.00');
+ check('no browser errors',errors.length===0);
+ await helper('shipping-setup','off');const plain=await(await visitor.get('/p/'+f.slug)).text();
+ check('disabled landing shows no shipping rows',!plain.includes('data-summary-shipping')&&plain.includes('data-shipping=""'));
+ check('disabled landing does not quote',(await(await quote('11001')).json()).amount===null);
+ console.log(`${checks} Dropi shipping checks passed against a local mock. Nothing was sent to Dropi.`);
+}finally{await helper('shipping-setup','off').catch(()=>{});await browser?.close();await owner.dispose();dropi.close();}

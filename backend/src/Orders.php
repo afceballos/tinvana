@@ -10,8 +10,10 @@ final class Orders {
   if(!$lead)throw new HttpError(404,'Consulta no encontrada.');
   $p=json_decode($lead['product_data'],true,512,JSON_THROW_ON_ERROR);
   $unit=self::amount($p['public_price']??null,true);$id=Support::uuid();
-  $r=Database::one('INSERT INTO orders(id,user_id,lead_id,customer,delivery_address,product_data,quantity,unit_price) VALUES(?,?,?,?::jsonb,?::jsonb,?::jsonb,?,?) ON CONFLICT(lead_id) DO NOTHING RETURNING *',[
-   $id,$owner,$leadId,Support::json(array_intersect_key($lead,array_flip(['first_name','last_name','email','phone']))),$lead['delivery_address']??'{}',$lead['product_data'],max(1,min(100,(int)($p['quantity']??1))),$unit
+  // Freight quoted by Dropi at submission time arrives prefilled; the quote is still saved and accepted manually.
+  $shipping=is_numeric($p['shipping_price']??null)?self::amount((string)(int)$p['shipping_price'],true):null;
+  $r=Database::one('INSERT INTO orders(id,user_id,lead_id,customer,delivery_address,product_data,quantity,unit_price,shipping_price) VALUES(?,?,?,?::jsonb,?::jsonb,?::jsonb,?,?,?) ON CONFLICT(lead_id) DO NOTHING RETURNING *',[
+   $id,$owner,$leadId,Support::json(array_intersect_key($lead,array_flip(['first_name','last_name','email','phone']))),$lead['delivery_address']??'{}',$lead['product_data'],max(1,min(100,(int)($p['quantity']??1))),$unit,$shipping
   ]);
   if($r)self::event($r,'created',['origin'=>'landing','lead_id'=>$leadId],null);
   else $r=Database::one('SELECT * FROM orders WHERE lead_id=? AND user_id=?',[$leadId,$owner]);

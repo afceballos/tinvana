@@ -565,6 +565,13 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado:** comprobación manual en el editor local (aparece $20.000 y se aplica) y `builder.mjs` completa en PostgreSQL local.
 - **Pendiente:** el cálculo automático del envío necesita confirmar el cotizador de Dropi con una consulta de solo lectura y el token real. No se implementaron endpoints adivinados.
 
+### 2026-10-23 · Envío calculado por Dropi en las landings
+- **Descubrimiento:** el usuario ejecutó `dropi:shipping-probe` en producción. `orders/cotizaEnvioTransportadoraV2` cotiza por transportadora con DANE de 8 dígitos (origen: ciudad de la bodega del producto). Ejemplo Cali → Bogotá contra entrega: ENVIA $16.164 … DEROCHA-EXPRESS $22.400. Algunas transportadoras devuelven error (mínimos o bodega).
+- **Decisiones del usuario:** transportadora más barata disponible, redondeada hacia arriba a $1.000 y sumada al total del formulario.
+- **Cambio:** `DropiShipping`, ruta `/p/{slug}/shipping`, opción en el editor, resumen en el formulario, consulta y webhook con el envío, y pedido con el envío prellenado. Detalle en [BUILDER.md](BUILDER.md).
+- **Comprobado (local, PostgreSQL y Dropi simulado):** `dropi-shipping.mjs` 20, `dropi-shipping.php` 9; regresión `npm test` 107, `orders.mjs` 38, `order-editing.mjs` 52, `dropi-orders.mjs` 36, `delivery-ui.mjs`, `lead-phone-country.mjs` 6, `lead-success.mjs` 12, `builder.mjs`, `webhook-card.mjs` 13 y las pruebas PHP.
+- **No comprobado:** la cotización real desde el formulario en producción; es lo primero que hay que probar tras desplegar.
+
 ### Plantilla para la próxima actualización
 
 ```text

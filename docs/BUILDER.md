@@ -73,9 +73,20 @@ La entrega real a una cuenta GHL y sus custom fields depende del webhook/workflo
 
 En **Producto y página**, debajo del precio público, se muestra el precio sugerido que trae el producto de Dropi (`suggestedPrice`, campo `suggested_price` del catálogo), con el botón **Usar precio sugerido**. El botón copia ese valor al precio público y pasa a «En uso». Solo aparece si el producto lo trae. Es opcional y no cambia nada hasta guardar el borrador.
 
-## Costo de envío para el comprador (pendiente)
+## Envío calculado por Dropi (2026-10-23)
 
-El usuario quiere que el envío lo calcule Dropi según la ciudad y la transportadora, y que se sume al total del formulario. Hoy solo existe el texto libre «Información de envío». Dos copias no oficiales de la documentación de Dropi en Scribd mencionan `POST …/orders/cotizaEnvioTransportadoraV2` (contra entrega, valor y códigos DANE de origen y destino) y `…/trajectory/bycity`. No está verificado: falta confirmar con una consulta de solo lectura desde el servidor con el token real, autorizada por el usuario.
+Opción por landing: **Producto y página → Calcular el envío con Dropi según la ciudad del comprador** (`commerce.dropiShipping`, desactivada por defecto).
+
+- **Formulario:** al elegir la ciudad, el formulario llama a `POST /p/{slug}/shipping` (CSRF y 60 consultas por hora por IP) y muestra **Envío** y **Total**. Las cifras aparecen en el resumen y en una línea junto al botón **Enviar solicitud**. Si Dropi no cotiza, se muestra «Se confirma al procesar el pedido» y el total sin envío.
+- **Servidor:** `DropiShipping` llama a `orders/cotizaEnvioTransportadoraV2` con `EnvioConCobro=true` (los pedidos se envían contra entrega), `ValorDeclarado` = precio público × cantidad, el origen (DANE de la ciudad de la bodega del producto) y el destino (DANE de 5 dígitos completado a 8). Elige la transportadora más barata sin error y redondea hacia arriba a $1.000. Las respuestas se guardan 6 horas en `storage/cache/shipping`. El token y la transportadora no llegan al navegador.
+- **Al enviar:** el servidor vuelve a cotizar sin confiar en el navegador. La consulta guarda `shipping_price`, `shipping_carrier`, `grand_total` y `shipping_source=dropi`, que también viajan en el webhook. El pedido nace con el envío prellenado; la cotización y la aceptación siguen siendo manuales.
+- **Pruebas:** `php backend/tests/dropi-shipping.php` (9 comprobaciones) y `node tests/dropi-shipping.mjs` (20, con un Dropi simulado en 8444). Requiere el servidor de pruebas con `DROPI_QUOTE_URL=https://127.0.0.1:8444/integrations/orders/cotizaEnvioTransportadoraV2` y `HTTP_CA_BUNDLE`; esa variable solo se acepta fuera de producción y en `127.0.0.1`.
+
+## Descubrimiento del cotizador
+
+El contrato se confirmó con el comando de solo lectura `dropi:shipping-probe`, ejecutado por el usuario en producción el 2026-10-23.
+
+
 
 Comando de descubrimiento, de solo lectura: `php bin/console.php dropi:shipping-probe [email] [dane_destino]`. Usa la primera integración (la del email si se indica) y el último producto seleccionado. Imprime la estructura de la bodega y la ciudad de origen, y llama solo a `orders/cotizaEnvioTransportadoraV2` (con cuerpo vacío y con un cuerpo de ejemplo) y a `trajectory/bycity`. Muestra el estado HTTP, las claves y el mensaje de Dropi, con el token redactado. No usa `orders/myorders` ni crea nada. En GoDaddy se ejecuta una vez por cron con `-d register_argc_argv=1`.
 

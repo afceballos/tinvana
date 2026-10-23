@@ -28,3 +28,11 @@ if(in_array($argv[1]??'',['dropi-supplier','dropi-no-supplier'],true)){
  if($argv[1]==='dropi-supplier'){$raw['user_id']=55;$raw['user']['id']=55;}else{unset($raw['user_id'],$raw['user']['id']);}Database::query('UPDATE selected_products SET original_data=?::jsonb WHERE id=? AND user_id=?',[Support::json($raw),$fixture['product'],$fixture['owner']]);
 }
 if(($argv[1]??'')==='dropi-stale')Database::query("UPDATE orders SET integration_status='sending',integration_data=?::jsonb WHERE id=? AND user_id=?",[Support::json(['attempt_id'=>Support::uuid(),'started_at'=>gmdate('c',time()-600)]),$argv[2],$fixture['owner']]);
+if(($argv[1]??'')==='shipping-setup'){
+ // Product dispatched from Cali (as in the real probe) and Dropi freight enabled on the published fixture landing.
+ $row=Database::one('SELECT original_data FROM selected_products WHERE id=? AND user_id=?',[$fixture['product'],$fixture['owner']]);$raw=json_decode($row['original_data'],true);
+ $raw['warehouse_product']=[['stock'=>5,'warehouse'=>['id'=>1,'name'=>'Bodega Cali','city'=>['id'=>1221,'department_id'=>12,'name'=>'CALI','cod_dane'=>'76001000']]]];
+ Database::query('UPDATE selected_products SET original_data=?::jsonb WHERE id=? AND user_id=?',[Support::json($raw),$fixture['product'],$fixture['owner']]);
+ foreach(['content','published_content'] as $col){$l=Database::one("SELECT $col AS c FROM landing_pages WHERE id=? AND user_id=?",[$fixture['landing'],$fixture['owner']]);if(!$l||$l['c']===null)continue;$c=json_decode($l['c'],true);$c['commerce']['dropiShipping']=($argv[2]??'on')==='on';$c['publicPrice']=$c['publicPrice']??25000;Database::query("UPDATE landing_pages SET $col=?::jsonb WHERE id=? AND user_id=?",[Support::json($c),$fixture['landing'],$fixture['owner']]);}
+ foreach(glob(dirname(__DIR__).'/storage/cache/shipping/*.json')?:[] as $file)unlink($file);
+}

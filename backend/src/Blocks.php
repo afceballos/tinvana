@@ -67,7 +67,7 @@ final class Blocks {
  }
  public static function commerce(mixed $value):array {
   if(!is_array($value))throw new HttpError(422,'Configuración comercial inválida.');$out=[];
-  foreach(['quantityEnabled'=>true,'stickyMobile'=>false,'showShipping'=>false,'showDelivery'=>false,'showPayment'=>false] as $key=>$default){$v=$value[$key]??$default;if(!is_bool($v))throw new HttpError(422,'Configuración comercial inválida.');$out[$key]=$v;}
+  foreach(['quantityEnabled'=>true,'stickyMobile'=>false,'showShipping'=>false,'showDelivery'=>false,'showPayment'=>false,'dropiShipping'=>false] as $key=>$default){$v=$value[$key]??$default;if(!is_bool($v))throw new HttpError(422,'Configuración comercial inválida.');$out[$key]=$v;}
   foreach(['shipping','delivery','payment'] as $key)$out[$key]=self::text($value[$key]??'',500);
   $max=$value['maxQuantity']??99;if(!is_int($max)||$max<1||$max>99)throw new HttpError(422,'La cantidad máxima debe estar entre 1 y 99.');$out['maxQuantity']=$max;
   $price=$value['previousPrice']??null;if($price!==null&&(!is_numeric($price)||!is_finite((float)$price)||(float)$price<0||(float)$price>999999999))throw new HttpError(422,'Precio anterior inválido.');$out['previousPrice']=$price===null?null:(float)$price;return $out;
