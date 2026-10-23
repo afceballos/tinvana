@@ -43,7 +43,7 @@ final class DropiTracking {
   $history=[];
   foreach(is_array($o['history']??null)?$o['history']:[] as $h){
    if(!is_array($h)||!($status=self::text($h['status']??null,64)))continue;
-   $history[]=['status'=>$status,'at'=>self::date($h['created_at']??null),'novelty'=>self::text($h['novedad_servientrega']??null)];
+   $history[]=['status'=>$status,'at'=>self::date($h['created_at']??null),'novelty'=>self::text($h['novedad_servientrega']??null),'note'=>self::text($h['notes']??null,500)];
   }
   usort($history,fn($a,$b)=>strcmp((string)$a['at'],(string)$b['at']));
   $amount=$o['shipping_amount']??null;
@@ -75,13 +75,15 @@ final class DropiTracking {
   try{
    $r=Database::one('SELECT * FROM orders WHERE id=? FOR UPDATE',[$order['id']]);
    Database::query('UPDATE orders SET dropi_status=?,dropi_tracking=?::jsonb,dropi_synced_at=now() WHERE id=?',[$t['status'],Support::json($t),$order['id']]);
-   if($t['status']!==null&&$t['status']!==($r['dropi_status']??null))Orders::event($r,'dropi_status_changed',['from'=>$r['dropi_status']??null,'to'=>$t['status'],'guide'=>$t['guide'],'carrier'=>$t['carrier']],null);
+   // The note typed in Dropi with a status change travels in the latest history entry of that status.
+   $note=null;foreach(array_reverse($t['history']) as $h)if($h['status']===$t['status']){$note=$h['note'];break;}
+   if($t['status']!==null&&$t['status']!==($r['dropi_status']??null))Orders::event($r,'dropi_status_changed',['from'=>$r['dropi_status']??null,'to'=>$t['status'],'guide'=>$t['guide'],'carrier'=>$t['carrier'],'note'=>$note],null);
    // Mirror Dropi in Tinvana: logistics follows the Dropi status; a cancellation in Dropi cancels the sale here too.
    $logistics=self::logistics($t['status'],$t['novelty']);
    if($logistics!==null&&$logistics!==$r['logistics_status'])Database::query('UPDATE orders SET logistics_status=? WHERE id=?',[$logistics,$order['id']]);
    if($logistics==='cancelled'&&$r['sale_status']!=='cancelled'){
     $c=Database::one("UPDATE orders SET sale_status='cancelled',quote_id=null,quote_expires_at=null,version=version+1,updated_at=now() WHERE id=? RETURNING *",[$order['id']]);
-    Orders::event($c,'cancelled',['reason'=>'Cancelado en Dropi ('.$t['status'].').','source'=>'dropi'],null);OrderMail::queue($c,'buyer_cancelled');
+    Orders::event($c,'cancelled',['reason'=>'Cancelado en Dropi ('.$t['status'].')'.($note?': '.$note:'.'),'source'=>'dropi'],null);OrderMail::queue($c,'buyer_cancelled');
    }
    if($own)$db->commit();
   }catch(\Throwable $e){if($own&&$db->inTransaction())$db->rollBack();throw $e;}

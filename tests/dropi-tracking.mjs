@@ -10,7 +10,7 @@ const env={...process.env,DROPI_TRACKING_URL:'https://127.0.0.1:8445/integration
 const helper=async(...a)=>(await run('.tools/php/php.exe',['backend/tests/orders-helper.php',...a],{env})).stdout;
 const requests=[];let state={status:'PENDIENTE CONFIRMACION',guide:'',history:[['PENDIENTE CONFIRMACION','2026-10-23T15:48:57']],fail:false};
 let cancelledId='';
-const body=(id)=>id==='777002'?{isSuccess:true,status:200,objects:{id:777002,status:'CANCELADO',shipping_company:'VELOCES',shipping_guide:'',shipping_amount:16450,history:[{status:'PENDIENTE CONFIRMACION',created_at:'2026-10-23T15:00:00'},{status:'CANCELADO',created_at:'2026-10-23T16:00:00'}]}}:({isSuccess:true,status:200,message:'Execution completed',objects:{id:777001,name:'Ana',surname:'Pérez',phone:'3001234567',dir:'Calle 1',status:state.status,shipping_guide:state.guide,shipping_company:'VELOCES',shipping_amount:16450,novedad_servientrega:state.novelty||'',updated_at:'2026-10-24T09:10:00',history:state.history.map(([s,at],i)=>({id:i+1,status:s,created_at:at,novedad_servientrega:'',user:{name:'Operador'}})),distribution_company:{id:6,name:'VELOCES'}}});
+const body=(id)=>id==='777002'?{isSuccess:true,status:200,objects:{id:777002,status:'CANCELADO',shipping_company:'VELOCES',shipping_guide:'',shipping_amount:16450,history:[{status:'PENDIENTE CONFIRMACION',created_at:'2026-10-23T15:00:00'},{status:'CANCELADO',created_at:'2026-10-23T16:00:00',notes:'Cliente no responde llamadas'}]}}:({isSuccess:true,status:200,message:'Execution completed',objects:{id:777001,name:'Ana',surname:'Pérez',phone:'3001234567',dir:'Calle 1',status:state.status,shipping_guide:state.guide,shipping_company:'VELOCES',shipping_amount:16450,novedad_servientrega:state.novelty||'',updated_at:'2026-10-24T09:10:00',history:state.history.map(([s,at],i)=>({id:i+1,status:s,created_at:at,novedad_servientrega:'',user:{name:'Operador'}})),distribution_company:{id:6,name:'VELOCES'}}});
 const dropi=createServer({key:await readFile('.tools/test-key.pem'),cert:await readFile('.tools/test-cert.pem')},(req,res)=>{requests.push(req.method+' '+req.url);res.writeHead(state.fail?500:200,{'Content-Type':'application/json'});res.end(state.fail?'{"isSuccess":false}':JSON.stringify(body(req.url.split('/').pop())));});
 await new Promise(r=>dropi.listen(8445,'127.0.0.1',r));
 const owner=await request.newContext({baseURL:base}),other=await request.newContext({baseURL:base});
@@ -47,6 +47,7 @@ try{
  const second=(await(await owner.get('/api/orders')).json()).orders.find(x=>x.id!==o.id);await helper('mail-reset');await helper('dropi-mark-sent',second.id,'777002');
  d=await(await owner.post('/api/orders/'+second.id+'/dropi/sync',{headers:H,data:{}})).json();
  check('cancellation in Dropi cancels the order in Tinvana',d.order.sale_status==='cancelled'&&d.order.logistics_status==='cancelled'&&d.events.some(e=>e.event_type==='cancelled'&&e.data.source==='dropi'));
+ check('Dropi cancellation note reaches the Tinvana history',d.events.some(e=>e.event_type==='cancelled'&&e.data.reason==='Cancelado en Dropi (CANCELADO): Cliente no responde llamadas')&&d.events.some(e=>e.event_type==='dropi_status_changed'&&e.data.note==='Cliente no responde llamadas')&&d.order.dropi_tracking.history.at(-1).note==='Cliente no responde llamadas');
  check('buyer cancellation email queued',JSON.parse(await helper('mail-queue')).some(m=>m.kind==='buyer_cancelled'));
  await owner.post('/api/orders/'+second.id+'/dropi/sync',{headers:H,data:{}});d=await(await owner.get('/api/orders/'+second.id)).json();
  check('repeated sync does not cancel twice',d.events.filter(e=>e.event_type==='cancelled').length===1);
@@ -58,6 +59,9 @@ try{
  check('Dropi history timeline newest first',(await card.locator('.dropi-history li strong').first().innerText())==='ENTREGADO'&&await card.locator('.dropi-history li').count()===3);
  await card.scrollIntoViewIfNeeded();await page.screenshot({path:'test-results/dropi-tracking.png',fullPage:true});
  await card.getByRole('button',{name:'Actualizar desde Dropi'}).click();await page.locator('.toast-success',{hasText:'Estado de Dropi actualizado'}).waitFor();check('refresh button works from the UI',true);
+ await page.goto(base+'/panel/pedidos/'+second.id);await page.locator('.dropi-history .dropi-note').waitFor();
+ check('Dropi note shown in both histories',(await page.locator('.dropi-history .dropi-note').innerText()).includes('Cliente no responde llamadas')&&(await page.locator('.od-history').innerText()).includes('Cliente no responde llamadas'));
+ await page.locator('.dropi-history').scrollIntoViewIfNeeded();await page.screenshot({path:'test-results/dropi-note.png'});
  await page.setViewportSize({width:390,height:900});check('fits mobile',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  check('no browser errors',errors.length===0);
  console.log(`${checks} Dropi tracking checks passed against a local read-only mock. Nothing reached Dropi.`);

@@ -103,18 +103,13 @@ Cada sincronización traduce el estado de Dropi a `orders.logistics_status` (mig
 
 Pruebas: `dropi-tracking.php` 11 y `dropi-tracking.mjs` 26.
 
-### Transportadora y envío confirmado (2026-10-23)
+### Envío confirmado y notas de Dropi (2026-10-23)
 
-En «Envío a Dropi», antes de enviar:
+- **Estado al enviar:** pendiente de confirmación (`PENDIENTE CONFIRMACION`, por defecto) o confirmada (`PENDIENTE`). Para enviarla confirmada hay que aceptar un aviso (`confirmed_ack`); si no, responde 422. Aún no está verificado con una orden real que `PENDIENTE` equivalga a confirmar; el seguimiento avisa si Dropi la muestra pendiente.
+- **Transportadora: retirada.** Se probó con una orden real enviando `distribution_company_id` y `shipping_company`, y Dropi la ignoró: asignó VELOCES según la cuenta. Ya no se envía ni se ofrece elegirla. `DropiShipping::carriers` (lista normalizada y en caché) sigue siendo la base del cotizador.
+- **Notas de Dropi:** `history[].notes` (por ejemplo, el motivo escrito al cancelar) se guarda en `dropi_tracking.history[].note`, con un máximo de 500 caracteres.
+  - Aparece bajo cada estado del historial de Dropi.
+  - Viaja en el evento `dropi_status_changed` (`data.note`).
+  - Al cancelar, se añade al motivo: «Cancelado en Dropi (CANCELADO): nota».
 
-- **Transportadora:** `POST /api/orders/{id}/dropi/carriers` devuelve todas las transportadoras de la ruta usando el cotizador de solo lectura (`DropiShipping::carriers`, caché de 6 h). Aparecen ordenadas por precio y las no disponibles van al final con el motivo que da Dropi. La más barata viene preseleccionada; también se puede dejar que Dropi elija.
-- **Validación:** el servidor vuelve a validar la transportadora contra la cotización antes de crear la orden. Si es desconocida o no está disponible, responde 422 sin enviar nada.
-- **Datos enviados:** `distribution_company_id` y `shipping_company` viajan en el cuerpo de `POST orders/myorders`.
-- **Estado al enviar:** pendiente de confirmación (`PENDIENTE CONFIRMACION`, por defecto) o confirmada (`PENDIENTE`). Para enviarla confirmada hay que aceptar un aviso (`confirmed_ack`); si no, responde 422.
-- **Pendiente de verificar con una orden real:**
-  - que Dropi respete `distribution_company_id`;
-  - que `PENDIENTE` equivalga a confirmar.
-
-  El seguimiento avisa si Dropi asignó otra transportadora o si la muestra pendiente de confirmación.
-
-Pruebas: `dropi-carrier.mjs` 13, `dropi-orders.php` 30 y `dropi-shipping.php` 11.
+Pruebas: `dropi-confirmed.mjs`, `dropi-tracking.mjs` (nota de cancelación en los dos historiales), `dropi-tracking.php` 12 y `dropi-orders.php` 29.

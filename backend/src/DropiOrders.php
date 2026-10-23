@@ -37,7 +37,7 @@ final class DropiOrders {
   return is_numeric($id)&&(int)$id>0?(int)$id:null;
  }
 
- /** $opts: confirmed (bool) and carrier ['id'=>int,'name'=>string] chosen from the Dropi quote; empty keeps the defaults. */
+ /** $opts: confirmed (bool) sends the order already confirmed; empty keeps it pending confirmation. */
  public static function payload(array $r,array $product,array $opts=[]): array {
   $raw=json_decode($product['original_data'],true,512,JSON_THROW_ON_ERROR);$mapped=json_decode($product['mapped_data'],true,512,JSON_THROW_ON_ERROR);
   $customer=json_decode($r['customer'],true);$address=json_decode($r['delivery_address'],true);$variant=json_decode($r['variant_data']??'null',true);
@@ -55,10 +55,10 @@ final class DropiOrders {
    'phone'=>self::phone($customer['phone']),'client_email'=>$customer['email'],
    'payment_method_id'=>1,'status'=>($opts['confirmed']??false)===true?self::STATUS_CONFIRMED:self::STATUS,'type'=>'FINAL_ORDER','rate_type'=>self::RATE_TYPE,
    'products'=>[$line],'calculate_costs_and_shiping'=>true,'supplier_id'=>self::supplier($raw),'create_product_if_not_exist'=>false,
-  ]+(isset($opts['carrier']['id'])?['distribution_company_id'=>$opts['carrier']['id'],'shipping_company'=>$opts['carrier']['name']]:[]);
+  ];
  }
  private static function summary(array $payload): array {
-  return array_intersect_key($payload,array_flip(['total_order','notes','name','surname','dir','country','state','city','phone','client_email','status','rate_type','supplier_id','distribution_company_id','shipping_company']))
+  return array_intersect_key($payload,array_flip(['total_order','notes','name','surname','dir','country','state','city','phone','client_email','status','rate_type','supplier_id']))
    +['product_id'=>$payload['products'][0]['id']??null,'quantity'=>$payload['products'][0]['quantity'],'price'=>$payload['products'][0]['price'],'variation_id'=>$payload['products'][0]['variation_id']??null];
  }
  private static function stale(array $r): bool {
@@ -99,15 +99,7 @@ final class DropiOrders {
   if(($b['confirm']??false)!==true)throw new HttpError(422,'Confirma que revisaste los datos antes de enviar el pedido a Dropi.');
   $confirmed=($b['confirmed']??false)===true;
   if($confirmed&&($b['confirmed_ack']??false)!==true)throw new HttpError(422,'Para enviarla confirmada debes aceptar que Dropi la procesará de inmediato.');
-  $opts=['confirmed'=>$confirmed];$carrierId=$b['carrier_id']??null;
-  if($carrierId!==null){
-   if(!is_int($carrierId)||$carrierId<1)throw new HttpError(422,'Transportadora inválida.');
-   // Read-only quote (outside the transaction): the carrier must be offered for this route without error.
-   $list=DropiShipping::carriersForOrder(Orders::owned($owner,$id));
-   if($list===null)throw new HttpError(502,'No fue posible consultar las transportadoras en Dropi. Inténtalo de nuevo o deja que Dropi elija.');
-   foreach($list as $c)if($c['id']===$carrierId&&$c['price']!==null)$opts['carrier']=['id'=>$c['id'],'name'=>$c['name']];
-   if(!isset($opts['carrier']))throw new HttpError(422,'Esa transportadora no está disponible para esta ruta.');
-  }
+  $opts=['confirmed'=>$confirmed];
   $db=Database::connection();$db->beginTransaction();
   try{
    $r=Orders::owned($owner,$id,true);

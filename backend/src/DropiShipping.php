@@ -70,14 +70,6 @@ final class DropiShipping {
   foreach($list as $c)if($c['price']!==null)return ['raw'=>$c['price'],'carrier'=>$c['name'],'carrier_id'=>$c['id'],'amount'=>$c['amount']];
   return null;
  }
- /** Carriers for a saved order: product warehouse to the buyer city, cash on delivery, declared product value. */
- public static function carriersForOrder(array $order): ?array {
-  $p=ProductOffers::forOrder($order);$origin=self::origin(json_decode((string)$p['original_data'],true)?:[]);
-  $a=json_decode((string)$order['delivery_address'],true)?:[];$destination=self::dane((string)($a['city_code']??''));
-  $integration=Database::one('SELECT * FROM integrations WHERE id=? AND user_id=?',[$p['integration_id'],$order['user_id']]);
-  if(!$origin||!$destination||!$integration||$order['unit_price']===null)return null;
-  return self::carriers($integration,$origin,$destination,(int)round((float)$order['unit_price']*(int)$order['quantity']),true);
- }
  /** Quote for a published landing; null when disabled, not computable or Dropi has no carrier for the city. */
  public static function forLanding(array $landing,string $cityCode,int $quantity): ?array {
   $r=Landing::decode($landing);$c=$r['content'];
