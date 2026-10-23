@@ -62,3 +62,9 @@ Migración `015_dropi_order_submission` en PostgreSQL (`backend/migrations`) y M
 - Plugin Dropify en wordpress.org (`https://downloads.wordpress.org/plugin/wc-dropi-integration.zip`), archivos `clasess/models/OrdersModel.php`, `clasess/Constants.php`, `states/CO.php` y `places/CO.php`, revisados el 2026-10-23.
 - [Documento de Scribd aportado por el usuario](https://es.scribd.com/document/683043719/Documentacion-de-Dropi-docx-7): su contenido no es accesible sin sesión. Referencia histórica.
 - [Dropi MCP](https://dropi.co/cr/mcp-claude): alternativa oficial con OAuth, no evaluada.
+
+## Descubrimiento del estado de las órdenes (2026-10-23)
+
+El usuario confirma que los pedidos ya llegan a Dropi. Para mostrar en Tinvana el estado, la guía y el historial hay que confirmar primero cómo se consultan. Copias no oficiales de la documentación mencionan `GET /orders/myorders` (lista, con `result_number` y `start`) y consultas por ID y por guía. También mencionan `PUT /orders/myorders/{id}`, que **cambia el estado** (genera la guía) y nunca debe usarse para consultar.
+
+Comando de solo lectura: `php bin/console.php dropi:order-probe [orden_dropi]`. Usa el último pedido enviado (o el indicado) y su integración, y hace dos `GET`: `orders/myorders/{id}` y `orders/myorders?result_number=3&start=0`. Muestra los nombres de los campos y solo los valores de estado, guía, transportadora, novedad, historial e ID; nunca datos del comprador ni el token.
