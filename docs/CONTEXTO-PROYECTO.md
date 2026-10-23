@@ -523,6 +523,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado:** `php -l`, `mysql-dialect.php` 16 y `migrate:auto` dos veces contra PostgreSQL local. Sin MariaDB local: la 015 corregida no se ha ejecutado contra MariaDB.
 - **Siguiente paso:** desplegar, revisar en `~/migrate.log` que diga `Aplicada: 015_dropi_order_submission.sql`, y después hacer la orden real de prueba en Dropi.
 
+### 2026-10-23 · Formulario de landing: país del teléfono
+- **Reporte del usuario:** al enviar el formulario de una landing, la consola mostraba «An invalid form control with name='phone_country' is not focusable» y no se enviaba.
+- **Diagnóstico:** el selector nativo de país del teléfono está oculto tras el de banderas y, a diferencia de departamento y ciudad, no tenía manejador de `invalid`; si quedaba vacío, el navegador bloqueaba el envío sin mensaje. No se reprodujo cómo quedó vacío en el caso del usuario: 244 países, prefijos escritos a mano y la landing real `andres.tinbana.com` (sin enviar) dejaron el campo válido.
+- **Cambio:** `src/lead-form.ts` sincroniza el país solo con valores existentes, se corrige y reenvía si el oculto queda vacío, y muestra «Selecciona el país de tu teléfono.» en el campo visible cuando no hay país. Guía: [LEAD-FORM.md](LEAD-FORM.md).
+- **Comprobado:** `tests/lead-phone-country.mjs` 6 y `tests/delivery-ui.mjs` en local; `tsc -b` y compilación. Sin desplegar.
+
 ### Plantilla para la próxima actualización
 
 ```text

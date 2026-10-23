@@ -12,6 +12,8 @@ El selector utiliza `intl-tel-input` con banderas reales, prefijos, buscador en 
 
 El país del teléfono es independiente del país de entrega: un teléfono internacional puede solicitar entrega en Colombia. Por defecto se preselecciona Colombia; el visitante siempre puede corregir la selección.
 
+Con JavaScript, el `<select name="phone_country">` queda oculto detrás del selector de banderas y copia siempre su país. Un control obligatorio oculto e inválido bloquearía el envío sin mensaje (error de consola «An invalid form control with name='phone_country' is not focusable»). Por eso, si queda vacío, se corrige con el país de la bandera y se reenvía; si no hay país (por ejemplo, prefijo desconocido como `+999`), el campo Teléfono muestra «Selecciona el país de tu teléfono.». Prueba: `node tests/lead-phone-country.mjs` (6 comprobaciones; endpoint del lead simulado).
+
 Un hosting detrás de un proxy fiable puede activar `TRUST_COUNTRY_HEADER=true` para usar `CF-IPCountry` como sugerencia inicial. Solo debe habilitarse si ese proxy controla la cabecera y el origen no acepta tráfico directo que la pueda falsificar. En el enlace temporal se habilita en su router específico, cuyo origen escucha exclusivamente en loopback tras Cloudflare Tunnel. En un hosting nuevo está deshabilitado por defecto. País desconocido, ausencia de cabecera o proveedor sin detección hacen que se use Colombia. La detección IP es aproximada; no se deduce el país a partir del idioma del navegador ni se solicitan coordenadas GPS.
 
 ## Persistencia y webhook

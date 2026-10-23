@@ -26,7 +26,12 @@ export function prepareLeadForm(form:HTMLFormElement,modal:HTMLDialogElement|nul
    const initialCountry=intlTelInput.getAllCountries().find(country=>country.iso2===fallback.value.toLowerCase())?.iso2||'co';
    const countryList=document.createElement('div');countryList.className='phone-country-dropdown';input.closest('.phone-field')?.append(countryList);
    const instance=intlTelInput(input,{initialCountry,countryNameLocale:'es',uiTranslations:es,separateDialCode:true,countrySearch:true,countrySelectorMode:'DROPDOWN',dropdownParent:countryList,matchDropdownWidth:true,formatAsYouType:false});
-   const stopFloating=floatingPhone(input,countryList);const sync=()=>{const selected=instance.getSelectedCountry();if(selected)fallback.value=selected.iso2.toUpperCase();};input.addEventListener('countrychange',sync);sync();form.classList.add('is-phone-enhanced');
+   const stopFloating=floatingPhone(input,countryList);
+   // The native select is hidden once enhanced: mirror the flag picker into it and clear any pending message.
+   const sync=()=>{const iso=instance.getSelectedCountry()?.iso2?.toUpperCase()||'';fallback.value=[...fallback.options].some(option=>option.value===iso)?iso:'';input.setCustomValidity('');input.removeAttribute('aria-invalid');};
+   input.addEventListener('countrychange',sync);input.addEventListener('input',()=>{if(fallback.value)input.setCustomValidity('');});sync();form.classList.add('is-phone-enhanced');
+   // A hidden invalid control would block the submit silently ("not focusable"): report it on the visible phone field.
+   fallback.addEventListener('invalid',event=>{event.preventDefault();sync();if(fallback.checkValidity()){setTimeout(()=>form.requestSubmit());return;}input.setCustomValidity('Selecciona el país de tu teléfono.');input.setAttribute('aria-invalid','true');input.reportValidity();});
    form.addEventListener('lead-saved',()=>instance.setDisabled(true));modal?.addEventListener('close',()=>instance.closeCountrySelector());
    window.addEventListener('pagehide',()=>{stopFloating();instance.destroy();},{once:true});
   }catch{ /* Keep the native country selector if enhancement is unavailable. */ }
