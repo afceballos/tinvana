@@ -63,7 +63,7 @@ El dominio público debe tener HTTPS y `APP_URL` debe ser fijo y confiable; nunc
 
 `php backend/tests/account-resend.php`: transporte API interceptado y protegido por la misma configuración local, sin conectar con Resend. Comprueba destino fijo, TLS, estructura, logo, idempotencia y errores sin secretos.
 
-La entrega a un buzón real y la verificación DNS quedan pendientes hasta disponer de una cuenta del proveedor. No se implementó SMS.
+Producción (confirmado por el usuario el 2026-10-23, no comprobado por el asistente): Resend configurado con el dominio `tinbana.com` verificado, variables en el `.env` del servidor, cron `mail:work` activo y correos de cuenta entregados. No se implementó SMS.
 
 ## Hosting cPanel (GoDaddy): configuración y diagnóstico
 

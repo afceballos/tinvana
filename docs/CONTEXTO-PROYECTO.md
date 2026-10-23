@@ -1,6 +1,6 @@
 # Tinvana: documento maestro de contexto y continuidad
 
-Última actualización: **21 de octubre de 2026**.
+Última actualización: **23 de octubre de 2026**.
 
 Documento vivo para el propietario del proyecto, desarrolladores y otras IA. Describe el estado conocido al cerrar la última implementación; no garantiza que un túnel, proceso o servicio externo siga activo en otra sesión.
 
@@ -8,12 +8,12 @@ Documento vivo para el propietario del proyecto, desarrolladores y otras IA. Des
 
 - **Producto:** plataforma privada para administrar integraciones Dropi, seleccionar productos, crear/publicar landings y recibir consultas. Se amplía con pedidos y ventas por WhatsApp.
 - **Marca actual:** Tinvana. Zenzales/Dropi + Zenzales son nombres anteriores que aún aparecen en rutas, configuraciones técnicas y algunos documentos.
-- **Proyecto real:** login PHP y PostgreSQL reales en la configuración histórica; catálogo obtenido de Dropi. Se está preparando MySQL para GoDaddy. No existe fallback de productos inventados. Los datos de pruebas están aislados.
-- **Última entrega funcional:** edición de comprador/dirección, revisión de confirmados, ofertas por cantidad versionadas y variantes en cotización. Preparación local para Dropi, sin envío externo.
+- **Proyecto real:** en producción en **`https://tinbana.com`** (GoDaddy cPanel) con PHP + MySQL (`DB_DRIVER=mysql`); catálogo obtenido de Dropi. Supabase PostgreSQL queda como entorno histórico. No existe fallback de productos inventados. Los datos de pruebas están aislados.
+- **Estado de producción (confirmado por el usuario el 2026-10-23):** despliegue, migraciones hasta 014, login y flujos de la aplicación, correo con Resend, HTTPS Let's Encrypt (raíz y comodín `*.tinbana.com`), subdominio por tienda y cron de trabajadores funcionando. El asistente no lo comprobó directamente.
+- **Última entrega funcional:** subdominio por usuario/tienda (migración 014), capa visual moderna con modo oscuro, listas compactas, alertas por color y diagnóstico de correo.
 - **Todavía no:** creación de órdenes en Dropi, agente vendedor de WhatsApp, sincronización bidireccional de GHL, logística ni conciliación financiera.
-- **Últimas comprobaciones funcionales:** 107 checks HTTP generales, 38 de pedidos base y 52 de edición/ofertas/preparación; build aprobado y revisión visual de escritorio/móvil. Los checks externos se distinguen de las pruebas aisladas.
-- **Despliegue GoDaddy:** la salida a Supabase en 5432 y 6543 termina en timeout. El usuario informa que creó `tinvana_bd` con 18 tablas. El backend ya tiene soporte de driver MySQL, esquema, conversión de consultas y rutas explícitas para operaciones condicionales; faltan pruebas con MySQL real y verificación en GoDaddy.
-- **Siguiente paso operativo:** validar versión/extensión `pdo_mysql` en GoDaddy y ejecutar `check`/`migrate` desde ese hosting; `localhost` solo apunta al MySQL de GoDaddy cuando PHP corre allí. Probar luego flujos con datos controlados.
+- **Últimas comprobaciones locales:** ver la bitácora del 2026-10-22 (subdominio de tienda, interfaz y regresiones). Los checks externos se distinguen de las pruebas aisladas.
+- **Siguiente paso operativo:** probar copia de seguridad/restauración de MySQL y medios, confirmar la renovación automática de los certificados en diciembre de 2026 y avanzar en el contrato oficial de órdenes Dropi y en GHL/WhatsApp.
 
 Leyenda:
 
@@ -32,7 +32,7 @@ Leyenda:
 - [x] Guardar productos seleccionados y copias necesarias; no importar todo Dropi.
 - [x] Una plantilla reutilizable por landing, no un proyecto React por producto.
 - [x] Adaptación de backend para MySQL: capa PDO/dialecto, resultados `RETURNING`, upserts, límites, runner de migraciones y verificación de 18 tablas implementados.
-- [ ] Verificación integral con servidor MySQL/MariaDB real y en GoDaddy: `pdo_mysql`, versión compatible, migración/verificación de esquema y pruebas de los flujos de aplicación.
+- [x] Verificación con servidor MySQL real en GoDaddy: `pdo_mysql`, migración y flujos de la aplicación (confirmado por el usuario el 2026-10-23; sin suite automatizada contra MySQL).
 
 Referencia original, que debe permanecer intacta: `C:\Users\andre\Desktop\Proyectos\Dropi - GHL\catalogo`.
 
@@ -40,7 +40,7 @@ Workspace actual: `C:\Users\andre\Desktop\Zenzales\Dropi + Zenzales`. La marca c
 
 Repositorio GitHub: `https://github.com/afceballos/tinvana`, rama `master`. El código está publicado; esto no significa que se haya desplegado en GoDaddy.
 
-`backend/mysql/schema.sql` define el esquema inicial de 18 tablas para MySQL 8.0.16+. El usuario informa que lo importó en GoDaddy; no se ha inspeccionado la estructura ni ejecutado una consulta contra ese servidor. `DB_DRIVER=mysql` ya convierte un subconjunto SQL cubierto por pruebas y el comando `migrate` verifica tablas, pero la aplicación aún requiere pruebas de integración para considerarse compatible.
+`backend/mysql/schema.sql` define el esquema inicial de 18 tablas para MySQL 8.0.16+. Está importado en GoDaddy y, según el usuario, `migrate` y los flujos de la aplicación funcionan allí. El asistente no ha consultado ese servidor; no hay suite automatizada contra MySQL (el PHP local carece de `pdo_mysql`).
 
 ## 3. Arquitectura y organización
 
@@ -85,6 +85,8 @@ Formularios -> lead + entrega pendiente + borrador de pedido (misma transacción
 | 010 | Biblioteca de imágenes por cuenta y mes. |
 | 011 | Pedidos locales y eventos. |
 | 012 | Ofertas comerciales, historial de versiones y snapshots de oferta/variante en pedidos; aplicada a Supabase y al entorno local. |
+| 013 | Subdominio por landing (`landing_pages.subdomain`, `published_subdomain`); sustituido por 014, columnas sin uso. |
+| 014 | Subdominio de tienda por usuario (`users.store_subdomain`), en PostgreSQL y MySQL. |
 
 Esquema acumulativo: consultar el SQL real antes de cambiarlo. Hay relaciones de propietario y restricciones de unicidad; la autorización de aplicación sigue siendo obligatoria aunque exista RLS en tablas específicas.
 
@@ -100,12 +102,11 @@ Esquema acumulativo: consultar el SQL real antes de cambiarlo. Hay relaciones de
 - [x] Menú de cuenta y cambio de contraseña con revocación de sesiones según versión.
 - [x] Registro con verificación por email y establecimiento de contraseña mediante enlace.
 - [x] Enlace de verificación de 24 horas y recuperación de 30 minutos; tokens de un uso almacenados como hash.
-- [x] Envío de correo preparado con cola y SMTP o Resend, con plantilla HTML de marca existente.
-- [ ] Configurar proveedor real de correo y verificar entrega de extremo a extremo.
-- [ ] Revisar identidad Tinvana en remitente, dominio y plantilla de correo antes de activar el proveedor; el rebranding visual no reescribió automáticamente el backend de emails.
+- [x] Envío de correo con cola y SMTP o Resend, con plantilla HTML de marca Tinvana y remitente «Tinvana».
+- [x] Resend configurado en producción (dominio `tinbana.com`, cron `mail:work`) y entrega de extremo a extremo funcionando (confirmado por el usuario el 2026-10-23).
 - [ ] Verificación por SMS: no desarrollada ni servicio contratado.
 
-No solicitar que se peguen secretos en el chat. El remitente planteado inicialmente fue `no-reply@zenzales.com`; no acredita un buzón ni SMTP activo.
+No solicitar que se peguen secretos en el chat. El remitente `no-reply@zenzales.com` fue solo la propuesta inicial; el dominio de envío actual es `tinbana.com`.
 
 ### 4.2 Dropi, catálogo y selección
 
@@ -272,16 +273,15 @@ n8n es opcional, no dependencia instalada obligatoria. Para el piloto se pueden 
 
 ## 6. Entornos, despliegue y secretos
 
-- [x] Supabase PostgreSQL real: conexión PDO con TLS y configuración privada; migraciones hasta 012 aplicadas en el entorno histórico.
-- [x] Demo por túnel temporal; última URL comprobada: `https://scenes-high-congress-medieval.trycloudflare.com`.
-- [x] Demo utiliza build estático y PHP; no depende de mantener `npm run dev`, pero sí del equipo, PHP, túnel y procesos que la sostienen.
+- [x] Supabase PostgreSQL real (histórico): conexión PDO con TLS; migraciones hasta 012 aplicadas. Desde GoDaddy no es accesible (timeout en 5432/6543).
+- [x] Demo histórica por túnel temporal de Cloudflare; ya no es el entorno de referencia.
 - [x] Configuraciones y guías Apache/Nginx, frontend compilado y rutas al refrescar.
-- [ ] Despliegue definitivo en `dropizenzales.andresceballos.dev` u otro dominio elegido.
-- [ ] Confirmar versión MySQL/MariaDB (el esquema requiere MySQL 8.0.16+), extensión `pdo_mysql`, permisos de usuario y acceso PHP local desde GoDaddy.
-- [ ] Verificar MySQL desde PHP web y CLI, secretos fuera de la raíz pública, permisos, HTTPS y cron en GoDaddy; probar los flujos completos de la aplicación.
-- [ ] Crear y restaurar backup MySQL y medios; probar recuperación antes de habilitar producción.
+- [x] Despliegue definitivo en GoDaddy cPanel con dominio `tinbana.com`: backend privado en `~/tinvana`, público en `~/public_html`, vía `.cpanel.yml` (confirmado por el usuario el 2026-10-23).
+- [x] MySQL con `pdo_mysql`, migraciones hasta 014, HTTPS (Let's Encrypt raíz y comodín) y cron `mail:work`, `webhooks:work` y `maintenance` funcionando en GoDaddy (confirmado por el usuario el 2026-10-23).
+- [ ] Crear y restaurar backup MySQL y medios; probar recuperación.
+- [ ] Confirmar que la primera renovación automática de los certificados (diciembre de 2026) se instala sola.
 
-La ruta de destino propuesta en Hostinger era `/home/u527801383/domains/andresceballos.dev/public_html/dropizenzales`. No tratar acceso FTP como garantía de extensiones PHP ni capacidad de ubicar backend privado fuera de la raíz pública. No se subió la plataforma completa a ese destino durante la revisión de hosting.
+Los destinos anteriores (`dropizenzales.andresceballos.dev`, Hostinger) quedaron descartados.
 
 Ubicaciones privadas a conocer, **sin transcribir su contenido**:
 
@@ -301,14 +301,15 @@ Conservar `TOKEN_ENCRYPTION_KEY` y los archivos privados al cambiar el proveedor
 | `backend/tests/mysql-dialect.php` | 16 checks aprobados el 2026-10-21 | Conversiones de SQL PostgreSQL y semántica `DO NOTHING` cubiertas; no ejecuta SQL en un servidor MySQL. |
 | `backend/tests/run.php` | 69 checks aprobados el 2026-10-21 | Pruebas unitarias/funcionales sin conexión a MySQL real. |
 | `composer validate` | Correcto el 2026-10-21; advertencia de licencia | Valida manifiesto/lock, no instala ni prueba `pdo_mysql`. |
-| Integración MySQL/GoDaddy | Pendiente | PHP local no tiene `pdo_mysql` y no se conectó a la base del hosting. |
+| Integración MySQL/GoDaddy | Funcionando según el usuario (2026-10-23) | Uso manual en producción; no hay suite automatizada contra MySQL y el asistente no consultó la base del hosting. |
+| Correo Resend en producción | Funcionando según el usuario (2026-10-23) | Entrega real reportada por el usuario; no se midió entregabilidad (SPF/DKIM, spam). |
 | `npm test` | 107 checks aprobados | Sesión PHP, permisos, publicación, leads y receptor TLS local; no GHL real. |
 | `node tests/orders.mjs` | 38 checks aprobados | Pedidos locales, permisos, cotización, expiración, precisión, concurrencia por versión, deduplicación y UI. |
 | `node tests/order-editing.mjs` | 52 checks aprobados | Edición/revisión, historial, ofertas versionadas, validación de variantes y preparación bloqueada. Pruebas locales, sin órdenes externas. |
 | `php -l` PHP afectado | Aprobado | Sintaxis, no prueba externa de negocio. |
 | Demo de pedidos | Aprobado en lectura | Ruta pública del panel, API autenticada y renderizado; sin modificar pedidos reales. |
 | `node tests/media-delete.mjs` | 28 checks históricos aprobados | Borrado seguro y UI sobre archivos de pruebas. No reejecutado en la entrega de documentación. |
-| Cuenta/email | Pruebas aisladas históricas aprobadas | No acredita entrega por SMTP/Resend real aún sin configurar. |
+| Cuenta/email | Pruebas aisladas históricas aprobadas | Lógica de cuentas y plantilla; la entrega real se registra en la fila de Resend. |
 | Dropi catálogo | Respuestas reales históricas comprobadas | No acredita permisos para crear órdenes. |
 | OpenAI | Generación real histórica comprobada | No acredita Claude, saldo futuro ni agente WhatsApp. |
 
@@ -501,6 +502,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio visual (sin tocar lógica ni roles ARIA):** éxito verde, error rojo, advertencia ámbar e información azul, en notificaciones flotantes y mensajes en línea, con tema oscuro propio y sin borde lateral de color. Detalle en [NOTIFICATIONS.md](NOTIFICATIONS.md#colores-por-tipo-y-estilo-moderno-sin-borde-lateral).
 - **Comprobado:** `tests/alerts.mjs` 18; sin regresiones en `modern.mjs` 17, `compact.mjs` 27, `preload.mjs` 12, `store-address.mjs` 20 y `webhook-card.mjs` 13; `tsc -b` y compilación sin errores; revisión visual en tema claro y oscuro.
 - **No comprobado:** `tests/notifications.mjs` (usa un túnel externo caducado); los mensajes de las landings públicas no se modificaron.
+
+### 2026-10-23 · Producción en GoDaddy confirmada
+- **Reporte del usuario:** «ya todo está ok». Funcionan en `tinbana.com` el despliegue con MySQL (migraciones hasta 014), login y flujos de la aplicación, correo con Resend (cron `mail:work`), HTTPS Let's Encrypt raíz y comodín, subdominio por tienda y cron `webhooks:work`/`maintenance`.
+- **Comprobado por el asistente:** solo que el repositorio local coincide con `origin/master` (commit `463808a`). No se accedió al servidor, a la base ni a Resend; el estado de producción es el que reporta el usuario.
+- **Cambio:** solo documentación; se actualizaron la lectura rápida, las casillas de MySQL, correo y despliegue, la tabla de migraciones (013 y 014) y [ACCOUNT-EMAIL.md](ACCOUNT-EMAIL.md).
+- **Pendiente:** backup y restauración de MySQL y medios; confirmar la renovación automática de certificados en diciembre de 2026; contrato de órdenes Dropi; GHL/WhatsApp.
 
 ### Plantilla para la próxima actualización
 
