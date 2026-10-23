@@ -18,4 +18,8 @@ check('missing fields stay null',DropiTracking::extract([])===['status'=>null,'c
 check('final statuses stop polling',DropiTracking::final('ENTREGADO')&&DropiTracking::final('CANCELADO')&&DropiTracking::final('DEVOLUCION')&&!DropiTracking::final('PENDIENTE CONFIRMACION')&&!DropiTracking::final('GUIA_GENERADA')&&!DropiTracking::final(null));
 $sql=MySqlDialect::sql("SELECT * FROM orders WHERE integration_status='sent' AND dropi_order_id IS NOT NULL AND (dropi_synced_at IS NULL OR dropi_synced_at<now()-interval '10 minutes') ORDER BY dropi_synced_at IS NOT NULL, dropi_synced_at LIMIT 40");
 check('sync query translates for MySQL/MariaDB',str_contains($sql,'DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 10 MINUTE)'));
+$L=fn($s,$n=null)=>DropiTracking::logistics($s,$n);
+check('Dropi statuses map to Tinvana logistics',$L('PENDIENTE CONFIRMACION')==='pending'&&$L('PENDIENTE')==='pending'&&$L('GUIA_GENERADA')==='guide_generated'&&$L('EN TRANSITO')==='in_transit'&&$L('EN REPARTO')==='in_transit'&&$L('ENTREGADO')==='delivered'&&$L('DEVOLUCION')==='returned'&&$L('CANCELADO')==='cancelled'&&$L('RECHAZADO')==='cancelled');
+check('novelty wins over transit',$L('NOVEDAD')==='novelty'&&$L('EN TRANSITO','Dirección incompleta')==='novelty');
+check('unknown status does not invent a logistics state',$L('ALGO NUEVO')===null&&$L(null)===null);
 echo "Dropi tracking checks: $passed\n";

@@ -9,8 +9,9 @@ const check=(name,value)=>{assert(value,name);checks++;console.log('PASS '+name)
 const env={...process.env,DROPI_TRACKING_URL:'https://127.0.0.1:8445/integrations/orders/myorders/',HTTP_CA_BUNDLE:process.cwd()+'/.tools/test-cert.pem'};
 const helper=async(...a)=>(await run('.tools/php/php.exe',['backend/tests/orders-helper.php',...a],{env})).stdout;
 const requests=[];let state={status:'PENDIENTE CONFIRMACION',guide:'',history:[['PENDIENTE CONFIRMACION','2026-10-23T15:48:57']],fail:false};
-const body=()=>({isSuccess:true,status:200,message:'Execution completed',objects:{id:777001,name:'Ana',surname:'Pérez',phone:'3001234567',dir:'Calle 1',status:state.status,shipping_guide:state.guide,shipping_company:'VELOCES',shipping_amount:16450,novedad_servientrega:state.novelty||'',updated_at:'2026-10-24T09:10:00',history:state.history.map(([s,at],i)=>({id:i+1,status:s,created_at:at,novedad_servientrega:'',user:{name:'Operador'}})),distribution_company:{id:6,name:'VELOCES'}}});
-const dropi=createServer({key:await readFile('.tools/test-key.pem'),cert:await readFile('.tools/test-cert.pem')},(req,res)=>{requests.push(req.method+' '+req.url);res.writeHead(state.fail?500:200,{'Content-Type':'application/json'});res.end(state.fail?'{"isSuccess":false}':JSON.stringify(body()));});
+let cancelledId='';
+const body=(id)=>id==='777002'?{isSuccess:true,status:200,objects:{id:777002,status:'CANCELADO',shipping_company:'VELOCES',shipping_guide:'',shipping_amount:16450,history:[{status:'PENDIENTE CONFIRMACION',created_at:'2026-10-23T15:00:00'},{status:'CANCELADO',created_at:'2026-10-23T16:00:00'}]}}:({isSuccess:true,status:200,message:'Execution completed',objects:{id:777001,name:'Ana',surname:'Pérez',phone:'3001234567',dir:'Calle 1',status:state.status,shipping_guide:state.guide,shipping_company:'VELOCES',shipping_amount:16450,novedad_servientrega:state.novelty||'',updated_at:'2026-10-24T09:10:00',history:state.history.map(([s,at],i)=>({id:i+1,status:s,created_at:at,novedad_servientrega:'',user:{name:'Operador'}})),distribution_company:{id:6,name:'VELOCES'}}});
+const dropi=createServer({key:await readFile('.tools/test-key.pem'),cert:await readFile('.tools/test-cert.pem')},(req,res)=>{requests.push(req.method+' '+req.url);res.writeHead(state.fail?500:200,{'Content-Type':'application/json'});res.end(state.fail?'{"isSuccess":false}':JSON.stringify(body(req.url.split('/').pop())));});
 await new Promise(r=>dropi.listen(8445,'127.0.0.1',r));
 const owner=await request.newContext({baseURL:base}),other=await request.newContext({baseURL:base});
 async function login(ctx,email){const s=await(await ctx.get('/api/auth/session')).json();await ctx.post('/api/auth/login',{headers:{'X-CSRF-Token':s.csrf},data:{email,password:f.password}});return (await(await ctx.get('/api/auth/session')).json()).csrf;}
@@ -25,12 +26,14 @@ try{
  check('foreign sync denied',(await other.post(path+'/dropi/sync',{headers:{'X-CSRF-Token':otherCsrf},data:{}})).status()===404);
  let d=await(await owner.post(path+'/dropi/sync',{headers:H,data:{}})).json();o=d.order;
  check('manual sync reads GET orders/myorders/{id} only',requests.length===1&&requests[0]==='GET /integrations/orders/myorders/777001');
+ check('logistics follows Dropi: pending',o.logistics_status==='pending');
  check('status, carrier and Dropi freight stored',o.dropi_status==='PENDIENTE CONFIRMACION'&&o.dropi_tracking.carrier==='VELOCES'&&o.dropi_tracking.shipping_amount===16450);
  check('buyer data from Dropi is not stored',!JSON.stringify(o.dropi_tracking).includes('Operador')&&!JSON.stringify(o.dropi_tracking).includes('3001234567'));
  check('first status written to the Tinvana history',d.events.some(e=>e.event_type==='dropi_status_changed'&&e.data.to==='PENDIENTE CONFIRMACION'));
  state={...state,status:'GUIA_GENERADA',guide:'240012345',history:[...state.history,['GUIA_GENERADA','2026-10-24T09:10:00']]};
  let cron=JSON.parse(await helper('dropi-sync-due'));d=await(await owner.get(path)).json();o=d.order;
  check('cron sync picks up the new status and guide',cron.synced===1&&o.dropi_status==='GUIA_GENERADA'&&o.dropi_tracking.guide==='240012345'&&o.dropi_tracking.history.length===2);
+ check('logistics follows Dropi: guide generated',o.logistics_status==='guide_generated');
  check('status change recorded once',d.events.filter(e=>e.event_type==='dropi_status_changed').length===2);
  const before=requests.length;cron=JSON.parse(await helper('dropi-sync-due'));d=await(await owner.get(path)).json();
  check('unchanged status adds no history event',d.events.filter(e=>e.event_type==='dropi_status_changed').length===2&&requests.length===before+1);
@@ -40,8 +43,16 @@ try{
  state={...state,fail:false,status:'ENTREGADO',history:[...state.history,['ENTREGADO','2026-10-26T11:00:00']]};
  await helper('dropi-sync-due');const after=requests.length;cron=JSON.parse(await helper('dropi-sync-due'));
  check('final status is not polled again',cron.synced===0&&requests.length===after);
+ d=await(await owner.get(path)).json();check('logistics follows Dropi: delivered',d.order.logistics_status==='delivered'&&d.order.sale_status!=='cancelled');
+ const second=(await(await owner.get('/api/orders')).json()).orders.find(x=>x.id!==o.id);await helper('mail-reset');await helper('dropi-mark-sent',second.id,'777002');
+ d=await(await owner.post('/api/orders/'+second.id+'/dropi/sync',{headers:H,data:{}})).json();
+ check('cancellation in Dropi cancels the order in Tinvana',d.order.sale_status==='cancelled'&&d.order.logistics_status==='cancelled'&&d.events.some(e=>e.event_type==='cancelled'&&e.data.source==='dropi'));
+ check('buyer cancellation email queued',JSON.parse(await helper('mail-queue')).some(m=>m.kind==='buyer_cancelled'));
+ await owner.post('/api/orders/'+second.id+'/dropi/sync',{headers:H,data:{}});d=await(await owner.get('/api/orders/'+second.id)).json();
+ check('repeated sync does not cancel twice',d.events.filter(e=>e.event_type==='cancelled').length===1);
  browser=await chromium.launch({channel:'msedge',headless:true});const ctx=await browser.newContext({storageState:await owner.storageState(),viewport:{width:1440,height:1000},reducedMotion:'reduce'});const page=await ctx.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base+'/panel/pedidos/'+o.id);const card=page.locator('.dropi-tracking');await card.waitFor();
+ check('stepper marks delivered',await page.locator('.od-steps li').nth(4).evaluate(li=>li.classList.contains('is-done'))&&(await page.locator('.od-hero-meta').innerText()).includes('entregado'));
  check('tracking card shows status, guide and carrier',(await card.innerText()).includes('ENTREGADO')&&(await card.innerText()).includes('240012345')&&(await card.innerText()).includes('VELOCES'));
  check('shipping margin compares charged and Dropi freight',(await card.locator('.dropi-margin dd').innerText()).includes('550'));
  check('Dropi history timeline newest first',(await card.locator('.dropi-history li strong').first().innerText())==='ENTREGADO'&&await card.locator('.dropi-history li').count()===3);

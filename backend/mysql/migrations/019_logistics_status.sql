@@ -1,0 +1,1 @@
+ALTER TABLE orders DROP CONSTRAINT orders_logistics_status_ck, ADD CONSTRAINT orders_logistics_status_v2_ck CHECK (logistics_status IN ('not_requested','pending','guide_generated','in_transit','novelty','delivered','returned','cancelled'))

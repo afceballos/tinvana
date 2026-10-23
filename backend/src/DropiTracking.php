@@ -18,6 +18,20 @@ final class DropiTracking {
  }
  /** Delivered, cancelled or returned orders are not polled again. */
  public static function final(?string $status): bool {return $status!==null&&(bool)preg_match('/ENTREGAD|CANCELAD|DEVOLUCI|DEVUELT|RECHAZAD/i',$status);}
+ /** Tinvana logistics state for a Dropi status; null for statuses we do not recognise (the raw status is still shown). */
+ public static function logistics(?string $status,?string $novelty=null): ?string {
+  if($status===null)return null;$u=strtoupper(str_replace('_',' ',$status));
+  return match(true){
+   (bool)preg_match('/CANCELAD|RECHAZAD/',$u)=>'cancelled',
+   str_contains($u,'ENTREGAD')=>'delivered',
+   (bool)preg_match('/DEVOLUCI|DEVUELT/',$u)=>'returned',
+   str_contains($u,'NOVEDAD')||($novelty!==null&&$novelty!=='')=>'novelty',
+   (bool)preg_match('/TRANSITO|TRÁNSITO|REPARTO|DESPACHAD|RECOGID|EN CAMINO|EN RUTA|BODEGA DESTINO|EN CENTRO/',$u)=>'in_transit',
+   str_contains($u,'GUIA')||str_contains($u,'GUÍA')=>'guide_generated',
+   (bool)preg_match('/PENDIENTE|PREPARAC|CONFIRMAD/',$u)=>'pending',
+   default=>null,
+  };
+ }
  /** Dropi dates come without zone and match Colombia local time. */
  private static function date(mixed $v): ?string {
   if(!is_string($v)||!preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?/',$v))return null;
@@ -62,6 +76,13 @@ final class DropiTracking {
    $r=Database::one('SELECT * FROM orders WHERE id=? FOR UPDATE',[$order['id']]);
    Database::query('UPDATE orders SET dropi_status=?,dropi_tracking=?::jsonb,dropi_synced_at=now() WHERE id=?',[$t['status'],Support::json($t),$order['id']]);
    if($t['status']!==null&&$t['status']!==($r['dropi_status']??null))Orders::event($r,'dropi_status_changed',['from'=>$r['dropi_status']??null,'to'=>$t['status'],'guide'=>$t['guide'],'carrier'=>$t['carrier']],null);
+   // Mirror Dropi in Tinvana: logistics follows the Dropi status; a cancellation in Dropi cancels the sale here too.
+   $logistics=self::logistics($t['status'],$t['novelty']);
+   if($logistics!==null&&$logistics!==$r['logistics_status'])Database::query('UPDATE orders SET logistics_status=? WHERE id=?',[$logistics,$order['id']]);
+   if($logistics==='cancelled'&&$r['sale_status']!=='cancelled'){
+    $c=Database::one("UPDATE orders SET sale_status='cancelled',quote_id=null,quote_expires_at=null,version=version+1,updated_at=now() WHERE id=? RETURNING *",[$order['id']]);
+    Orders::event($c,'cancelled',['reason'=>'Cancelado en Dropi ('.$t['status'].').','source'=>'dropi'],null);OrderMail::queue($c,'buyer_cancelled');
+   }
    if($own)$db->commit();
   }catch(\Throwable $e){if($own&&$db->inTransaction())$db->rollBack();throw $e;}
   return true;

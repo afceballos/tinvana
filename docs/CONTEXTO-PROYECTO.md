@@ -87,6 +87,7 @@ Formularios -> lead + entrega pendiente + borrador de pedido (misma transacción
 | 012 | Ofertas comerciales, historial de versiones y snapshots de oferta/variante en pedidos; aplicada a Supabase y al entorno local. |
 | 013 | Subdominio por landing (`landing_pages.subdomain`, `published_subdomain`); sustituido por 014, columnas sin uso. |
 | 014 | Subdominio de tienda por usuario (`users.store_subdomain`), en PostgreSQL y MySQL. |
+| 018 | Logística reflejada desde Dropi: valores ampliados de `logistics_status` (en MySQL, 019). |
 | 017 | Seguimiento de Dropi: `orders.dropi_status`, `dropi_tracking` y `dropi_synced_at` (en MySQL, 018). |
 | 016 | Correos de pedidos: tabla `order_mail` y `users.mail_settings` (en MySQL, archivos 016 y 017). |
 | 015 | Envío a Dropi: estados `sending/sent/failed/unknown`, `orders.dropi_order_id` e `integration_data`, en PostgreSQL y MySQL. Aplicada solo en la base local de pruebas. |
@@ -591,6 +592,11 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** `DropiTracking`, migración 017, cron `dropi:sync`, botón **Actualizar desde Dropi**, historial de estados y diferencia de flete en el detalle; estado de Dropi en la lista.
 - **Comprobado (local, Dropi simulado):** `dropi-tracking.mjs` 19, `dropi-tracking.php` 8; regresión `orders.mjs` 38, `order-editing.mjs` 52, `dropi-orders.mjs` 36, `dropi-shipping.mjs` 20, `order-mail.mjs` 23, `compact.mjs` 27, `modern.mjs` 17 y las pruebas PHP.
 - **Pendiente en producción:** desplegar, migrar, crear el cron `dropi:sync` cada 10 minutos y comprobar con un pedido real.
+
+### 2026-10-23 · Estados de Dropi reflejados en Tinvana
+- **Pedido del usuario:** si el pedido cambia de estado o se cancela en Dropi, que cambie también en Tinvana.
+- **Cambio:** la logística sigue a Dropi; la cancelación en Dropi cancela la venta y avisa al comprador; la barra de avance tiene el paso «Entregado». Migración 018. Detalle en [DROPI-ORDERS.md](DROPI-ORDERS.md).
+- **Comprobado (local):** `dropi-tracking.mjs` 26, `dropi-tracking.php` 11 y la regresión de pedidos, Dropi, correos e interfaz.
 
 ### Plantilla para la próxima actualización
 

@@ -82,3 +82,23 @@ Comando de solo lectura: `php bin/console.php dropi:order-probe [orden_dropi]`. 
 - **Solo lectura:** se usa únicamente GET; nunca el `PUT` que genera la guía.
 
 Pruebas: `php backend/tests/dropi-tracking.php` (8) y `node tests/dropi-tracking.mjs` (19, con un Dropi simulado en 8445). Requiere el servidor con `DROPI_TRACKING_URL=https://127.0.0.1:8445/integrations/orders/myorders/` y `HTTP_CA_BUNDLE`; esa variable solo se acepta fuera de producción y en `127.0.0.1`.
+
+### Estados de Dropi reflejados en Tinvana (2026-10-23)
+
+Cada sincronización traduce el estado de Dropi a `orders.logistics_status` (migración 018; en MySQL, 019):
+
+| Estado de Dropi | Logística en Tinvana |
+|---|---|
+| PENDIENTE, PENDIENTE CONFIRMACION, preparación | `pending` · Pendiente en Dropi |
+| GUIA GENERADA | `guide_generated` · Guía generada |
+| EN TRANSITO, EN REPARTO, DESPACHADA, RECOGIDA… | `in_transit` · En tránsito |
+| NOVEDAD o texto de novedad | `novelty` · Con novedad |
+| ENTREGADO | `delivered` · Entregado |
+| DEVOLUCION, DEVUELTO | `returned` · Devuelto |
+| CANCELADO, RECHAZADO | `cancelled` · Cancelado en Dropi |
+
+- **Estados desconocidos:** se muestran tal cual y no cambian la logística.
+- **Cancelación en Dropi:** cancela la venta en Tinvana una sola vez, con el evento `cancelled` (`source=dropi`), y encola el correo «Tu pedido fue cancelado» si está activo.
+- **Barra de avance:** suma el paso «Entregado» y la tarjeta oscura muestra la logística.
+
+Pruebas: `dropi-tracking.php` 11 y `dropi-tracking.mjs` 26.
