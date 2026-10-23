@@ -11,7 +11,15 @@ final class DeliveryAddress {
  public static function phone(string $phone,mixed $region):array {
   $region=strtoupper(Support::text($region,2));$util=PhoneNumberUtil::getInstance();if(!in_array($region,$util->getSupportedRegions(),true)||!preg_match('/^\+?[0-9 ()\-.]{7,30}$/D',$phone))throw new HttpError(422,'Verifica el teléfono y su país.');
   try{$parsed=$util->parse($phone,$region);}catch(NumberParseException){throw new HttpError(422,'El teléfono no tiene un formato válido para el país seleccionado.');}
-  if(!$util->isValidNumber($parsed)||$parsed->hasExtension())throw new HttpError(422,'Verifica el teléfono y su prefijo internacional.');
+  if(!$util->isValidNumber($parsed)&&!$parsed->hasExtension()){
+   // The flag picker already shows the dial code, so visitors often type it again or add a trunk zero.
+   $code=(string)$parsed->getCountryCode();$national=ltrim((string)$parsed->getNationalNumber(),'0');
+   foreach(array_unique([$national,str_starts_with($national,$code)?substr($national,strlen($code)):'']) as $candidate){
+    if(strlen($candidate)<4)continue;try{$retry=$util->parse('+'.$code.$candidate,$region);}catch(NumberParseException){continue;}
+    if($util->isValidNumber($retry)){$parsed=$retry;break;}
+   }
+  }
+  if(!$util->isValidNumber($parsed)||$parsed->hasExtension())throw new HttpError(422,'El teléfono no es válido para el país elegido (+'.$parsed->getCountryCode().'). Escribe solo tu número, sin el prefijo.');
   $actual=$util->getRegionCodeForNumber($parsed);if(!$actual||!preg_match('/^[A-Z]{2}$/D',$actual))throw new HttpError(422,'Usa un teléfono asociado a un país válido.');return ['phone'=>$util->format($parsed,PhoneNumberFormat::E164),'phone_country'=>$actual];
  }
  public static function validate(array $body):array {
@@ -30,6 +38,6 @@ final class DeliveryAddress {
  }
  public static function phoneField():string {
   $util=PhoneNumberUtil::getInstance();$country=self::phoneCountry();$options='';$codes=$util->getSupportedRegions();sort($codes);foreach($codes as $code)$options.='<option value="'.$code.'"'.($code===$country?' selected':'').'>'.$code.' (+'.$util->getCountryCodeForRegion($code).')</option>';
-  return '<div class="phone-field"><label for="lead-phone">Teléfono</label><label class="phone-country-fallback">País del teléfono<select name="phone_country" required>'.$options.'</select></label><input id="lead-phone" name="phone" type="tel" required maxlength="30" autocomplete="tel-national" inputmode="tel" placeholder="300 123 4567" aria-describedby="phone-help"><small id="phone-help" class="form-help">Confirma el país y el prefijo de tu número. Puedes cambiarlos.</small></div>';
+  return '<div class="phone-field"><label for="lead-phone">Teléfono</label><label class="phone-country-fallback">País del teléfono<select name="phone_country" required>'.$options.'</select></label><input id="lead-phone" name="phone" type="tel" required maxlength="30" autocomplete="tel-national" inputmode="tel" placeholder="300 123 4567" aria-describedby="phone-help"><small id="phone-help" class="form-help">Elige el país con la bandera y escribe tu número sin el prefijo.</small></div>';
  }
 }

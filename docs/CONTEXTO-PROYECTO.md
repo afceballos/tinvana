@@ -529,6 +529,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** `src/lead-form.ts` sincroniza el país solo con valores existentes, se corrige y reenvía si el oculto queda vacío, y muestra «Selecciona el país de tu teléfono.» en el campo visible cuando no hay país. Guía: [LEAD-FORM.md](LEAD-FORM.md).
 - **Comprobado:** `tests/lead-phone-country.mjs` 6 y `tests/delivery-ui.mjs` en local; `tsc -b` y compilación. Sin desplegar.
 
+### 2026-10-23 · Teléfono: «Verifica el teléfono y su prefijo internacional»
+- **Reporte del usuario:** el formulario respondía ese mensaje aunque escribía el número con su prefijo.
+- **Diagnóstico (local):** con el prefijo mostrado aparte, teclear `+` abre el buscador de países (comportamiento de `intl-tel-input`); escribir el prefijo sin `+` funciona, pero un `57` repetido o un `0` inicial llegan inválidos al servidor. La ayuda decía «Confirma el país y el prefijo de tu número». En la corrección de pedidos, escribir `57…` producía `+5757…`.
+- **Cambio:** `DeliveryAddress::phone` reintenta sin ceros iniciales ni código de país repetido, y da un mensaje con el prefijo elegido que pide escribir sin él; la ayuda pide elegir la bandera y escribir sin prefijo. Guía: [LEAD-FORM.md](LEAD-FORM.md).
+- **Comprobado:** `phone.php` 16, `run.php` 69, `npm test` 107, `delivery-ui.mjs`, `lead-phone-country.mjs` 6, `profile.mjs`, `order-editing.mjs` 52. No se sabe qué número exacto usó el usuario.
+
 ### Plantilla para la próxima actualización
 
 ```text
