@@ -11,3 +11,7 @@
 .builder-product-order>div{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid #fff8f1;border-radius:12px}
 .builder-product-order span{flex:1;min-width:0;overflow-wrap:anywhere;font-size:13px}
 .builder-product-order button{min-width:44px;min-height:44px;padding:8px}
+/* Dropi suggested retail price with a one-click apply (Builder price section). */
+.builder-suggested{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:-6px 0 16px;padding:10px 12px;border:1px dashed var(--line);border-radius:12px;font-size:13px}
+.builder-suggested strong{font-variant-numeric:tabular-nums}
+.builder-suggested .secondary{padding:7px 12px;font-size:12px}

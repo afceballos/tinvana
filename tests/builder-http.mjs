@@ -32,7 +32,8 @@ copy=structuredClone(c);copy.title='Borrador B';copy.publicPrice=99000;copy.bloc
 live=await visitor.request('/p/'+fixture.slug);check('draft content and price do not change live',live.status===200&&live.text.includes('Versión publicada A')&&!live.text.includes('Borrador B')&&live.text.includes('25.000'));
 check('new draft URL remains private',(await visitor.request('/p/'+newSlug)).status===404);
 visitor.csrf=live.text.match(/name="csrf" value="([^"]+)"/)[1];
-const lead={first_name:'Prueba',last_name:'Builder',email:'builder@example.test',phone:'3001234567',idempotency_key:randomUUID(),quantity:2,unit_price:1,total:2,product_id:'forged'};
+// Delivery address became mandatory with migration 007; forged price fields must still be ignored.
+const lead={country_code:'CO',department_code:'11',city_code:'11001',address:'Calle 123 # 45-67',phone_country:'CO',first_name:'Prueba',last_name:'Builder',email:'builder@example.test',phone:'3001234567',idempotency_key:randomUUID(),quantity:2,unit_price:1,total:2,product_id:'forged'};
 check('quantity zero rejected',(await visitor.request('/p/'+fixture.slug+'/lead','POST',{...lead,quantity:0})).status===422);
 check('quantity above configured max rejected',(await visitor.request('/p/'+fixture.slug+'/lead','POST',{...lead,quantity:6})).status===422);
 check('fractional quantity rejected',(await visitor.request('/p/'+fixture.slug+'/lead','POST',{...lead,quantity:1.5})).status===422);

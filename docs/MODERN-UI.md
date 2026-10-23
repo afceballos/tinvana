@@ -54,3 +54,15 @@ Sigue editando los mismos cuatro valores (`primaryColor`, `backgroundColor`, `bu
 ## Tarjeta «Webhook actual»
 
 Sustituye la tarjeta plana con borde izquierdo de color por una tarjeta redondeada con brillo suave de marca: icono de envío, nombre del proveedor, chip de estado (*Activo* con punto pulsante, o *Pausado*) y la URL en un recuadro propio. Estilos en `modern.css` (sección «Webhook actual»), con variables de tema, por lo que el tema oscuro se adapta solo; el punto pulsante se detiene con `prefers-reduced-motion`. Se retiraron las reglas antiguas `.webhook-current` y `.webhook-address` de `style.css`, `premium.css` y `tinvana.css`, y se regeneró `dark.css`. Prueba: `node tests/webhook-card.mjs` (13 comprobaciones, API simulada).
+
+## Integraciones Dropi con el estilo de Conexión GHL (2026-10-23)
+
+`src/DropiIntegrations.tsx` (reexportado desde `pages.tsx`) reutiliza la estructura de `WebhookSettings`:
+
+- **Encabezado:** eyebrow y título, con una píldora que cuenta las integraciones configuradas.
+- **Tarjeta por integración:** `webhook-current`, con logo, chip «Configurada» y el token representado en el recuadro punteado (nunca se muestra).
+- **Acciones:** **Probar conexión** y **Reemplazar token**; el formulario de reemplazo se abre dentro de la tarjeta.
+- **Alta de integraciones:** **Añadir otra integración** despliega el formulario `editor-form`. Si no hay ninguna, se muestra directamente «Conectar Dropi».
+- **Tabla final:** explica qué hace el servidor con el token. A diferencia de la de GHL, no tiene ancho mínimo (`.dropi-uses`) y se ajusta al móvil.
+
+No cambia la API ni el comportamiento. Prueba: `node tests/dropi-integrations-ui.mjs` (10 comprobaciones, API simulada); también pasan `webhook-card.mjs` 13 y `modern.mjs` 17.

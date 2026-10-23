@@ -40,6 +40,16 @@ final class Database {
  }
  public static function one(string $sql,array $args=[]): ?array {
   if(self::driver()==='mysql'&&($plan=MySqlDialect::returning($sql,$args))!==null){
+   if(isset($plan['table'])){
+    // UPDATE: the WHERE may stop matching after the write (status='failed', old password hash), so lock and
+    // remember the matching ids first and re-read by id. One transaction keeps the rows stable in between.
+    $db=self::connection();$own=!$db->inTransaction();if($own)$db->beginTransaction();
+    try{
+     $ids=array_column(self::query('SELECT id FROM '.$plan['table'].' WHERE '.$plan['where'].' FOR UPDATE',$plan['args'])->fetchAll(),'id');$row=null;
+     if($ids){self::query($plan['sql'],$args);$row=self::rows(self::query('SELECT '.$plan['returning'].' FROM '.$plan['table'].' WHERE id=?',[$ids[0]]),true)[0]??null;}
+     if($own)$db->commit();return $row;
+    }catch(\Throwable $e){if($own&&$db->inTransaction())$db->rollBack();throw $e;}
+   }
    $write=self::query($plan['sql'],$args);
    if($plan['do_nothing']&&$write->rowCount()===0)return null;
    return self::rows(self::query($plan['select'],$plan['args']),true)[0]??null;

@@ -20,7 +20,8 @@ if(in_array($argv[1]??'',['variants','simple'],true)){
 if(($argv[1]??'')==='offer-history')echo Support::json(Database::all('SELECT version FROM product_offer_versions WHERE selected_product_id=? AND user_id=? ORDER BY version',[$fixture['product'],$fixture['owner']]));
 if(($argv[1]??'')==='checks'){
  $r=Database::one('SELECT count(*) AS n FROM orders WHERE user_id=?',[$fixture['owner']]);
- echo Support::json(['orders'=>(int)$r['n'],'rls'=>Database::all("SELECT relname,relrowsecurity FROM pg_class WHERE relname IN ('orders','order_events')")]);
+ // Row level security is PostgreSQL-only; on MySQL/MariaDB owner isolation is enforced in PHP only.
+ echo Support::json(['orders'=>(int)$r['n'],'rls'=>Database::driver()==='mysql'?null:Database::all("SELECT relname,relrowsecurity FROM pg_class WHERE relname IN ('orders','order_events')")]);
 }
 if(in_array($argv[1]??'',['dropi-supplier','dropi-no-supplier'],true)){
  $row=Database::one('SELECT original_data FROM selected_products WHERE id=? AND user_id=?',[$fixture['product'],$fixture['owner']]);$raw=json_decode($row['original_data'],true);

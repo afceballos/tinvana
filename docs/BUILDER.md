@@ -68,3 +68,13 @@ Antes de migrar se verificó una copia de las tres landings y ajustes de plantil
 Para desplegar: PHP necesita `ext-dom` además de las extensiones existentes, ejecutar migraciones y `npm run build`. Distribuir `backend/blocks.json`, los nuevos PHP/CSS, `backend/public/app` y `backend/public/landing-assets`. `console.php check` comprueba DOM. No cambia la configuración de Dropi ni el destino del webhook.
 
 La entrega real a una cuenta GHL y sus custom fields depende del webhook/workflow del negocio y no se ejecutó en pruebas. Para próximas iteraciones: historial de versiones, deshacer/rehacer, autosave con control de concurrencia, más variantes específicas y auditoría Lighthouse bajo la infraestructura final. Las métricas Core Web Vitals no se certifican con capturas locales.
+
+## Precio sugerido de Dropi (2026-10-23)
+
+En **Producto y página**, debajo del precio público, se muestra el precio sugerido que trae el producto de Dropi (`suggestedPrice`, campo `suggested_price` del catálogo), con el botón **Usar precio sugerido**. El botón copia ese valor al precio público y pasa a «En uso». Solo aparece si el producto lo trae. Es opcional y no cambia nada hasta guardar el borrador.
+
+## Costo de envío para el comprador (pendiente)
+
+El usuario quiere que el envío lo calcule Dropi según la ciudad y la transportadora, y que se sume al total del formulario. Hoy solo existe el texto libre «Información de envío». Dos copias no oficiales de la documentación de Dropi en Scribd mencionan `POST …/orders/cotizaEnvioTransportadoraV2` (contra entrega, valor y códigos DANE de origen y destino) y `…/trajectory/bycity`. No está verificado: falta confirmar con una consulta de solo lectura desde el servidor con el token real, autorizada por el usuario.
+
+Comando de descubrimiento, de solo lectura: `php bin/console.php dropi:shipping-probe [email] [dane_destino]`. Usa la primera integración (la del email si se indica) y el último producto seleccionado. Imprime la estructura de la bodega y la ciudad de origen, y llama solo a `orders/cotizaEnvioTransportadoraV2` (con cuerpo vacío y con un cuerpo de ejemplo) y a `trajectory/bycity`. Muestra el estado HTTP, las claves y el mensaje de Dropi, con el token redactado. No usa `orders/myorders` ni crea nada. En GoDaddy se ejecuta una vez por cron con `-d register_argc_argv=1`.

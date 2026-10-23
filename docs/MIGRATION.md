@@ -39,21 +39,14 @@ Las imágenes propias también requieren copiar `backend/storage/media` al nuevo
 
 Las claves de OpenAI y Claude también se exportan cifradas en `ai_connections`. Conserva exactamente la misma `TOKEN_ENCRYPTION_KEY`, comprueba que cada usuario vea únicamente sus proveedores y prueba las conexiones antes de retirar el servidor anterior. No es necesario volver a introducir las claves si se conservaron la tabla y la clave maestra.
 
-## Pruebas con MariaDB local (2026-10-23)
+## Errores de MariaDB corregidos (2026-10-23)
 
-Producción usa MariaDB 10.11.19. Para reproducir sus errores hay un MariaDB 10.11.19 oficial (checksum verificado) en `.tools/mariadb`, con datos en `.tools/mariadb-data`. Escucha solo en `127.0.0.1:33306`, con contraseña aleatoria en `.tools/mariadb-password.txt` y base `tinvana_test`; todo está excluido de Git. El PHP local carga `pdo_mysql` desde `.tools/php/php.ini`. Para usarlo:
+Se reprodujeron con un MariaDB 10.11.19 local aislado. Ese entorno se eliminó el mismo día por decisión del usuario; las pruebas locales vuelven a usar PostgreSQL.
 
-1. Arranca `mariadbd` con `--datadir` entre comillas, porque la ruta tiene espacios.
-2. Copia `.tools/test-env.json` a `test-env.pgsql.json` y escribe en `test-env.json` la versión MySQL (`DB_DRIVER=mysql`, puerto 33306).
-3. Importa `backend/mysql/schema.sql` y ejecuta `migrate`.
-4. Al terminar, restaura la copia de PostgreSQL.
-
-`fixtures.php cleanup` depende del orden de borrado de PostgreSQL: en MariaDB es más simple recrear la base. La suite general `tests/http.mjs` se detiene en `backend/tests/cache.php`, escrito para PostgreSQL.
-
-Errores encontrados y corregidos con esta base:
+Errores encontrados y corregidos:
 
 - **Cotizar, aceptar, corregir, reabrir, cancelar y enviar a Dropi fallaban con «MySQL no está disponible» (`HY093`).** La emulación de `UPDATE … RETURNING` releía la fila pasando todos los parámetros del UPDATE. Ahora pasa solo los del `WHERE` (`MySqlDialect::returning`).
 - **Cotizar con una oferta con fecha de fin fallaba (`22007`).** MariaDB no acepta fechas ISO con `Z`. `Database::timestamp()` formatea según el motor.
 - **Todas las fechas se mostraban 5 horas corridas en el panel.** `DATETIME` se devolvía sin zona y el navegador lo leía como hora local. `Database` ahora devuelve en MySQL/MariaDB las columnas `DATETIME`/`TIMESTAMP` en ISO UTC (`…Z`), como PostgreSQL.
 
-Verificado en MariaDB: `order-editing.mjs` 52, `dropi-orders.mjs` 36, `compact.mjs` 27, `modern.mjs` 17 y `lead-success.mjs` 12. Las migraciones 013, 014 y 015 se aplicaron sobre el esquema importado.
+Verificado entonces en MariaDB: `order-editing.mjs` 52, `dropi-orders.mjs` 36, `compact.mjs` 27, `modern.mjs` 17 y `lead-success.mjs` 12. Las migraciones 013, 014 y 015 se aplicaron sobre el esquema importado.

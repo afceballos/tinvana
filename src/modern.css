@@ -222,3 +222,6 @@ dialog[open]::backdrop{animation:backdrop-in .35s ease-out}
 /* The generated dark rules for the legacy classes must not win over the tones. */
 :root[data-theme=dark] .notice,:root[data-theme=dark] .builder-live-notice,:root[data-theme=dark] .error,:root[data-theme=dark] .lead-last-error,:root[data-theme=dark] .store-warning,:root[data-theme=dark] .order-customer-form p[role=alert]{background:var(--t-bg);border-color:var(--t-bd);color:var(--t-fg)}
 :root[data-theme=dark] .toast,:root[data-theme=dark] .toast-error,:root[data-theme=dark] .toast-warning,:root[data-theme=dark] .toast-info,:root[data-theme=dark] .toast-success{background:linear-gradient(135deg,var(--t-bg),color-mix(in srgb,var(--t-bg) 55%,var(--surface)));border-color:var(--t-bd);color:var(--ink)}
+/* Dropi integrations page reuses the GHL webhook card (src/DropiIntegrations.tsx). */
+.dropi-add{display:flex;width:fit-content;margin:0 0 20px}
+.payload-table.dropi-uses{min-width:0}

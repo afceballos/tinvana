@@ -548,11 +548,22 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 
 ### 2026-10-23 · MariaDB local, error al cotizar, fechas y rediseño del pedido
 - **Reporte del usuario:** guardar la cotización respondía «MySQL no está disponible»; el detalle del pedido «se ve muy plantilla»; el envío debería venir prellenado.
-- **Causa del error (reproducida en MariaDB 10.11.19 local):** la emulación de `UPDATE … RETURNING` pasaba demasiados parámetros (`HY093`). Afectaba a cotizar, aceptar, corregir, reabrir, cancelar y enviar a Dropi en producción. También fallaba la fecha ISO de las ofertas (`22007`) y las fechas se mostraban 5 horas corridas. Detalle en [MIGRATION.md](MIGRATION.md#pruebas-con-mariadb-local-2026-10-23).
+- **Causa del error (reproducida en MariaDB 10.11.19 local):** la emulación de `UPDATE … RETURNING` pasaba demasiados parámetros (`HY093`). Afectaba a cotizar, aceptar, corregir, reabrir, cancelar y enviar a Dropi en producción. También fallaba la fecha ISO de las ofertas (`22007`) y las fechas se mostraban 5 horas corridas. Detalle en [MIGRATION.md](MIGRATION.md#errores-de-mariadb-corregidos-2026-10-23).
 - **Cambio:** `MySqlDialect`, `Database` (fechas ISO UTC y `timestamp()`), `Orders` (`shipping_hint`, fecha de oferta), rediseño de `OrderDetail` y `order-detail.css`, y cabecera con icono en `OrderDropi`. Guía: [ORDERS.md](ORDERS.md).
 - **Comprobado en MariaDB:** `order-editing.mjs` 52, `dropi-orders.mjs` 36, `compact.mjs` 27, `modern.mjs` 17, `lead-success.mjs` 12.
 - **Comprobado en PostgreSQL:** `npm test` 107, `orders.mjs` 38, `order-editing.mjs` 52, `dropi-orders.mjs` 36, `compact.mjs` 27, `alerts.mjs` 18, `delivery-ui.mjs`, `lead-phone-country.mjs` 6, `lead-success.mjs` 12, `run.php` 69, `mysql-dialect.php` 18, `phone.php` 16, `shipping-hint.php` 9 y `dropi-orders.php` 27. También `tsc -b` y la compilación; capturas en claro, oscuro y móvil.
 - **No comprobado:** el despliegue en GoDaddy con estos cambios.
+
+### 2026-10-23 · Integraciones Dropi con el estilo de Conexión GHL
+- **Pedido del usuario:** que la página de integraciones Dropi mantenga los estilos de Conexión GHL.
+- **Cambio:** solo interfaz, sin tocar la API (`src/DropiIntegrations.tsx`, `src/modern.css`). Detalle en [MODERN-UI.md](MODERN-UI.md).
+- **Comprobado:** `dropi-integrations-ui.mjs` 10, `webhook-card.mjs` 13, `modern.mjs` 17, compilación; capturas en claro, oscuro y móvil con la API simulada. No se probó con un token real.
+
+### 2026-10-23 · Precio sugerido en el editor; envío calculado por Dropi pendiente
+- **Pedido del usuario:** mostrar el precio sugerido de Dropi y, opcionalmente, el envío que calcula Dropi según la ciudad, sumado al total del formulario.
+- **Cambio:** precio sugerido con el botón **Usar precio sugerido** en `src/Builder.tsx`. Guía: [BUILDER.md](BUILDER.md).
+- **Comprobado:** comprobación manual en el editor local (aparece $20.000 y se aplica) y `builder.mjs` completa en PostgreSQL local.
+- **Pendiente:** el cálculo automático del envío necesita confirmar el cotizador de Dropi con una consulta de solo lectura y el token real. No se implementaron endpoints adivinados.
 
 ### Plantilla para la próxima actualización
 

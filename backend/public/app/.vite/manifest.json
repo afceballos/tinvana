@@ -1,6 +1,6 @@
 {
   "index.html": {
-    "file": "assets/index-BET-cAL9.js",
+    "file": "assets/index-sJPh_w2M.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
@@ -8,7 +8,7 @@
       "node_modules/three/build/three.module.js"
     ],
     "css": [
-      "assets/index-BCyQPx2f.css"
+      "assets/index-BKf-VYrI.css"
     ]
   },
   "node_modules/three/build/three.module.js": {

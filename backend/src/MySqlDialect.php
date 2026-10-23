@@ -41,7 +41,7 @@ final class MySqlDialect
         if(preg_match('/^UPDATE\s+([a-z_][a-z0-9_]*)\s+.*?\s+WHERE\s+(.+)$/is',$statement,$update)){
             // Positional placeholders: the WHERE clause consumes the trailing arguments, the SET clause the rest.
             $whereArgs=substr_count($update[2],'?');
-            return ['sql'=>$statement,'select'=>'SELECT '.$returning.' FROM '.$update[1].' WHERE '.$update[2],'args'=>$whereArgs?array_slice(array_values($args),-$whereArgs):[],'do_nothing'=>false];
+            return ['sql'=>$statement,'select'=>'SELECT '.$returning.' FROM '.$update[1].' WHERE '.$update[2],'args'=>$whereArgs?array_slice(array_values($args),-$whereArgs):[],'do_nothing'=>false,'table'=>$update[1],'where'=>$update[2],'returning'=>$returning];
         }
         if(!preg_match('/^INSERT\s+INTO\s+([a-z_][a-z0-9_]*)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/is',$statement,$insert))return null;
         $columns=array_map(static fn(string $v):string=>trim($v),explode(',',$insert[2]));

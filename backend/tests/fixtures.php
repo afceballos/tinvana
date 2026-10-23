@@ -9,7 +9,8 @@ use App\{Support,Database,Crypto,Product,Landing};
 if(!str_ends_with(Support::env('DB_DATABASE'),'_test')||!in_array(Support::env('DB_HOST'),['127.0.0.1','localhost'],true))throw new RuntimeException('Fixture database must be localhost and end with _test.');
 $file=$root.'/.tools/test-fixture.json';
 if(($argv[1]??'')==='cleanup'){
- if(is_file($file)){$fixture=json_decode(file_get_contents($file),true);$ids=[$fixture['owner'],$fixture['otherOwner']];foreach($ids as $id){foreach(Database::all('SELECT id FROM media_assets WHERE user_id=?',[$id]) as $asset){$path=App\Media::path($asset['id']);if(is_file($path))unlink($path);}Database::query('DELETE FROM leads WHERE user_id=?',[$id]);Database::query('DELETE FROM users WHERE id=?',[$id]);}Database::query('DELETE FROM rate_limits');unlink($file);echo "Test fixtures removed.\n";}exit;
+ if(is_file($file)){$fixture=json_decode(file_get_contents($file),true);$ids=[$fixture['owner'],$fixture['otherOwner']];foreach($ids as $id){foreach(Database::all('SELECT id FROM media_assets WHERE user_id=?',[$id]) as $asset){$path=App\Media::path($asset['id']);if(is_file($path))unlink($path);}// Children first: MySQL/MariaDB checks foreign keys row by row, unlike PostgreSQL.
+foreach(['leads','landing_pages','selected_products'] as $table)Database::query('DELETE FROM '.$table.' WHERE user_id=?',[$id]);Database::query('DELETE FROM users WHERE id=?',[$id]);}Database::query('DELETE FROM rate_limits');unlink($file);echo "Test fixtures removed.\n";}exit;
 }
 if(is_file($file))throw new RuntimeException('Fixtures already exist; cleanup first.');
 $owner=Support::uuid();$other=Support::uuid();$password=bin2hex(random_bytes(24));$tag=substr(str_replace('-','',$owner),0,12);$email='test-'.$tag.'@example.test';$otherEmail='other-'.$tag.'@example.test';

@@ -27,6 +27,8 @@ $plan=MySqlDialect::returning('UPDATE orders SET quantity=?,notes=?,confirmation
 $assert('update returning re-reads with only the WHERE arguments',$plan['args']===['order-1']);
 $plan=MySqlDialect::returning('UPDATE leads SET status=? WHERE id=? AND user_id=? RETURNING id',['failed','lead-1','owner-1']);
 $assert('update returning keeps every WHERE argument in order',$plan['args']===['lead-1','owner-1']);
+$plan=MySqlDialect::returning("UPDATE webhook_deliveries SET status='pending' WHERE lead_id=? AND status='failed' RETURNING id",['lead-1']);
+$assert('update returning exposes table and condition to lock rows before a write that changes them',$plan['table']==='webhook_deliveries'&&$plan['where']==="lead_id=? AND status='failed'"&&$plan['returning']==='id'&&$plan['args']===['lead-1']);
 $plan=MySqlDialect::returning('INSERT INTO integrations(id,user_id,name,token_ciphertext) VALUES(?,?,?,?) RETURNING id,name,created_at,updated_at',['uuid','owner','name','cipher']);
 $assert('plain insert returning resolves primary key',is_array($plan)&&$plan['select']==='SELECT id,name,created_at,updated_at FROM integrations WHERE id=?'&&$plan['args']===['uuid']);
 $rejected=false;try{MySqlDialect::sql('INSERT INTO rate_limits(bucket) VALUES(?) ON CONFLICT(bucket) DO UPDATE SET attempts=attempts+1 WHERE attempts<10');}catch(RuntimeException){$rejected=true;}
