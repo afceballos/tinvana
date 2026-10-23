@@ -97,13 +97,13 @@ Estructura: `~/public_html` = contenido de `backend/public`; `~/tinvana` = backe
 3. Crea `~/tinvana/.env` (permisos 600), elige `DB_DRIVER=mysql`, y configura `DB_HOST=localhost`, `DB_PORT=3306`, `DB_DATABASE`, `DB_USERNAME` y `DB_PASSWORD` con los datos de cPanel. Conserva la clave `TOKEN_ENCRYPTION_KEY` vigente y la configuración de correo; no copies secretos a Git.
 4. cPanel → *Git™ Version Control* → Create: clonar `https://github.com/afceballos/tinvana.git` (rama `master`) → *Manage* → *Deploy HEAD Commit*. Ejecuta las tareas de `.cpanel.yml`. El árbol del servidor debe estar limpio.
 5. Terminal/SSH: ejecuta `php ~/tinvana/bin/console.php check` y `php ~/tinvana/bin/console.php migrate`. En MySQL, `migrate` exige las tablas importadas y no vuelve a importar ni vaciar el esquema.
-   **Sin Terminal, por cron.** El 2026-10-23 se probó ejecutar `migrate` dentro de `.cpanel.yml` y el despliegue se quedó cargando; se retiró ese paso. Causa probable, no confirmada: PHP CGI hereda el entorno de la petición web que lanza el despliegue y espera datos de entrada. No vuelvas a llamar a PHP desde `.cpanel.yml`. Usa una tarea de cron (cPanel → *Cron Jobs*), cada 15 minutos o una sola vez tras desplegar y luego se borra:
+   **Sin Terminal, por cron.** El 2026-10-23 se probó ejecutar `migrate` dentro de `.cpanel.yml` y el despliegue se quedó cargando; se retiró ese paso. Causa probable, no confirmada: PHP CGI hereda el entorno de la petición web que lanza el despliegue y espera datos de entrada. No vuelvas a llamar a PHP desde `.cpanel.yml`. Usa una tarea de cron permanente cada minuto con `migrate:auto`. Compara los archivos de migración con la huella `~/tinvana/storage/migrations.stamp` y, si no cambiaron, termina sin conectarse a la base ni escribir nada. Cuando un despliegue trae una migración nueva, la aplica en el minuto siguiente y anota fecha y resultado en el log. Si falla, no guarda la huella y lo reintenta cada minuto, dejando el error en el log hasta que se corrija.
 
    ```cron
-   */15 * * * * /usr/bin/php -q -d register_argc_argv=1 /home/USUARIO/tinvana/bin/console.php migrate >> /home/USUARIO/tinvana/storage/migrate.log 2>&1
+   * * * * * /usr/bin/php -q -d register_argc_argv=1 /home/USUARIO/tinvana/bin/console.php migrate:auto >> /home/USUARIO/migrate.log 2>&1
    ```
 
-   `migrate` es seguro de repetir: usa un bloqueo, aplica solo los archivos nuevos de `backend/mysql/migrations` y se niega a continuar si un archivo ya aplicado cambió. No borra ni importa datos. Revisa `storage/migrate.log`: cada ejecución termina en «Esquema MySQL verificado».
+   `migrate` es seguro de repetir: usa un bloqueo, aplica solo los archivos nuevos de `backend/mysql/migrations` y se niega a continuar si un archivo ya aplicado cambió. No borra ni importa datos. Revisa `~/migrate.log`: solo tiene líneas cuando hubo cambios, y cada aplicación termina en «Esquema MySQL verificado». Para forzar una revisión, borra `migrations.stamp`.
 6. Cron (cPanel → *Cron Jobs*): `php ~/tinvana/bin/console.php webhooks:work 20` y `mail:work` cada minuto; `maintenance` diario.
 7. Tras cambios de React: `npm run build`, commit de `backend/public/app` y *Deploy HEAD Commit* de nuevo.
 

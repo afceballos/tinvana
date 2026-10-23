@@ -11,6 +11,11 @@ function hiddenPassword(): string {
  if(!function_exists('shell_exec')||!stream_isatty(STDIN))throw new RuntimeException('Ejecuta este comando en una terminal interactiva.');
  fwrite(STDOUT,'Contraseña (12 a 72 bytes): ');shell_exec('stty -echo');try{$p=rtrim((string)fgets(STDIN),"\r\n");}finally{shell_exec('stty echo');fwrite(STDOUT,"\n");}return $p;
 }
+function runMigrations(): void {
+  if(Database::driver()==='mysql'){App\MySqlMigrations::run();return;}
+  $db=Database::connection();$db->exec('CREATE TABLE IF NOT EXISTS schema_migrations(version text PRIMARY KEY,checksum text NOT NULL,applied_at timestamptz NOT NULL DEFAULT now())');
+  $db->query('SELECT pg_advisory_lock(804202601)');try{foreach(glob(dirname(__DIR__).'/migrations/*.sql') as $file){$name=basename($file);$hash=hash_file('sha256',$file);$row=Database::one('SELECT checksum FROM schema_migrations WHERE version=?',[$name]);if($row){if($row['checksum']!==$hash)throw new RuntimeException('Migración aplicada modificada: '.$name);continue;}$db->beginTransaction();try{$db->exec(file_get_contents($file));Database::query('INSERT INTO schema_migrations(version,checksum) VALUES(?,?)',[$name,$hash]);$db->commit();echo "Aplicada: $name\n";}catch(Throwable $e){$db->rollBack();throw $e;}}}finally{$db->query('SELECT pg_advisory_unlock(804202601)');}
+}
 try {
  $command=$argv[1]??'help';
  if($command==='key:generate'){echo base64_encode(random_bytes(32))."\n";exit;}
@@ -20,10 +25,13 @@ try {
   if(Support::env('DB_HOST')===''){echo strtoupper($driver).": pendiente de configurar DB_HOST\n";exit(1);}
   Database::one('SELECT 1');echo strtoupper($driver).": conexión OK\n";Crypto::decrypt(Crypto::encrypt('check','check'),'check');echo "Cifrado: OK\n";exit;
  }
- if($command==='migrate'){
-  if(Database::driver()==='mysql'){App\MySqlMigrations::run();exit;}
-  $db=Database::connection();$db->exec('CREATE TABLE IF NOT EXISTS schema_migrations(version text PRIMARY KEY,checksum text NOT NULL,applied_at timestamptz NOT NULL DEFAULT now())');
-  $db->query('SELECT pg_advisory_lock(804202601)');try{foreach(glob(dirname(__DIR__).'/migrations/*.sql') as $file){$name=basename($file);$hash=hash_file('sha256',$file);$row=Database::one('SELECT checksum FROM schema_migrations WHERE version=?',[$name]);if($row){if($row['checksum']!==$hash)throw new RuntimeException('Migración aplicada modificada: '.$name);continue;}$db->beginTransaction();try{$db->exec(file_get_contents($file));Database::query('INSERT INTO schema_migrations(version,checksum) VALUES(?,?)',[$name,$hash]);$db->commit();echo "Aplicada: $name\n";}catch(Throwable $e){$db->rollBack();throw $e;}}}finally{$db->query('SELECT pg_advisory_unlock(804202601)');}exit;
+ if($command==='migrate'){runMigrations();exit;}
+ if($command==='migrate:auto'){
+  // Cron guard: no database connection unless the migration files changed since the last successful run.
+  $root=dirname(__DIR__);$files=Database::driver()==='mysql'?array_merge([$root.'/mysql/schema.sql'],glob($root.'/mysql/migrations/*.sql')?:[]):(glob($root.'/migrations/*.sql')?:[]);
+  $print=hash('sha256',implode("\n",array_map(fn($file)=>basename($file).':'.hash_file('sha256',$file),$files)));$stamp=$root.'/storage/migrations.stamp';
+  if(is_file($stamp)&&trim((string)file_get_contents($stamp))===$print)exit;
+  echo '['.gmdate('c')."] Cambios en las migraciones; aplicando.\n";runMigrations();file_put_contents($stamp,$print."\n");exit;
  }
  if($command==='admin:create'){
   $email=$argv[2]??'';if($email===''){$email=readline('Email del administrador: ');}if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Email inválido.');
@@ -56,5 +64,5 @@ try {
  if($command==='mail:work'){echo Support::json(App\AccountMail::work(min(100,max(1,(int)($argv[2]??20))))).PHP_EOL;exit;}
  if($command==='webhooks:work'){echo Support::json(Leads::deliver(min(100,max(1,(int)($argv[2]??20)))))."\n";exit;}
  if($command==='maintenance'){Database::query("UPDATE account_mail SET status='cancelled',payload_ciphertext=null,updated_at=now() WHERE status IN ('pending','failed') AND token_id IN (SELECT id FROM account_tokens WHERE expires_at<now() OR used_at IS NOT NULL)");Database::query("DELETE FROM account_tokens WHERE expires_at<now()-interval '7 days'");Database::query('DELETE FROM rate_limits WHERE expires_at<now()-interval \'1 day\'');echo "Límites vencidos eliminados.\n";exit;}
- echo "Comandos: check, key:generate, migrate, admin:create [email], integration:import email, ai:import email, webhook:import email, webhooks:work [20], mail:work [20], mail:test correo@dominio, maintenance\n";
+ echo "Comandos: check, key:generate, migrate, migrate:auto, admin:create [email], integration:import email, ai:import email, webhook:import email, webhooks:work [20], mail:work [20], mail:test correo@dominio, maintenance\n";
 }catch(Throwable $e){$driver=Support::env('DB_DRIVER','pgsql');fwrite(STDERR,'Error: '.($e instanceof PDOException?strtoupper($driver).' no disponible o consulta inválida. Comprueba la conexión y las migraciones.':$e->getMessage())."\n");exit(1);}
