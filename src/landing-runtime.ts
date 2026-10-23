@@ -1,5 +1,6 @@
 import gsap from 'gsap';
 import {prepareLeadForm} from './lead-form';
+import {showLeadSuccess} from './lead-success';
 import './landing-form.css';
 
 // Presentation only: retain PHP output, published content and all contracts unchanged.
@@ -43,7 +44,7 @@ form?.addEventListener('submit',async event=>{
  event.preventDefault();if(submitting||preview)return;setQuantity(quantity);submitting=true;
  const status=document.querySelector<HTMLElement>('#lead-status')!;const button=form.querySelector<HTMLButtonElement>('button[type=submit]')!;
  button.disabled=true;button.textContent='Enviando solicitud…';form.setAttribute('aria-busy','true');status.dataset.state='pending';status.textContent='Guardando tu solicitud…';
- try{const payload=Object.fromEntries(new FormData(form));const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':String(payload.csrf)},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok)throw new Error(result.error||'No se pudo guardar la solicitud.');status.dataset.state='success';status.textContent=result.message;button.textContent='Solicitud recibida';form.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input:not([type=hidden]),select').forEach(input=>input.disabled=true);form.dispatchEvent(new Event('lead-saved'));if(!reduced())gsap.fromTo(status,{opacity:.4,y:6},{opacity:1,y:0,duration:.25,clearProps:'all'});}
+ try{const payload=Object.fromEntries(new FormData(form));const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':String(payload.csrf)},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok)throw new Error(result.error||'No se pudo guardar la solicitud.');status.dataset.state='success';status.textContent=result.message;button.textContent='Solicitud recibida';form.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input:not([type=hidden]),select').forEach(input=>input.disabled=true);form.dispatchEvent(new Event('lead-saved'));if(purchase?.open){const returnTo=trigger;closePurchase();setTimeout(()=>showLeadSuccess(reduced(),returnTo),reduced()?0:200);}if(!reduced())gsap.fromTo(status,{opacity:.4,y:6},{opacity:1,y:0,duration:.25,clearProps:'all'});}
  catch(error){status.dataset.state='error';status.textContent=(error as Error).message;button.disabled=false;button.textContent='Reintentar solicitud';submitting=false;}
  finally{form.setAttribute('aria-busy','false');}
 });

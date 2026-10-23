@@ -54,7 +54,23 @@ final class Orders {
   $r=self::owned($owner,$id);$events=Database::all('SELECT id,event_type,order_version,data,created_at FROM order_events WHERE order_id=? AND user_id=? ORDER BY created_at DESC,id DESC LIMIT 100',[$id,$owner]);
   foreach($events as &$e)$e['data']=json_decode($e['data'],true);
   $product=ProductOffers::forOrder($r);
-  return ['order'=>self::view($r),'events'=>$events,'commercial'=>ProductOffers::view($owner,$product['id']),'dropi'=>DropiOrders::readiness($r)];
+  return ['order'=>self::view($r),'events'=>$events,'commercial'=>ProductOffers::view($owner,$product['id']),'dropi'=>DropiOrders::readiness($r),'shipping_hint'=>self::shippingHint($r)];
+ }
+ /** Shipping cost the landing shows to buyers, as a quote suggestion. Dropi's catalog has no per-product freight. */
+ public static function shippingHint(array $r): ?array {
+  $l=Database::one('SELECT l.content,l.published_content FROM landing_pages l JOIN leads a ON a.landing_page_id=l.id AND a.user_id=l.user_id WHERE a.id=? AND a.user_id=?',[$r['lead_id'],$r['user_id']]);
+  if(!$l)return null;$c=json_decode((string)($l['published_content']?:$l['content']),true);if(!is_array($c))return null;
+  $texts=[];if(is_string($c['commerce']['shipping']??null))$texts[]=$c['commerce']['shipping'];
+  foreach($c['blocks']??[] as $b)if(($b['type']??'')==='shipping'&&is_string($b['data']['cost']??null))$texts[]=$b['data']['cost'];
+  foreach($texts as $text)if($hint=self::parseShipping($text))return $hint;
+  return null;
+ }
+ /** "Gratis"/"Incluido" is 0; otherwise the first peso amount of at least 1.000 (so "2 a 5 días" is ignored). */
+ public static function parseShipping(string $text): ?array {
+  $text=trim($text);if($text==='')return null;
+  if(preg_match('/grat[ií]s|incluid|sin costo|free/iu',$text))return ['amount'=>'0.00','text'=>mb_substr($text,0,120)];
+  if(preg_match_all('/([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]+)(?:[.,]([0-9]{1,2}))?(?![0-9])/u',$text,$all,PREG_SET_ORDER))foreach($all as $m){$whole=preg_replace('/[.,]/','',$m[1]);if((int)$whole>=1000&&strlen($whole)<=9)return ['amount'=>$whole.'.'.str_pad($m[2]??'',2,'0'),'text'=>mb_substr($text,0,120)];}
+  return null;
  }
  public static function event(array $r,string $type,array $data,?string $actor): void {
   Database::query('INSERT INTO order_events(id,order_id,user_id,actor_id,event_type,order_version,data) VALUES(?,?,?,?,?,?,?::jsonb)',[Support::uuid(),$r['id'],$r['user_id'],$actor,$type,$r['version'],Support::json($data)]);
@@ -95,7 +111,7 @@ final class Orders {
     if(self::cents($unit)<1)throw new HttpError(422,'El precio público debe ser mayor que cero.');
     $notes=Support::text($b['notes']??'',2000,false);
     $address=json_decode($r['delivery_address'],true);foreach(['country','state','city','address'] as $key)if(empty($address[$key]))throw new HttpError(422,'La consulta no tiene una dirección completa. No se puede cotizar todavía.');
-    $r=Database::one("UPDATE orders SET quantity=?,unit_price=?,shipping_price=?,notes=?,variant_data=?::jsonb,offer_snapshot=?::jsonb,version=version+1,quote_id=?,quote_expires_at=LEAST(now()+interval '24 hours',COALESCE(?::timestamptz,now()+interval '24 hours')),confirmation=null,updated_at=now() WHERE id=? RETURNING *",[$qty,$unit,$shipping,$notes,Support::json($variant),Support::json($offer),Support::uuid(),$offer['ends_at']??null,$id]);
+    $r=Database::one("UPDATE orders SET quantity=?,unit_price=?,shipping_price=?,notes=?,variant_data=?::jsonb,offer_snapshot=?::jsonb,version=version+1,quote_id=?,quote_expires_at=LEAST(now()+interval '24 hours',COALESCE(?::timestamptz,now()+interval '24 hours')),confirmation=null,updated_at=now() WHERE id=? RETURNING *",[$qty,$unit,$shipping,$notes,Support::json($variant),Support::json($offer),Support::uuid(),Database::timestamp($offer['ends_at']??null),$id]);
     self::event($r,'quoted',['quantity'=>$qty,'unit_price'=>$unit,'shipping_price'=>$shipping,'quote_id'=>$r['quote_id'],'expires_at'=>$r['quote_expires_at'],'customer'=>json_decode($r['customer'],true),'delivery_address'=>json_decode($r['delivery_address'],true),'variant'=>$variant,'offer'=>$offer,'notes'=>$notes,'validation'=>'manual_not_supplier_verified'],$owner);
    }elseif($action==='confirm'){
     if($r['sale_status']!=='draft'||!$r['quote_id']||strtotime($r['quote_expires_at'])<=time())throw new HttpError(409,'Necesitas una cotización vigente antes de confirmar.');

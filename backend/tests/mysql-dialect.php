@@ -23,6 +23,10 @@ $assert('insert returning resolves conflict key',is_array($plan)&&$plan['select'
 $assert('do nothing conflict preserves null RETURNING semantics',is_array($plan)&&$plan['do_nothing']);
 $plan=MySqlDialect::returning('UPDATE orders SET version=version+1 WHERE id=? RETURNING *',['order-1']);
 $assert('update returning is read after mutation',is_array($plan)&&$plan['select']==='SELECT * FROM orders WHERE id=?');
+$plan=MySqlDialect::returning('UPDATE orders SET quantity=?,notes=?,confirmation=?::jsonb WHERE id=? RETURNING *',[2,'n','{}','order-1']);
+$assert('update returning re-reads with only the WHERE arguments',$plan['args']===['order-1']);
+$plan=MySqlDialect::returning('UPDATE leads SET status=? WHERE id=? AND user_id=? RETURNING id',['failed','lead-1','owner-1']);
+$assert('update returning keeps every WHERE argument in order',$plan['args']===['lead-1','owner-1']);
 $plan=MySqlDialect::returning('INSERT INTO integrations(id,user_id,name,token_ciphertext) VALUES(?,?,?,?) RETURNING id,name,created_at,updated_at',['uuid','owner','name','cipher']);
 $assert('plain insert returning resolves primary key',is_array($plan)&&$plan['select']==='SELECT id,name,created_at,updated_at FROM integrations WHERE id=?'&&$plan['args']===['uuid']);
 $rejected=false;try{MySqlDialect::sql('INSERT INTO rate_limits(bucket) VALUES(?) ON CONFLICT(bucket) DO UPDATE SET attempts=attempts+1 WHERE attempts<10');}catch(RuntimeException){$rejected=true;}

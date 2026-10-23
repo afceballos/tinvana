@@ -39,7 +39,9 @@ final class MySqlDialect
         if(!preg_match('/\s+RETURNING\s+(.+)\s*$/is',$sql,$match,PREG_OFFSET_CAPTURE))return null;
         $returning=trim($match[1][0]);$position=$match[0][1];$statement=rtrim(substr($sql,0,$position));
         if(preg_match('/^UPDATE\s+([a-z_][a-z0-9_]*)\s+.*?\s+WHERE\s+(.+)$/is',$statement,$update)){
-            return ['sql'=>$statement,'select'=>'SELECT '.$returning.' FROM '.$update[1].' WHERE '.$update[2],'args'=>$args,'do_nothing'=>false];
+            // Positional placeholders: the WHERE clause consumes the trailing arguments, the SET clause the rest.
+            $whereArgs=substr_count($update[2],'?');
+            return ['sql'=>$statement,'select'=>'SELECT '.$returning.' FROM '.$update[1].' WHERE '.$update[2],'args'=>$whereArgs?array_slice(array_values($args),-$whereArgs):[],'do_nothing'=>false];
         }
         if(!preg_match('/^INSERT\s+INTO\s+([a-z_][a-z0-9_]*)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/is',$statement,$insert))return null;
         $columns=array_map(static fn(string $v):string=>trim($v),explode(',',$insert[2]));

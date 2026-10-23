@@ -42,9 +42,24 @@ final class Database {
   if(self::driver()==='mysql'&&($plan=MySqlDialect::returning($sql,$args))!==null){
    $write=self::query($plan['sql'],$args);
    if($plan['do_nothing']&&$write->rowCount()===0)return null;
-   return self::query($plan['select'],$plan['args'])->fetch()?:null;
+   return self::rows(self::query($plan['select'],$plan['args']),true)[0]??null;
   }
-  return self::query($sql,$args)->fetch()?:null;
+  return self::rows(self::query($sql,$args),true)[0]??null;
  }
- public static function all(string $sql,array $args=[]): array { return self::query($sql,$args)->fetchAll(); }
+ public static function all(string $sql,array $args=[]): array { return self::rows(self::query($sql,$args)); }
+ // MySQL/MariaDB DATETIME has no zone; values are stored in UTC (session time_zone +00:00), so return them
+ // as ISO-8601 UTC like PostgreSQL timestamptz. Otherwise browsers read them as local time.
+ private static function rows(\PDOStatement $s,bool $first=false): array {
+  $rows=$first?(($row=$s->fetch())?[$row]:[]):$s->fetchAll();
+  if(!$rows||self::driver()!=='mysql')return $rows;
+  $dates=[];for($i=0;$i<$s->columnCount();$i++){$meta=$s->getColumnMeta($i);if(in_array(strtoupper((string)($meta['native_type']??'')),['DATETIME','TIMESTAMP'],true))$dates[]=$meta['name'];}
+  if(!$dates)return $rows;
+  foreach($rows as &$row)foreach($dates as $name)if(is_string($row[$name]??null)&&preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?$/D',$row[$name]))$row[$name]=str_replace(' ','T',$row[$name]).'Z';
+  return $rows;
+ }
+ // ISO-8601 instant as a SQL parameter: MySQL/MariaDB DATETIME rejects the zone suffix, so send UTC wall time there.
+ public static function timestamp(?string $iso): ?string {
+  if($iso===null)return null;$t=(new \DateTimeImmutable($iso))->setTimezone(new \DateTimeZone('UTC'));
+  return self::driver()==='mysql'?$t->format('Y-m-d H:i:s.u'):$t->format('Y-m-d\TH:i:s.uP');
+ }
 }

@@ -1,4 +1,5 @@
 import {useState} from 'react';
+import {Icon} from './ui';
 
 export type DropiState={status:'not_sent'|'sending'|'sent'|'failed'|'unknown';can_submit:boolean;can_resolve:boolean;dropi_order_id:string|null;message:string;checks:{key:string;label:string;ready:boolean}[];preview:Record<string,string|number|null>|null;last:{outcome?:string;message?:string;http_status?:number;finished_at?:string}|null};
 export const dropiLabels:Record<DropiState['status'],string>={not_sent:'No enviado a Dropi',sending:'Enviando a Dropi',sent:'Creado en Dropi',failed:'Rechazado por Dropi',unknown:'Envío por verificar'};
@@ -8,7 +9,7 @@ const rows:[string,(p:Record<string,string|number|null>)=>string][]=[['Destinata
 export function OrderDropi({dropi,busy,onSubmit,onResolve}:{dropi:DropiState;busy:boolean;onSubmit:()=>void;onResolve:(body:Record<string,unknown>)=>void}){
  const [reviewed,setReviewed]=useState(false),[outcome,setOutcome]=useState(''),[external,setExternal]=useState(''),[note,setNote]=useState('');
  const p=dropi.preview;
- return <section className="order-panel"><h2>Envío a Dropi</h2>
+ return <section className="order-panel od-card"><header className="od-card-head"><span className="od-icon"><Icon name="send"/></span><h2>Envío a Dropi</h2></header>
   <p><span className={'order-state dropi-'+dropi.status}>{dropiLabels[dropi.status]}</span>{dropi.dropi_order_id&&<strong className="order-dropi-id"> Orden Dropi #{dropi.dropi_order_id}</strong>}</p>
   <p className="muted">{dropi.message}</p>
   {dropi.last?.message&&dropi.status!=='sent'&&<p className="order-dropi-last">Último resultado: {dropi.last.message}{dropi.last.http_status?` (HTTP ${dropi.last.http_status})`:''}</p>}

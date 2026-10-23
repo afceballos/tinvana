@@ -535,6 +535,25 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** `DeliveryAddress::phone` reintenta sin ceros iniciales ni código de país repetido, y da un mensaje con el prefijo elegido que pide escribir sin él; la ayuda pide elegir la bandera y escribir sin prefijo. Guía: [LEAD-FORM.md](LEAD-FORM.md).
 - **Comprobado:** `phone.php` 16, `run.php` 69, `npm test` 107, `delivery-ui.mjs`, `lead-phone-country.mjs` 6, `profile.mjs`, `order-editing.mjs` 52. No se sabe qué número exacto usó el usuario.
 
+### 2026-10-23 · Confirmación animada al enviar el formulario
+- **Pedido del usuario:** al enviar no se veía confirmación; cerrar el popup y mostrar otro con el pájaro de papel, moderno y con el estilo de la página.
+- **Cambio:** `src/lead-success.ts`, `src/success-bird.ts`, estilos en `src/landing-form.css` y enganche en `src/landing-runtime.ts`. Pautas de las skills `gsap-core` (timeline, transformaciones, reducción de movimiento) y `ui-ux-pro-max` (confirmación visible, salida más rápida que la entrada, cierre claro). El buscador de `ui-ux-pro-max` no se pudo ejecutar porque no hay Python instalado; se consultaron sus CSV y referencias directamente. Guía: [LEAD-FORM.md](LEAD-FORM.md).
+- **Comprobado (local):** `lead-success.mjs` 12, `lead-phone-country.mjs` 6, `delivery-ui.mjs`, `tsc -b` y compilación; capturas en escritorio y móvil.
+
+### 2026-10-23 · Notificaciones flotantes sin recuadro
+- **Reporte del usuario:** las tarjetas de error e informativas se veían como cortadas, con un recuadro alrededor de la sombra.
+- **Causa:** `.toast-viewport` tiene `overflow` y solo 6 px de relleno, y recortaba la sombra de la tarjeta.
+- **Cambio:** más relleno y posición compensada en `src/notifications.css`. Detalle en [NOTIFICATIONS.md](NOTIFICATIONS.md).
+- **Comprobado:** `alerts.mjs` 18, `modern.mjs` 17, `compact.mjs` 27; capturas en claro y oscuro (escritorio). La vista móvil no se capturó.
+
+### 2026-10-23 · MariaDB local, error al cotizar, fechas y rediseño del pedido
+- **Reporte del usuario:** guardar la cotización respondía «MySQL no está disponible»; el detalle del pedido «se ve muy plantilla»; el envío debería venir prellenado.
+- **Causa del error (reproducida en MariaDB 10.11.19 local):** la emulación de `UPDATE … RETURNING` pasaba demasiados parámetros (`HY093`). Afectaba a cotizar, aceptar, corregir, reabrir, cancelar y enviar a Dropi en producción. También fallaba la fecha ISO de las ofertas (`22007`) y las fechas se mostraban 5 horas corridas. Detalle en [MIGRATION.md](MIGRATION.md#pruebas-con-mariadb-local-2026-10-23).
+- **Cambio:** `MySqlDialect`, `Database` (fechas ISO UTC y `timestamp()`), `Orders` (`shipping_hint`, fecha de oferta), rediseño de `OrderDetail` y `order-detail.css`, y cabecera con icono en `OrderDropi`. Guía: [ORDERS.md](ORDERS.md).
+- **Comprobado en MariaDB:** `order-editing.mjs` 52, `dropi-orders.mjs` 36, `compact.mjs` 27, `modern.mjs` 17, `lead-success.mjs` 12.
+- **Comprobado en PostgreSQL:** `npm test` 107, `orders.mjs` 38, `order-editing.mjs` 52, `dropi-orders.mjs` 36, `compact.mjs` 27, `alerts.mjs` 18, `delivery-ui.mjs`, `lead-phone-country.mjs` 6, `lead-success.mjs` 12, `run.php` 69, `mysql-dialect.php` 18, `phone.php` 16, `shipping-hint.php` 9 y `dropi-orders.php` 27. También `tsc -b` y la compilación; capturas en claro, oscuro y móvil.
+- **No comprobado:** el despliegue en GoDaddy con estos cambios.
+
 ### Plantilla para la próxima actualización
 
 ```text

@@ -60,3 +60,19 @@ Pruebas: `npm test` sobre el entorno local aislado; después `php backend/tests/
 La creación de órdenes en Dropi está implementada (ver [DROPI-ORDERS.md](DROPI-ORDERS.md)). Siguen pendientes la consulta automática de cobertura/fletes, guías, sincronización de estados, pagos y cancelaciones desde Tinvana.
 
 Tampoco están implementados todavía empresa con miembros y roles, combos, múltiples partidas, ofertas públicas en landings, atribución de anuncios, webhooks entrantes autenticados de GHL ni agente de WhatsApp. Las ofertas versionadas sí están disponibles para cotización interna. La IA del editor sigue generando contenido de landings. El módulo añadido no usa ni revela credenciales externas.
+
+## Detalle del pedido (rediseño 2026-10-23)
+
+`src/Orders.tsx` (`OrderDetail`) y `src/order-detail.css`, inspirados en la referencia Kofra que aportó el usuario y adaptados a la marca Tinvana:
+
+- **Cabecera:** número corto del pedido, fecha y estados de venta y Dropi.
+- **Barra de avance:** Borrador → Cotizado → Aceptado → En Dropi.
+- **Tarjeta principal oscura:** total (o «Por cotizar»), vigencia y desglose en chips (producto, envío, precio Dropi).
+- **Factura:** con barra de acento naranja.
+- **Tarjetas con icono.**
+- **Columna lateral:** muestra primero el siguiente paso. En un pedido confirmado, el envío a Dropi; en un borrador, la cotización y la aceptación.
+- **Móvil:** resumen, acción y al final el historial.
+
+Conserva las clases y los textos que usan las pruebas.
+
+**Envío sugerido:** el detalle devuelve `shipping_hint`, sacado del texto de envío de la landing publicada (`commerce.shipping` o el campo «Costo de envío» del bloque de envíos). «Gratis», «Incluido» o «Sin costo» dan 0; si no, se toma el primer monto de al menos 1.000. Si el pedido no tiene flete guardado, el campo de la cotización se rellena con ese valor y lo indica. Solo se guarda al guardar la cotización. El catálogo de Dropi no trae un flete por producto. Prueba: `php backend/tests/shipping-hint.php` (9 comprobaciones).
