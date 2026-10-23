@@ -1,31 +1,64 @@
-# Preparación de integración de órdenes Dropi
+# Envío de pedidos a Dropi
 
-## Implementado: validación local de preparación
+## Flujo
 
-`DropiOrders::readiness` se incluye en `GET /api/orders/{id}` y en la sección **Preparación para Dropi**. Revisa integración de catálogo, aceptación local, cotización vigente, dirección/códigos locales y variante cuando corresponda. No descifra tokens ni realiza llamadas de red.
+1. La consulta de la landing crea un borrador de pedido.
+2. El operador cotiza (cantidad, precio, envío y variante) y registra la aceptación del comprador. Más adelante esta aceptación podrá llegar del chatbot.
+3. En **Envío a Dropi** revisa la vista previa (destinatario, dirección, departamento y ciudad tal como se enviarán, producto, valor a recaudar) y marca la casilla de revisión.
+4. **Enviar a Dropi** crea la orden en Dropi con estado `PENDIENTE CONFIRMACION` y cobro `CON RECAUDO` (contra entrega). Ambos valores los eligió el usuario el 2026-10-23.
+5. El usuario confirma la orden en su panel de Dropi, que es cuando Dropi genera la guía.
 
-Mantiene `can_submit=false` y marca pendientes los contratos oficiales, validación de stock/cobertura/flete y prevención de duplicados/conciliación. No existe endpoint de envío activo ni una prueba de conexión ficticia para órdenes.
+## Contrato usado
 
-## Por qué aún no se envía
+No hay documentación oficial pública de la API de órdenes. El contrato se tomó del código fuente del plugin de WordPress **Dropify** (`wc-dropi-integration` 4.7.3, publicado en wordpress.org), que crea órdenes en Dropi en tiendas reales:
 
-El catálogo existente autentica con `dropi-integration-key`. El documento histórico de Scribd describe login y Bearer; varias URLs no están completas en la vista accesible. No se asume equivalencia entre esas credenciales ni se recopilan contraseñas Dropi para probar rutas adivinadas.
+- `POST https://api.dropi.co/integrations/orders/myorders`.
+- Cabecera `dropi-integration-key` con el mismo token de integración que ya usa el catálogo; cuerpo JSON.
+- Campos: `total_order`, `notes`, `name`, `surname`, `dir`, `country`, `state`, `city`, `phone`, `client_email`, `payment_method_id=1`, `status`, `type=FINAL_ORDER`, `rate_type`, `products`, `calculate_costs_and_shiping=true`, `supplier_id`, `create_product_if_not_exist=false`.
+- `products`: el objeto del producto tal como lo devolvió el catálogo (`selected_products.original_data`), con `name`, `quantity`, `price` y `variation_id` cuando hay variante. Como hace el plugin, el envío cobrado al cliente se reparte en el precio unitario para que la suma sea igual a `total_order`.
+- `supplier_id`: el `user_id` del producto en Dropi. Si el producto no lo tiene, hay que actualizar sus datos desde Dropi.
+- Respuesta: `isSuccess` y `objects.id` con el número de orden de Dropi.
+- `state` y `city`: el plugin envía el código de departamento de WooCommerce (`ANT`, `CUN`, `VAC`…) y el nombre del municipio de su propia lista. `backend/resources/geo/dropi-co.json` traduce los códigos DANE a esos valores: 1015 de 1122 municipios. Bogotá se envía como `CUN`/`Bogota`. Los municipios sin equivalencia se envían con el nombre DANE.
+- `notes` lleva la referencia `Tinvana xxxxxxxx` y la variante. Las notas internas del pedido no se envían.
 
-## Dependencias para habilitar una conexión real
+Desde este equipo no se ha llamado a ese endpoint. La primera orden real confirmará el formato de ciudades y la respuesta.
 
-- [ ] Documentación vigente y endpoints completos aprobados para Colombia.
-- [ ] Autenticación y permisos específicos para la cuenta; sandbox o instrucciones de pruebas autorizadas.
-- [ ] Contrato de cantidades, variantes, bodegas, códigos de ciudades, transportadoras e importes.
-- [ ] Consulta de stock/cobertura/flete y reglas de expiración de cotización.
-- [ ] Creación de orden con referencia estable; respuesta e identificador externo persistidos.
-- [ ] Idempotencia nativa o búsqueda fiable de orden por referencia para conciliar timeout.
-- [ ] Pruebas de error y duplicados; no reintentar creación con resultado desconocido.
-- [ ] Consulta de estados y mecanismo autorizado de sincronización, cancelación y guías.
+## Estados y duplicados
 
-Con esos contratos se implementará un adaptador con destinos HTTPS fijos, TLS verificado, timeouts, credenciales por propietario cifradas, recepción persistida y cola. No exponer autenticación al frontend ni usar mensajes de la IA para autorizar un despacho.
+`integration_status`: `not_sent` → `sending` → `sent` | `failed` | `unknown`.
 
-## Fuentes revisadas el 19 de octubre de 2026
+- `sent`: Dropi respondió con éxito y número de orden, que se guarda en `orders.dropi_order_id`.
+- `failed`: rechazo explícito (`isSuccess=false`, HTTP 4xx) o fallo de conexión antes de enviar (DNS, conexión, TLS). Dropi no creó nada y se permite reenviar.
+- `unknown`: timeout, HTTP 5xx, respuesta no JSON o éxito sin número. **No se reintenta**: la API no tiene clave de idempotencia y la orden pudo crearse. El operador la busca en Dropi y registra **la orden sí existe** (con su número) o **no existe** (vuelve a `failed`). Un envío que quedó en `sending` más de 2 minutos (proceso interrumpido) se trata igual.
+- Con `sending`, `sent` o `unknown` no se puede editar, cotizar, devolver a revisión ni cancelar localmente. Los cambios de una orden ya creada se hacen en Dropi.
+- Cada intento queda en el historial: `dropi_submit_started`, `dropi_sent`, `dropi_rejected`, `dropi_unknown` y `dropi_resolved`.
 
-- [Documento histórico aportado](https://es.scribd.com/document/683043719/Documentacion-de-Dropi-docx-7): referencia, no contrato vigente verificado.
-- [Página oficial de Dropi MCP](https://dropi.co/cr/mcp-claude): anuncia herramientas de órdenes y envíos con autorización en Dropi. Es una alternativa que debe evaluarse; no se conectó ni se integra automáticamente por tener el token del catálogo. No sustituye las pruebas de cuenta, correlación e idempotencia.
+El token nunca llega al navegador ni a los logs; los mensajes de Dropi se guardan con el token redactado.
 
-La búsqueda de documentación pública no proporcionó en esta tarea un contrato REST completo, autenticado y probado para nuestra cuenta. No confundir documentación de facturación electrónica con la API de pedidos.
+## API
+
+- `POST /api/orders/{id}/dropi` `{version, confirm:true}`: envía la orden. Requiere pedido confirmado, cotización vigente, dirección de Colombia, variante cuando aplica y producto con proveedor.
+- `POST /api/orders/{id}/dropi/resolve` `{version, outcome:'created'|'not_created', dropi_order_id?, note}`: solo con resultado desconocido.
+- `GET /api/orders/{id}` devuelve en `dropi`: `status`, `can_submit`, `can_resolve`, `dropi_order_id`, `checks`, `preview` (lo que se enviará o se envió) y `last` (último resultado).
+
+## Instalación
+
+Migración `015_dropi_order_submission` en PostgreSQL (`backend/migrations`) y MySQL (`backend/mysql/migrations`): amplía los valores de `integration_status` y añade `dropi_order_id` e `integration_data`. En el servidor: desplegar y ejecutar `php ~/tinvana/bin/console.php migrate`.
+
+## Pruebas
+
+- `php backend/tests/dropi-orders.php`: 27 comprobaciones sin base ni red (formato del cuerpo, ciudades, clasificación de respuestas, redacción del token).
+- `node tests/dropi-orders.mjs`: 36 comprobaciones contra un Dropi simulado (HTTPS local en 8443) y PostgreSQL aislado, incluida la interfaz en escritorio y móvil. Requiere el servidor de pruebas iniciado con `DROPI_ORDERS_URL=https://127.0.0.1:8443/integrations/orders/myorders` y `HTTP_CA_BUNDLE=.tools/test-cert.pem`. Esa variable solo se acepta fuera de producción y apuntando a `127.0.0.1`.
+
+## Pendiente
+
+- [ ] Primera orden real de prueba en producción, con autorización del usuario: comprobar que Dropi la acepta, que departamento y ciudad quedan bien y que se puede confirmar o cancelar desde su panel.
+- [ ] Sincronizar estados, guía y novedades desde Dropi. El plugin no lo hace; hay que encontrar el endpoint o webhook.
+- [ ] Cancelación desde Tinvana, varias partidas por pedido y aprobación automática por chatbot.
+- [ ] Pago anticipado (`SIN RECAUDO`) si se necesita.
+
+## Fuentes revisadas
+
+- Plugin Dropify en wordpress.org (`https://downloads.wordpress.org/plugin/wc-dropi-integration.zip`), archivos `clasess/models/OrdersModel.php`, `clasess/Constants.php`, `states/CO.php` y `places/CO.php`, revisados el 2026-10-23.
+- [Documento de Scribd aportado por el usuario](https://es.scribd.com/document/683043719/Documentacion-de-Dropi-docx-7): su contenido no es accesible sin sesión. Referencia histórica.
+- [Dropi MCP](https://dropi.co/cr/mcp-claude): alternativa oficial con OAuth, no evaluada.

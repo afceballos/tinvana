@@ -25,6 +25,7 @@ final class Api {
    if($method==='GET')return Orders::listing($owner,$_GET);
    if($method==='POST')return Orders::create($owner,self::body());
   }
+  if(preg_match('~^/api/orders/([^/]+)/dropi(/resolve)?$~',$path,$m)&&$method==='POST')return isset($m[2])?DropiOrders::resolve($owner,$m[1],self::body()):DropiOrders::submit($owner,$m[1],self::body());
   if(preg_match('~^/api/orders/([^/]+)(?:/(quote|confirm|cancel|customer|reopen))?$~',$path,$m)){
    if($method==='GET'&&!isset($m[2]))return Orders::detail($owner,$m[1]);
    if($method==='POST'&&isset($m[2]))return Orders::change($owner,$m[1],self::body(),$m[2]);

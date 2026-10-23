@@ -9,7 +9,7 @@ La etapa actual permite editar comprador/dirección de Colombia y devolver confi
 - El historial muestra antes/después, resumen cotizado y aceptación invalidada. El editor abierto bloquea cotizar/confirmar hasta guardar o cancelar.
 - El servicio verifica `not_sent` antes de modificar una operación. Ninguna acción local cambia estados externos.
 - Variantes y ofertas por cantidad: consultar [PRODUCT-OFFERS.md](PRODUCT-OFFERS.md). Se aplican explícitamente en la cotización, sin modificar automáticamente las landings.
-- **Preparación para Dropi** muestra requisitos locales y dependencias externas, manteniendo `can_submit=false`; ver [DROPI-ORDERS.md](DROPI-ORDERS.md).
+- **Envío a Dropi**: los pedidos confirmados se envían a Dropi como `PENDIENTE CONFIRMACION`; después del envío no se editan ni se cancelan localmente. Ver [DROPI-ORDERS.md](DROPI-ORDERS.md).
 
 Además de la migración 011, aplicar `012_order_offers.sql`. La cotización dura como máximo 24 horas y nunca sobrepasa el fin de una oferta aplicada.
 
@@ -22,7 +22,7 @@ Además de la migración 011, aplicar `012_order_offers.sql`. La cotización dur
 - Cotización manual de una partida: cantidad, precio público unitario, flete y notas. Cálculo en centavos enteros; PostgreSQL numeric. El total queda pendiente hasta especificar el flete, incluido cero explícito cuando corresponda.
 - Cotizaciones identificadas y versionadas, vigencia de 24 horas. Cada modificación exige volver a confirmar. La aceptación se registra manualmente con evidencia y operador; no equivale a aceptación recibida automáticamente por WhatsApp.
 - Control de concurrencia con bloqueo de fila y versión esperada. Confirmaciones vencidas, ajenas o sin evidencia se rechazan. Cancelación local con motivo e historial conservado.
-- Estados de venta, integración, logística y pago independientes. En esta etapa los últimos permanecen respectivamente en `not_sent`, `not_requested` y `pending`.
+- Estados de venta, integración, logística y pago independientes. La integración cambia al enviar a Dropi (`sending`, `sent`, `failed`, `unknown`); logística y pago permanecen en `not_requested` y `pending`.
 
 ## Uso
 
@@ -43,6 +43,7 @@ La dirección ahora se puede corregir en el pedido. Una dirección incompleta no
 - `POST /api/orders/{id}/cancel`: `{version,reason}`.
 - `POST /api/orders/{id}/customer`: `{version,first_name,last_name,email,phone,country_code,department_code,city_code,address,address_details,postal_code}`.
 - `POST /api/orders/{id}/reopen`: `{version,reason}`.
+- `POST /api/orders/{id}/dropi` y `/dropi/resolve`: envío y verificación manual; ver [DROPI-ORDERS.md](DROPI-ORDERS.md).
 
 La cotización acepta también `variant_id`, `use_offer` y `offer_version`. Al usar oferta PHP resuelve el precio autorizado, ignorando el importe unitario enviado por el navegador. El detalle devuelve `order`, `events`, `commercial` y `dropi` (preparación local, no respuesta externa).
 
@@ -56,6 +57,6 @@ Pruebas: `npm test` sobre el entorno local aislado; después `php backend/tests/
 
 ## Pendiente: siguientes etapas
 
-No se habilitaron creación de pedidos ni login de Dropi, consulta automática de cobertura/fletes, guías, sincronización de estados, pagos ni cancelaciones externas. La documentación de Scribd es referencia histórica, no un contrato verificado. Hay que confirmar URLs oficiales, autenticación, permisos, sandbox, idempotencia y conciliación antes de conectar esas operaciones.
+La creación de órdenes en Dropi está implementada (ver [DROPI-ORDERS.md](DROPI-ORDERS.md)). Siguen pendientes la consulta automática de cobertura/fletes, guías, sincronización de estados, pagos y cancelaciones desde Tinvana.
 
 Tampoco están implementados todavía empresa con miembros y roles, combos, múltiples partidas, ofertas públicas en landings, atribución de anuncios, webhooks entrantes autenticados de GHL ni agente de WhatsApp. Las ofertas versionadas sí están disponibles para cotización interna. La IA del editor sigue generando contenido de landings. El módulo añadido no usa ni revela credenciales externas.

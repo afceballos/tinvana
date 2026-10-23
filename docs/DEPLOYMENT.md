@@ -97,6 +97,13 @@ Estructura: `~/public_html` = contenido de `backend/public`; `~/tinvana` = backe
 3. Crea `~/tinvana/.env` (permisos 600), elige `DB_DRIVER=mysql`, y configura `DB_HOST=localhost`, `DB_PORT=3306`, `DB_DATABASE`, `DB_USERNAME` y `DB_PASSWORD` con los datos de cPanel. Conserva la clave `TOKEN_ENCRYPTION_KEY` vigente y la configuración de correo; no copies secretos a Git.
 4. cPanel → *Git™ Version Control* → Create: clonar `https://github.com/afceballos/tinvana.git` (rama `master`) → *Manage* → *Deploy HEAD Commit*. Ejecuta las tareas de `.cpanel.yml`. El árbol del servidor debe estar limpio.
 5. Terminal/SSH: ejecuta `php ~/tinvana/bin/console.php check` y `php ~/tinvana/bin/console.php migrate`. En MySQL, `migrate` exige las tablas importadas y no vuelve a importar ni vaciar el esquema.
+   **Sin Terminal:** desde el 2026-10-23, `.cpanel.yml` ejecuta `migrate` en cada *Deploy HEAD Commit*, después de copiar el backend y antes de publicar el frontend. El resultado aparece en el registro del despliegue (*Manage → Pull or Deploy → Last Deployment Information*). Si falla, el despliegue se detiene y el frontend nuevo no se publica. Alternativa por cron (cPanel → *Cron Jobs*, cada 15 minutos o una vez tras desplegar y luego se borra):
+
+   ```cron
+   */15 * * * * /usr/bin/php -q -d register_argc_argv=1 /home/USUARIO/tinvana/bin/console.php migrate >> /home/USUARIO/tinvana/storage/migrate.log 2>&1
+   ```
+
+   `migrate` es seguro de repetir: usa un bloqueo, aplica solo los archivos nuevos de `backend/mysql/migrations` y se niega a continuar si un archivo ya aplicado cambió. No borra ni importa datos. Revisa `storage/migrate.log`: cada ejecución termina en «Esquema MySQL verificado».
 6. Cron (cPanel → *Cron Jobs*): `php ~/tinvana/bin/console.php webhooks:work 20` y `mail:work` cada minuto; `maintenance` diario.
 7. Tras cambios de React: `npm run build`, commit de `backend/public/app` y *Deploy HEAD Commit* de nuevo.
 

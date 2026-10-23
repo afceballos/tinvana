@@ -71,7 +71,7 @@ try{
  check('expired offer refused for new quote',(await post(path+'/quote',{...quote,version:o.version,variant_id:'321',use_offer:true,offer_version:4})).status()===409);
  await saveOffer(4,config);
  await quoteNow({variant_id:'322',use_offer:true,offer_version:5});
- data=await(await owner.get(path)).json();check('preflight never enables unverified submission',data.dropi.can_submit===false&&data.dropi.checks.filter(c=>!c.ready).some(c=>c.key==='official_contract'));
+ data=await(await owner.get(path)).json();check('unconfirmed order cannot be sent to Dropi',data.dropi.can_submit===false&&data.dropi.checks.filter(c=>!c.ready).some(c=>c.key==='buyer_acceptance'));
  check('no guessed submit endpoint',(await post(path+'/submit',{version:o.version})).status()===404);
  const versions=JSON.parse((await helper('offer-history')).stdout);check('offer revisions persisted',versions.length===5&&versions.at(-1).version===5);
  browser=await chromium.launch({channel:'msedge',headless:true});const ctx=await browser.newContext({storageState:await owner.storageState(),viewport:{width:1440,height:1000},reducedMotion:'reduce'});const page=await ctx.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -87,7 +87,7 @@ try{
  const saveResponse=page.waitForResponse(r=>r.url().endsWith('/offers')&&r.request().method()==='PUT');await page.getByRole('button',{name:'Guardar oferta',exact:true}).click();check('offer can be saved through UI',(await saveResponse).status()===200);
  check('UI price persisted on backend',(await(await owner.get(offerPath)).json()).settings.tiers[0].unit_price==='41000.00');
  await mkdir('test-results',{recursive:true});await page.screenshot({path:'test-results/order-offers-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});check('offers fit mobile',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:'test-results/order-offers-mobile.png',fullPage:true});
- await page.goto(base+'/panel/pedidos/'+o.id);await page.getByRole('heading',{name:'Preparación para Dropi'}).waitFor();check('edited order fits mobile',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:'test-results/order-editing-mobile.png',fullPage:true});
+ await page.goto(base+'/panel/pedidos/'+o.id);await page.getByRole('heading',{name:'Envío a Dropi'}).waitFor();check('edited order fits mobile',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:'test-results/order-editing-mobile.png',fullPage:true});
  o=(await(await owner.get(path)).json()).order;await quoteNow({variant_id:'322',use_offer:true,offer_version:6});
  const confirm=await post(path+'/confirm',{version:o.version,quote_id:o.quote_id,evidence:'Aceptación de prueba para verificar reapertura en interfaz.',accepted:true});assert.equal(confirm.status(),200);
  await page.reload();await page.getByRole('heading',{name:'Corregir una compra confirmada'}).waitFor();await page.getByLabel('Motivo de la corrección').fill('El comprador pide cambiar los datos de entrega.');await page.getByRole('button',{name:'Devolver a revisión',exact:true}).click();

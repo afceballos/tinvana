@@ -266,3 +266,4 @@
 @media(max-width:1100px){
 :root[data-theme=dark] .builder-mobile-tabs{background:var(--surface)}
 }
+:root[data-theme=dark] .order-panel .order-dropi-preview{border-color:var(--border)}:root[data-theme=dark] .order-state.dropi-sent,:root[data-theme=dark] .order-state.dropi-failed,:root[data-theme=dark] .order-state.dropi-unknown,:root[data-theme=dark] .order-state.dropi-sending{background:var(--soft)}:root[data-theme=dark] .order-dropi-last{color:#ff9b9b}

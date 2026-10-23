@@ -1,6 +1,6 @@
 # Tinvana: documento maestro de contexto y continuidad
 
-Última actualización: **23 de octubre de 2026**.
+Última actualización: **23 de octubre de 2026** (envío a Dropi).
 
 Documento vivo para el propietario del proyecto, desarrolladores y otras IA. Describe el estado conocido al cerrar la última implementación; no garantiza que un túnel, proceso o servicio externo siga activo en otra sesión.
 
@@ -10,10 +10,10 @@ Documento vivo para el propietario del proyecto, desarrolladores y otras IA. Des
 - **Marca actual:** Tinvana. Zenzales/Dropi + Zenzales son nombres anteriores que aún aparecen en rutas, configuraciones técnicas y algunos documentos.
 - **Proyecto real:** en producción en **`https://tinbana.com`** (GoDaddy cPanel) con PHP + MySQL (`DB_DRIVER=mysql`); catálogo obtenido de Dropi. Supabase PostgreSQL queda como entorno histórico. No existe fallback de productos inventados. Los datos de pruebas están aislados.
 - **Estado de producción (confirmado por el usuario el 2026-10-23):** despliegue, migraciones hasta 014, login y flujos de la aplicación, correo con Resend, HTTPS Let's Encrypt (raíz y comodín `*.tinbana.com`), subdominio por tienda y cron de trabajadores funcionando. El asistente no lo comprobó directamente.
-- **Última entrega funcional:** subdominio por usuario/tienda (migración 014), capa visual moderna con modo oscuro, listas compactas, alertas por color y diagnóstico de correo.
-- **Todavía no:** creación de órdenes en Dropi, agente vendedor de WhatsApp, sincronización bidireccional de GHL, logística ni conciliación financiera.
+- **Última entrega funcional:** envío de pedidos confirmados a Dropi (migración 015), con estado `PENDIENTE CONFIRMACION` y cobro contra entrega, probado contra un Dropi simulado. **Sin desplegar y sin orden real de prueba todavía.**
+- **Todavía no:** sincronización de estados/guías desde Dropi, agente vendedor de WhatsApp, sincronización bidireccional de GHL, logística ni conciliación financiera.
 - **Últimas comprobaciones locales:** ver la bitácora del 2026-10-22 (subdominio de tienda, interfaz y regresiones). Los checks externos se distinguen de las pruebas aisladas.
-- **Siguiente paso operativo:** probar copia de seguridad/restauración de MySQL y medios, confirmar la renovación automática de los certificados en diciembre de 2026 y avanzar en el contrato oficial de órdenes Dropi y en GHL/WhatsApp.
+- **Siguiente paso operativo:** desplegar, ejecutar `migrate` (aplica 015) y hacer una orden real de prueba en Dropi con autorización del usuario; después probar copia de seguridad/restauración de MySQL y medios, confirmar la renovación automática de los certificados en diciembre de 2026 y avanzar en el contrato oficial de órdenes Dropi y en GHL/WhatsApp.
 
 Leyenda:
 
@@ -87,6 +87,7 @@ Formularios -> lead + entrega pendiente + borrador de pedido (misma transacción
 | 012 | Ofertas comerciales, historial de versiones y snapshots de oferta/variante en pedidos; aplicada a Supabase y al entorno local. |
 | 013 | Subdominio por landing (`landing_pages.subdomain`, `published_subdomain`); sustituido por 014, columnas sin uso. |
 | 014 | Subdominio de tienda por usuario (`users.store_subdomain`), en PostgreSQL y MySQL. |
+| 015 | Envío a Dropi: estados `sending/sent/failed/unknown`, `orders.dropi_order_id` e `integration_data`, en PostgreSQL y MySQL. Aplicada solo en la base local de pruebas. |
 
 Esquema acumulativo: consultar el SQL real antes de cambiarlo. Hay relaciones de propietario y restricciones de unicidad; la autorización de aplicación sigue siendo obligatoria aunque exista RLS en tablas específicas.
 
@@ -218,19 +219,17 @@ Límites de la entrega inicial: dirección de solo lectura y sin selección de v
 - [ ] Consentimientos, exclusiones, responsables, tareas y bandeja operativa ampliada.
 - [ ] Infraestructura de eventos entrantes, autenticación, outbox y correlación con sistemas externos.
 
-### 5.4 Dropi: preparación local completada, conexión externa pendiente
+### 5.4 Dropi: envío de órdenes implementado, orden real pendiente
 
-- [x] Lista de preparación por pedido: integración, aceptación, vigencia, dirección y variante. Los requisitos externos siguen pendientes y `can_submit` permanece en `false`, sin llamadas de red.
-- [x] Revisada una alternativa oficial MCP/OAuth de Dropi; documentada para evaluación, sin conectar la cuenta ni sustituir el contrato REST pendiente. Ver [DROPI-ORDERS.md](DROPI-ORDERS.md).
+Detalle en [DROPI-ORDERS.md](DROPI-ORDERS.md).
 
-- [x] Leída la documentación accesible de Scribd, con ejemplos históricos de 2021/2022.
-- [ ] Obtener documentación oficial vigente o colección Postman con URLs completas.
-- [ ] Confirmar autenticación autorizada: el catálogo usa `dropi-integration-key`; el documento histórico usa login y `Authorization: Bearer`. No son intercambiables por suposición.
-- [ ] Confirmar permisos de la cuenta, sandbox, límites, identificadores de bodegas, variantes, ciudades y transportadoras.
-- [ ] Probar consultas de stock/cobertura/fletes y definir cómo se congela una cotización.
-- [ ] Crear órdenes de prueba autorizadas, guardar referencia externa y verificar sus datos.
-- [ ] Comprobar idempotencia o búsqueda por referencia antes de habilitar reintentos de creación.
-- [ ] Manejar resultado desconocido, conciliación y revisión humana.
+- [x] Contrato tomado del código del plugin Dropify 4.7.3 (wordpress.org): `POST /integrations/orders/myorders` con `dropi-integration-key`, el mismo token del catálogo. No hay documentación oficial pública; Scribd no es accesible sin sesión.
+- [x] Botón **Enviar a Dropi** en pedidos confirmados, con vista previa y casilla de revisión. Estado `PENDIENTE CONFIRMACION` y `CON RECAUDO`, elegidos por el usuario el 2026-10-23; la guía se genera al confirmar en Dropi.
+- [x] Traducción DANE → departamento/ciudad del plugin (1015 de 1122 municipios; el resto con nombre DANE).
+- [x] Estados `sent`/`failed`/`unknown`, número de orden Dropi guardado, sin reintento automático ante resultado desconocido, verificación manual registrada y bloqueo de cambios locales tras el envío.
+- [x] 27 checks unitarios y 36 de extremo a extremo contra un Dropi simulado, incluida la interfaz.
+- [ ] Primera orden real autorizada: confirmar aceptación, formato de ciudad, confirmación y cancelación en el panel de Dropi.
+- [ ] Consultar stock/cobertura/fletes antes de cotizar; hoy el operador lo revisa a mano.
 - [ ] Consultar órdenes, guías, estados y novedades; verificar webhooks o polling permitido.
 - [ ] Confirmar capacidades de modificación/cancelación y recaudos; no confundir cartera con conciliación de cada pedido.
 
@@ -305,7 +304,9 @@ Conservar `TOKEN_ENCRYPTION_KEY` y los archivos privados al cambiar el proveedor
 | Correo Resend en producción | Funcionando según el usuario (2026-10-23) | Entrega real reportada por el usuario; no se midió entregabilidad (SPF/DKIM, spam). |
 | `npm test` | 107 checks aprobados | Sesión PHP, permisos, publicación, leads y receptor TLS local; no GHL real. |
 | `node tests/orders.mjs` | 38 checks aprobados | Pedidos locales, permisos, cotización, expiración, precisión, concurrencia por versión, deduplicación y UI. |
-| `node tests/order-editing.mjs` | 52 checks aprobados | Edición/revisión, historial, ofertas versionadas, validación de variantes y preparación bloqueada. Pruebas locales, sin órdenes externas. |
+| `node tests/order-editing.mjs` | 52 checks aprobados el 2026-10-23 | Edición/revisión, historial, ofertas versionadas y validación de variantes. Pruebas locales, sin órdenes externas. |
+| `backend/tests/dropi-orders.php` | 27 checks aprobados el 2026-10-23 | Cuerpo de la orden, ciudades y clasificación de respuestas; sin red. |
+| `node tests/dropi-orders.mjs` | 36 checks aprobados el 2026-10-23 | Envío, rechazo, resultado desconocido, verificación manual, bloqueo de duplicados e interfaz contra un Dropi simulado. **No acredita que la API real de Dropi acepte la orden.** |
 | `php -l` PHP afectado | Aprobado | Sintaxis, no prueba externa de negocio. |
 | Demo de pedidos | Aprobado en lectura | Ruta pública del panel, API autenticada y renderizado; sin modificar pedidos reales. |
 | `node tests/media-delete.mjs` | 28 checks históricos aprobados | Borrado seguro y UI sobre archivos de pruebas. No reejecutado en la entrega de documentación. |
@@ -508,6 +509,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado por el asistente:** solo que el repositorio local coincide con `origin/master` (commit `463808a`). No se accedió al servidor, a la base ni a Resend; el estado de producción es el que reporta el usuario.
 - **Cambio:** solo documentación; se actualizaron la lectura rápida, las casillas de MySQL, correo y despliegue, la tabla de migraciones (013 y 014) y [ACCOUNT-EMAIL.md](ACCOUNT-EMAIL.md).
 - **Pendiente:** backup y restauración de MySQL y medios; confirmar la renovación automática de certificados en diciembre de 2026; contrato de órdenes Dropi; GHL/WhatsApp.
+
+### 2026-10-23 · Envío de pedidos a Dropi
+- **Cambio:** `DropiOrders` envía pedidos confirmados a `POST https://api.dropi.co/integrations/orders/myorders` (contrato del plugin Dropify 4.7.3) con estado `PENDIENTE CONFIRMACION` y `CON RECAUDO`; migración 015 (PostgreSQL y MySQL); rutas `/api/orders/{id}/dropi` y `/dropi/resolve`; sección **Envío a Dropi** con vista previa; `backend/resources/geo/dropi-co.json`. Guía: [DROPI-ORDERS.md](DROPI-ORDERS.md).
+- **Comprobado (local, PostgreSQL aislado, Dropi simulado):** `dropi-orders.php` 27, `dropi-orders.mjs` 36; regresión `npm test` 107, `orders.mjs` 38, `order-editing.mjs` 52, `run.php` 69, `mysql-dialect.php` 16, `compact.mjs` 27, `modern.mjs` 17; `tsc -b` y compilación sin errores. Fixtures retirados y servicios de prueba detenidos.
+- **No comprobado:** ninguna llamada a la API real de Dropi; migración 015 sin aplicar en MySQL de GoDaddy.
+- **Siguiente paso:** desplegar, `migrate`, y una orden real de prueba autorizada por el usuario; revisarla y cancelarla o confirmarla en Dropi.
 
 ### Plantilla para la próxima actualización
 

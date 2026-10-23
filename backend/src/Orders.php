@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace App;
 
-/** Local order lifecycle. This class never submits orders to a supplier. */
+/** Local order lifecycle. Submission to Dropi lives in DropiOrders. */
 final class Orders {
  public static function fromLead(string $owner,string $leadId): array {
   if(!Support::isUuid($leadId))throw new HttpError(404,'Consulta no encontrada.');
@@ -38,7 +38,7 @@ final class Orders {
   if(!$r)throw new HttpError(404,'Pedido no encontrado.');return $r;
  }
  public static function view(array $r): array {
-  foreach(['customer','delivery_address','product_data','confirmation','variant_data','offer_snapshot'] as $key)$r[$key]=($r[$key]??null)===null?null:json_decode($r[$key],true,512,JSON_THROW_ON_ERROR);
+  foreach(['customer','delivery_address','product_data','confirmation','variant_data','offer_snapshot','integration_data'] as $key)$r[$key]=($r[$key]??null)===null?null:json_decode($r[$key],true,512,JSON_THROW_ON_ERROR);
   $r['quantity']=(int)$r['quantity'];$r['version']=(int)$r['version'];
   $r['total']=$r['unit_price']!==null&&$r['shipping_price']!==null?self::decimal(self::cents($r['unit_price'])*$r['quantity']+self::cents($r['shipping_price'])):null;
   return $r;
@@ -56,7 +56,7 @@ final class Orders {
   $product=ProductOffers::forOrder($r);
   return ['order'=>self::view($r),'events'=>$events,'commercial'=>ProductOffers::view($owner,$product['id']),'dropi'=>DropiOrders::readiness($r)];
  }
- private static function event(array $r,string $type,array $data,?string $actor): void {
+ public static function event(array $r,string $type,array $data,?string $actor): void {
   Database::query('INSERT INTO order_events(id,order_id,user_id,actor_id,event_type,order_version,data) VALUES(?,?,?,?,?,?,?::jsonb)',[Support::uuid(),$r['id'],$r['user_id'],$actor,$type,$r['version'],Support::json($data)]);
  }
  public static function change(string $owner,string $id,array $b,string $action): array {
@@ -64,7 +64,7 @@ final class Orders {
   try{
    $r=self::owned($owner,$id,true);
    if(!isset($b['version'])||!is_int($b['version'])||$b['version']!==(int)$r['version'])throw new HttpError(409,'El pedido cambió. Actualiza el detalle antes de continuar.');
-   if($r['integration_status']!=='not_sent')throw new HttpError(409,'El pedido tiene una operación externa. Necesita revisión antes de modificarlo.');
+   if(!in_array($r['integration_status'],['not_sent','failed'],true))throw new HttpError(409,$r['integration_status']==='sent'?'El pedido ya se creó en Dropi. Gestiona cambios o cancelación desde Dropi.':'El pedido tiene un envío a Dropi pendiente de revisión.');
    if($action==='customer'){
     if($r['sale_status']!=='draft')throw new HttpError(409,'Devuelve el pedido a revisión antes de editar sus datos.');
     $customer=['first_name'=>Support::text($b['first_name']??null,100),'last_name'=>Support::text($b['last_name']??null,100),'email'=>strtolower(Support::text($b['email']??null,254))];

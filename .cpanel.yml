@@ -8,5 +8,7 @@ deployment:
     - /bin/chmod 700 $HOME/tinvana/storage $HOME/tinvana/storage/sessions
     - /bin/cp -R backend/src backend/migrations backend/mysql backend/resources backend/bin $HOME/tinvana/
     - /bin/cp backend/bootstrap.php backend/blocks.json backend/composer.json backend/composer.lock $HOME/tinvana/
+    # Aplica migraciones pendientes (idempotente, con bloqueo). Si falla, el despliegue se detiene antes de publicar el frontend.
+    - /usr/bin/php -q -d register_argc_argv=1 $HOME/tinvana/bin/console.php migrate
     - /bin/cp -R backend/public/brand/. $HOME/tinvana/public/brand/
     - /bin/cp -R backend/public/. $HOME/public_html/
