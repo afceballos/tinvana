@@ -598,6 +598,11 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** la logística sigue a Dropi; la cancelación en Dropi cancela la venta y avisa al comprador; la barra de avance tiene el paso «Entregado». Migración 018. Detalle en [DROPI-ORDERS.md](DROPI-ORDERS.md).
 - **Comprobado (local):** `dropi-tracking.mjs` 26, `dropi-tracking.php` 11 y la regresión de pedidos, Dropi, correos e interfaz.
 
+### 2026-10-23 · Transportadora elegida y envío confirmado a Dropi
+- **Cambio:** el panel lista las transportadoras con su flete real de Dropi, con la más barata preseleccionada. Se puede enviar pendiente o confirmada; la confirmada exige aceptar un aviso. Detalle en [DROPI-ORDERS.md](DROPI-ORDERS.md).
+- **Comprobado (local, con Dropi simulado):** `dropi-carrier.mjs` 13 y toda la regresión de pedidos, Dropi, correos e interfaz.
+- **Sin verificar en Dropi real:** que respete la transportadora y que `PENDIENTE` equivalga a confirmar. Siguiente paso: una orden real de prueba con ENVIA, enviada confirmada.
+
 ### Plantilla para la próxima actualización
 
 ```text

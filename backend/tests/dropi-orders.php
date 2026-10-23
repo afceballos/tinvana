@@ -30,6 +30,10 @@ check('unknown codes fall back to DANE names',$fallback===['state'=>'X','city'=>
 $simple=$order;$simple['variant_data']=null;$simple['quantity']=1;
 check('no variation id without variant',!isset(DropiOrders::payload($simple,$product)['products'][0]['variation_id']));
 
+$opt=DropiOrders::payload($simple,$product,['confirmed'=>true,'carrier'=>['id'=>2,'name'=>'ENVIA']]);
+check('confirmed option sends the confirmed status',$opt['status']==='PENDIENTE');
+check('chosen carrier is sent to Dropi',$opt['distribution_company_id']===2&&$opt['shipping_company']==='ENVIA');
+check('defaults stay pending without carrier',DropiOrders::payload($simple,$product)['status']==='PENDIENTE CONFIRMACION'&&!isset(DropiOrders::payload($simple,$product)['distribution_company_id']));
 $c=fn(?string $body,int $status,int $errno=0)=>DropiOrders::classify($body,$status,$errno,'secret-token');
 $r=$c('{"isSuccess":true,"objects":{"id":123456}}',200);check('success with id is sent',$r['outcome']==='sent'&&$r['dropi_order_id']==='123456');
 $r=$c('{"isSuccess":true,"objects":[{"id":"98"}]}',201);check('list response accepted',$r['outcome']==='sent'&&$r['dropi_order_id']==='98');

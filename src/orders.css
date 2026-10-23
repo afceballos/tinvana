@@ -14,3 +14,18 @@
 .dropi-tracking .order-dropi-preview{margin:0}
 .dropi-margin .is-good{color:var(--ok-fg,#245838);font-weight:700}.dropi-margin .is-bad{color:var(--bad-fg,#8c2929);font-weight:700}
 .dropi-history{margin:4px 0}
+/* Carrier and send-mode choice before creating the Dropi order. */
+.dropi-send fieldset.dropi-choice{display:grid;gap:8px;margin:0;padding:0;border:0}
+.dropi-choice legend{margin-bottom:6px;font-size:13px;font-weight:700}
+.order-panel label.dropi-option{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--line,#ffe0cd);border-radius:12px;background:var(--surface,#fff);cursor:pointer;transition:border-color .15s ease,box-shadow .15s ease}
+.order-panel label.dropi-option input{width:18px;height:18px;margin:2px 0 0;flex:0 0 18px;accent-color:var(--orange,#ff6a00)}
+.dropi-option span{display:grid;gap:2px;flex:1}
+.dropi-option strong{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px}
+.dropi-option em{font-style:normal;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--ok-bg,#ecfdf3);color:var(--ok-fg,#245838)}
+.dropi-option small{font-size:12px;color:var(--muted)}
+.dropi-option.is-selected{border-color:var(--orange,#ff6a00);box-shadow:0 0 0 3px color-mix(in srgb,var(--orange,#ff6a00) 15%,transparent)}
+.dropi-option.is-off{opacity:.55;cursor:not-allowed}
+.dropi-confirm-warning p{margin:0 0 8px}
+/* Panel labels stack in a column by default (same override as .order-check): keep the radio beside its text. */
+.order-panel label.dropi-option{display:flex!important;flex-direction:row!important;align-items:flex-start!important;gap:10px!important}
+.order-panel label.dropi-option input{width:18px!important;height:18px!important;min-height:18px!important;margin:2px 0 0!important;padding:0!important;flex:0 0 18px}

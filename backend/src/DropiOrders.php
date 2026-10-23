@@ -12,6 +12,9 @@ namespace App;
 final class DropiOrders {
  public const URL='https://api.dropi.co/integrations/orders/myorders';
  public const STATUS='PENDIENTE CONFIRMACION';
+ // Confirmed on creation (same as the "confirmar" check in Dropi). Value inferred from the Dropi flow
+ // PENDIENTE CONFIRMACION -> PENDIENTE -> GUIA_GENERADA; to be verified with the first real order (tracking shows the result).
+ public const STATUS_CONFIRMED='PENDIENTE';
  public const RATE_TYPE='CON RECAUDO';
  private const STALE_SECONDS=120;
 
@@ -34,7 +37,8 @@ final class DropiOrders {
   return is_numeric($id)&&(int)$id>0?(int)$id:null;
  }
 
- public static function payload(array $r,array $product): array {
+ /** $opts: confirmed (bool) and carrier ['id'=>int,'name'=>string] chosen from the Dropi quote; empty keeps the defaults. */
+ public static function payload(array $r,array $product,array $opts=[]): array {
   $raw=json_decode($product['original_data'],true,512,JSON_THROW_ON_ERROR);$mapped=json_decode($product['mapped_data'],true,512,JSON_THROW_ON_ERROR);
   $customer=json_decode($r['customer'],true);$address=json_decode($r['delivery_address'],true);$variant=json_decode($r['variant_data']??'null',true);
   $qty=(int)$r['quantity'];$total=self::cents($r['unit_price'])*$qty+self::cents($r['shipping_price']);
@@ -49,12 +53,12 @@ final class DropiOrders {
    'dir'=>trim($address['address'].' '.($address['address_details']??'')),
    'country'=>'CO','state'=>$place['state'],'city'=>$place['city'],
    'phone'=>self::phone($customer['phone']),'client_email'=>$customer['email'],
-   'payment_method_id'=>1,'status'=>self::STATUS,'type'=>'FINAL_ORDER','rate_type'=>self::RATE_TYPE,
+   'payment_method_id'=>1,'status'=>($opts['confirmed']??false)===true?self::STATUS_CONFIRMED:self::STATUS,'type'=>'FINAL_ORDER','rate_type'=>self::RATE_TYPE,
    'products'=>[$line],'calculate_costs_and_shiping'=>true,'supplier_id'=>self::supplier($raw),'create_product_if_not_exist'=>false,
-  ];
+  ]+(isset($opts['carrier']['id'])?['distribution_company_id'=>$opts['carrier']['id'],'shipping_company'=>$opts['carrier']['name']]:[]);
  }
  private static function summary(array $payload): array {
-  return array_intersect_key($payload,array_flip(['total_order','notes','name','surname','dir','country','state','city','phone','client_email','status','rate_type','supplier_id']))
+  return array_intersect_key($payload,array_flip(['total_order','notes','name','surname','dir','country','state','city','phone','client_email','status','rate_type','supplier_id','distribution_company_id','shipping_company']))
    +['product_id'=>$payload['products'][0]['id']??null,'quantity'=>$payload['products'][0]['quantity'],'price'=>$payload['products'][0]['price'],'variation_id'=>$payload['products'][0]['variation_id']??null];
  }
  private static function stale(array $r): bool {
@@ -93,6 +97,17 @@ final class DropiOrders {
  /** Sends one confirmed order. Returns the refreshed order detail. */
  public static function submit(string $owner,string $id,array $b): array {
   if(($b['confirm']??false)!==true)throw new HttpError(422,'Confirma que revisaste los datos antes de enviar el pedido a Dropi.');
+  $confirmed=($b['confirmed']??false)===true;
+  if($confirmed&&($b['confirmed_ack']??false)!==true)throw new HttpError(422,'Para enviarla confirmada debes aceptar que Dropi la procesará de inmediato.');
+  $opts=['confirmed'=>$confirmed];$carrierId=$b['carrier_id']??null;
+  if($carrierId!==null){
+   if(!is_int($carrierId)||$carrierId<1)throw new HttpError(422,'Transportadora inválida.');
+   // Read-only quote (outside the transaction): the carrier must be offered for this route without error.
+   $list=DropiShipping::carriersForOrder(Orders::owned($owner,$id));
+   if($list===null)throw new HttpError(502,'No fue posible consultar las transportadoras en Dropi. Inténtalo de nuevo o deja que Dropi elija.');
+   foreach($list as $c)if($c['id']===$carrierId&&$c['price']!==null)$opts['carrier']=['id'=>$c['id'],'name'=>$c['name']];
+   if(!isset($opts['carrier']))throw new HttpError(422,'Esa transportadora no está disponible para esta ruta.');
+  }
   $db=Database::connection();$db->beginTransaction();
   try{
    $r=Orders::owned($owner,$id,true);
@@ -101,7 +116,7 @@ final class DropiOrders {
    $check=self::readiness($r);if(!$check['can_submit'])throw new HttpError(409,'Completa los requisitos de envío antes de mandar el pedido a Dropi.');
    $product=ProductOffers::forOrder($r);$integration=Database::one('SELECT * FROM integrations WHERE id=? AND user_id=?',[$product['integration_id'],$owner]);
    if(!$integration)throw new HttpError(409,'La integración de Dropi del producto ya no existe.');
-   $payload=self::payload($r,$product);$attempt=Support::uuid();$started=['attempt_id'=>$attempt,'started_at'=>gmdate('c'),'request'=>self::summary($payload)];
+   $payload=self::payload($r,$product,$opts);$attempt=Support::uuid();$started=['attempt_id'=>$attempt,'started_at'=>gmdate('c'),'request'=>self::summary($payload)];
    $r=Database::one("UPDATE orders SET integration_status='sending',integration_data=?::jsonb,version=version+1,updated_at=now() WHERE id=? RETURNING *",[Support::json($started),$id]);
    Orders::event($r,'dropi_submit_started',$started,$owner);
    $db->commit();

@@ -23,4 +23,7 @@ check('garbage entries ignored',DropiShipping::pick(['x',null,['objects'=>'y']])
 check('5-digit DIVIPOLA becomes 8-digit DANE',DropiShipping::dane('11001')==='11001000'&&DropiShipping::dane('76001000')==='76001000'&&DropiShipping::dane('1100')===null);
 check('origin from first warehouse city',DropiShipping::origin(['warehouse_product'=>[['warehouse'=>['city'=>['cod_dane'=>'76001000']]]]])==='76001000');
 check('no warehouse means no origin',DropiShipping::origin(['warehouse_product'=>[]])===null);
+$list=DropiShipping::normalize($objects);
+check('carrier list sorted cheapest first with unavailable last',$list[0]['name']==='ENVIA'&&$list[0]['amount']===17000&&$list[1]['name']==='VELOCES'&&end($list)['price']===null);
+check('unavailable carriers keep the Dropi reason',(bool)array_filter($list,fn($c)=>$c['name']==='INTERRAPIDISIMO'&&str_contains((string)$c['error'],'45.000')));
 echo "Dropi shipping checks: $passed\n";

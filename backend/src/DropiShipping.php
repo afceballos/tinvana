@@ -28,23 +28,28 @@ final class DropiShipping {
   foreach($raw['warehouse_product']??[] as $w){$code=$w['warehouse']['city']['cod_dane']??null;if(is_string($code)&&($dane=self::dane($code)))return $dane;}
   return null;
  }
+ /** Every carrier of a Dropi quote, cheapest first and unavailable ones (error or no price) last. */
+ public static function normalize(array $objects): array {
+  $list=[];
+  foreach($objects as $o){
+   if(!is_array($o))continue;$price=$o['objects']['precioEnvio']??null;$error=is_string($o['error']??null)&&trim($o['error'])!==''?mb_substr(trim($o['error']),0,160):null;
+   $ok=$error===null&&is_numeric($price)&&(float)$price>0;
+   $list[]=['id'=>is_numeric($o['transportadora_id']??null)?(int)$o['transportadora_id']:null,'name'=>(string)($o['transportadora']??''),'price'=>$ok?(float)$price:null,'amount'=>$ok?(int)(ceil((float)$price/1000)*1000):null,'error'=>$ok?null:($error??'Sin precio para esta ruta.')];
+  }
+  usort($list,fn($a,$b)=>[$a['price']===null,$a['price']??0]<=>[$b['price']===null,$b['price']??0]);
+  return $list;
+ }
  /** @return array{amount:int,raw:float,carrier:string,carrier_id:int|null}|null */
  public static function pick(array $objects): ?array {
-  $best=null;
-  foreach($objects as $o){
-   if(!is_array($o))continue;$price=$o['objects']['precioEnvio']??null;
-   if(!empty($o['error'])||!is_numeric($price)||(float)$price<=0)continue;
-   if($best===null||(float)$price<$best['raw'])$best=['raw'=>(float)$price,'carrier'=>(string)($o['transportadora']??''),'carrier_id'=>is_numeric($o['transportadora_id']??null)?(int)$o['transportadora_id']:null];
-  }
-  if($best===null)return null;
-  $best['amount']=(int)(ceil($best['raw']/1000)*1000);
-  return $best;
+  foreach(self::normalize($objects) as $c)if($c['price']!==null)return ['raw'=>$c['price'],'carrier'=>$c['name'],'carrier_id'=>$c['id'],'amount'=>$c['amount']];
+  return null;
  }
  private static function cachePath(string $key): string {return dirname(__DIR__).'/storage/cache/shipping/'.$key.'.json';}
- public static function quote(array $integration,string $origin,string $destination,int $declared,bool $cod=true): ?array {
+ /** Carrier list for a route (read-only Dropi quote, cached 6 h); null when Dropi could not answer. */
+ public static function carriers(array $integration,string $origin,string $destination,int $declared,bool $cod=true): ?array {
   $body=['EnvioConCobro'=>$cod,'ValorDeclarado'=>$declared,'ciudad_remitente'=>['cod_dane'=>$origin],'ciudad_destino'=>['cod_dane'=>$destination]];
-  $key=hash('sha256',$integration['id'].'|'.Support::json($body));$file=self::cachePath($key);
-  if(is_file($file)&&filemtime($file)>time()-self::TTL){$cached=json_decode((string)file_get_contents($file),true);if(is_array($cached))return $cached['quote'];}
+  $key=hash('sha256','carriers|'.$integration['id'].'|'.Support::json($body));$file=self::cachePath($key);
+  if(is_file($file)&&filemtime($file)>time()-self::TTL){$cached=json_decode((string)file_get_contents($file),true);if(is_array($cached['carriers']??null))return $cached['carriers'];}
   try{$token=Crypto::decrypt($integration['token_ciphertext'],$integration['id'].':'.$integration['user_id']);}catch(\Throwable){return null;}
   if($token===''||preg_match('/[\r\n]/',$token))return null;
   $c=curl_init(self::endpoint());
@@ -55,10 +60,23 @@ final class DropiShipping {
   $res=curl_exec($c);$status=(int)curl_getinfo($c,CURLINFO_RESPONSE_CODE);curl_close($c);
   $json=$res===false?null:json_decode((string)$res,true);
   if($status<200||$status>=300||!is_array($json)||($json['isSuccess']??false)!==true||!is_array($json['objects']??null)){error_log('Tinvana shipping quote failed status='.$status);return null;}
-  $quote=self::pick($json['objects']);
+  $list=self::normalize($json['objects']);
   if(!is_dir(dirname($file)))@mkdir(dirname($file),0700,true);
-  @file_put_contents($file,Support::json(['quote'=>$quote]),LOCK_EX);
-  return $quote;
+  @file_put_contents($file,Support::json(['carriers'=>$list]),LOCK_EX);
+  return $list;
+ }
+ public static function quote(array $integration,string $origin,string $destination,int $declared,bool $cod=true): ?array {
+  $list=self::carriers($integration,$origin,$destination,$declared,$cod);if($list===null)return null;
+  foreach($list as $c)if($c['price']!==null)return ['raw'=>$c['price'],'carrier'=>$c['name'],'carrier_id'=>$c['id'],'amount'=>$c['amount']];
+  return null;
+ }
+ /** Carriers for a saved order: product warehouse to the buyer city, cash on delivery, declared product value. */
+ public static function carriersForOrder(array $order): ?array {
+  $p=ProductOffers::forOrder($order);$origin=self::origin(json_decode((string)$p['original_data'],true)?:[]);
+  $a=json_decode((string)$order['delivery_address'],true)?:[];$destination=self::dane((string)($a['city_code']??''));
+  $integration=Database::one('SELECT * FROM integrations WHERE id=? AND user_id=?',[$p['integration_id'],$order['user_id']]);
+  if(!$origin||!$destination||!$integration||$order['unit_price']===null)return null;
+  return self::carriers($integration,$origin,$destination,(int)round((float)$order['unit_price']*(int)$order['quantity']),true);
  }
  /** Quote for a published landing; null when disabled, not computable or Dropi has no carrier for the city. */
  public static function forLanding(array $landing,string $cityCode,int $quantity): ?array {

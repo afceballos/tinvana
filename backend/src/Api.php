@@ -25,6 +25,7 @@ final class Api {
    if($method==='GET')return Orders::listing($owner,$_GET);
    if($method==='POST')return Orders::create($owner,self::body());
   }
+  if(preg_match('~^/api/orders/([^/]+)/dropi/carriers$~',$path,$m)&&$method==='POST'){Auth::limit('dropi-carriers:'.$owner,30,600);$list=DropiShipping::carriersForOrder(Orders::owned($owner,$m[1]));if($list===null)throw new HttpError(502,'No fue posible consultar las transportadoras en Dropi para este pedido.');return ['carriers'=>$list];}
   if(preg_match('~^/api/orders/([^/]+)/dropi/sync$~',$path,$m)&&$method==='POST'){Auth::limit('dropi-sync:'.$owner,30,600);return DropiTracking::refresh($owner,$m[1]);}
   if(preg_match('~^/api/orders/([^/]+)/dropi(/resolve)?$~',$path,$m)&&$method==='POST')return isset($m[2])?DropiOrders::resolve($owner,$m[1],self::body()):DropiOrders::submit($owner,$m[1],self::body());
   if(preg_match('~^/api/orders/([^/]+)(?:/(quote|confirm|cancel|customer|reopen))?$~',$path,$m)){
