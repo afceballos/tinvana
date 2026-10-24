@@ -35,6 +35,17 @@ try {
   if(is_file($stamp)&&trim((string)file_get_contents($stamp))===$print)exit;
   echo '['.gmdate('c')."] Cambios en las migraciones; aplicando.\n";runMigrations();file_put_contents($stamp,$print."\n");exit;
  }
+ // Superadmin is granted only from the server console, never from the web panel.
+ if(in_array($command,['superadmin:grant','superadmin:revoke'],true)){
+  $email=strtolower((string)($argv[2]??''));$u=$email!==''?Database::one('SELECT id,role FROM users WHERE email=?',[$email]):null;if(!$u)throw new RuntimeException('No existe un usuario con ese email.');
+  $grant=$command==='superadmin:grant';$role=$grant?'superadmin':'admin';
+  if(!$grant&&$u['role']!=='superadmin')throw new RuntimeException('Ese usuario no es superusuario.');
+  // Changing the role closes the account sessions so the panel reloads with the new permissions.
+  Database::query("UPDATE users SET role=?,status='active',session_version=session_version+1,updated_at=now() WHERE id=?",[$role,$u['id']]);
+  Database::query('INSERT INTO admin_audit(id,actor_id,target_user_id,action,data) VALUES(?,?,?,?,?::jsonb)',[App\Support::uuid(),null,$u['id'],$grant?'superadmin_granted':'superadmin_revoked',App\Support::json(['source'=>'console'])]);
+  echo ($grant?'Superusuario asignado a ':'Superusuario retirado de ').$email.". Vuelve a iniciar sesión.
+";exit;
+ }
  if($command==='admin:create'){
   $email=$argv[2]??'';if($email===''){$email=readline('Email del administrador: ');}if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Email inválido.');
   if(Database::one('SELECT id FROM users WHERE email=?',[strtolower($email)]))throw new RuntimeException('Ese usuario ya existe.');
@@ -69,5 +80,5 @@ try {
  if($command==='mail:work'){$max=min(100,max(1,(int)($argv[2]??20)));$result=App\AccountMail::work($max);$result['orders']=App\OrderMail::work($max);echo Support::json($result).PHP_EOL;exit;}
  if($command==='webhooks:work'){echo Support::json(Leads::deliver(min(100,max(1,(int)($argv[2]??20)))))."\n";exit;}
  if($command==='maintenance'){Database::query("UPDATE account_mail SET status='cancelled',payload_ciphertext=null,updated_at=now() WHERE status IN ('pending','failed') AND token_id IN (SELECT id FROM account_tokens WHERE expires_at<now() OR used_at IS NOT NULL)");Database::query("DELETE FROM account_tokens WHERE expires_at<now()-interval '7 days'");Database::query('DELETE FROM rate_limits WHERE expires_at<now()-interval \'1 day\'');echo "Límites vencidos eliminados.\n";exit;}
- echo "Comandos: check, key:generate, migrate, migrate:auto, admin:create [email], integration:import email, ai:import email, webhook:import email, webhooks:work [20], mail:work [20], mail:test correo@dominio, dropi:shipping-probe [email] [dane_destino] [full], dropi:order-probe [orden_dropi], dropi:sync [40], maintenance\n";
+ echo "Comandos: check, key:generate, migrate, migrate:auto, admin:create [email], superadmin:grant email, superadmin:revoke email, integration:import email, ai:import email, webhook:import email, webhooks:work [20], mail:work [20], mail:test correo@dominio, dropi:shipping-probe [email] [dane_destino] [full], dropi:order-probe [orden_dropi], dropi:sync [40], maintenance\n";
 }catch(Throwable $e){$driver=Support::env('DB_DRIVER','pgsql');fwrite(STDERR,'Error: '.($e instanceof PDOException?strtoupper($driver).' no disponible o consulta inválida (SQLSTATE '.$e->getCode().'). Comprueba la conexión y las migraciones.':$e->getMessage())."\n");exit(1);}

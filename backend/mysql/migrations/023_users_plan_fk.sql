@@ -1,0 +1,1 @@
+ALTER TABLE users ADD CONSTRAINT users_plan_fk FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE SET NULL

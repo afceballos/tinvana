@@ -87,6 +87,7 @@ Formularios -> lead + entrega pendiente + borrador de pedido (misma transacción
 | 012 | Ofertas comerciales, historial de versiones y snapshots de oferta/variante en pedidos; aplicada a Supabase y al entorno local. |
 | 013 | Subdominio por landing (`landing_pages.subdomain`, `published_subdomain`); sustituido por 014, columnas sin uso. |
 | 014 | Subdominio de tienda por usuario (`users.store_subdomain`), en PostgreSQL y MySQL. |
+| 019 | Superusuario y planes: `users.status`, `plan_id`, `plan_expires_at`, `entitlement_overrides`, `admin_note`, `last_login_at` y rol `superadmin`; tablas `plans`, `app_settings` y `admin_audit` (en MySQL, 020 a 025). |
 | 018 | Logística reflejada desde Dropi: valores ampliados de `logistics_status` (en MySQL, 019). |
 | 017 | Seguimiento de Dropi: `orders.dropi_status`, `dropi_tracking` y `dropi_synced_at` (en MySQL, 018). |
 | 016 | Correos de pedidos: tabla `order_mail` y `users.mail_settings` (en MySQL, archivos 016 y 017). |
@@ -341,6 +342,7 @@ Estado al cerrar las pruebas de pedidos: fixtures eliminados y servicios de prue
 | Pedidos y correcciones | [ORDERS.md](ORDERS.md) |
 | Ofertas y variantes | [PRODUCT-OFFERS.md](PRODUCT-OFFERS.md) |
 | Preparación de órdenes Dropi | [DROPI-ORDERS.md](DROPI-ORDERS.md) |
+| Superusuario, planes y permisos | [ADMIN.md](ADMIN.md) |
 | Consultas, dirección y GHL | [LEAD-FORM.md](LEAD-FORM.md), [GHL.md](GHL.md) |
 | Constructor y encabezado | [BUILDER.md](BUILDER.md), [LANDING-HEADER.md](LANDING-HEADER.md) |
 | Productos relacionados | [PRODUCT-LIST.md](PRODUCT-LIST.md) |
@@ -604,6 +606,18 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Nuevo:** las notas que se escriben en Dropi al cambiar de estado o cancelar se ven en el historial de Dropi y en el de Tinvana.
 - **Comprobado (local, con Dropi simulado):** regresión completa.
 - **Sin verificar en Dropi real:** que `PENDIENTE` equivalga a confirmar y el nombre del campo `notes` en una cancelación real.
+
+### 2026-10-23 · Superusuario, planes y permisos
+- **Pedido del usuario:** un superusuario para administrar las cuentas, activar o desactivar funciones, y gestionar planes y límites de landings, con valor global y valor por cuenta. Hoy todas las cuentas conservan acceso a todo.
+- **Cambio:**
+  - rol `superadmin`, asignado solo por consola;
+  - sección Administración con cuentas, planes, valores globales y auditoría;
+  - funciones y límites en tres capas: global, plan y cuenta;
+  - suspensión de cuentas, con las landings fuera de línea.
+  - Detalle en [ADMIN.md](ADMIN.md).
+- **Corrección encontrada:** `/panel/correos` faltaba en la lista de rutas del panel que sirve PHP, así que al recargar daba 404. Corregido junto con las rutas de administración.
+- **Comprobado (local):** `admin.mjs` 39 y la regresión de pedidos, Dropi, correos, perfil, tienda, constructor, IA e interfaz.
+- **Pendiente:** aplicar en producción (deploy y `migrate:auto`, migraciones 020 a 025) y asignar el superusuario con `superadmin:grant`. La pasarela de pago y la página pública de planes son el siguiente paso.
 
 ### Plantilla para la próxima actualización
 

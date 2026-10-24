@@ -56,7 +56,7 @@ final class OrderMail {
  }
  /** Queue one email for an order unless the owner disabled it; duplicates per order version are ignored. */
  public static function queue(array $order,string $kind): void {
-  if(!in_array($kind,self::KINDS,true))return;
+  if(!in_array($kind,self::KINDS,true)||!Entitlements::allows((string)$order['user_id'],'mail'))return;
   $settings=self::settings((string)$order['user_id']);if(!$settings['enabled'][$kind])return;
   $data=self::snapshot($order,$settings);$to=$kind==='owner_new_order'?$settings['owner_email']:$data['email'];
   if(!filter_var($to,FILTER_VALIDATE_EMAIL))return;

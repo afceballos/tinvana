@@ -43,6 +43,8 @@ final class Leads {
     WHERE (d.status='pending' AND d.next_attempt_at<=now()) OR (d.status='processing' AND d.locked_at<now()-interval '5 minutes')
     ORDER BY d.next_attempt_at FOR UPDATE OF d SKIP LOCKED LIMIT 1");
    if(!$d){$db->commit();break;}
+   // GHL disabled for the account (plan or override): the delivery waits, without spending attempts, until it is enabled again.
+   if(!Entitlements::allows((string)$d['destination_owner'],'ghl')){Database::query("UPDATE webhook_deliveries SET status='pending',locked_at=null,next_attempt_at=now()+interval '1 hour',updated_at=now() WHERE id=?",[$d['id']]);$db->commit();continue;}
    Database::query("UPDATE webhook_deliveries SET status='processing',locked_at=now(),updated_at=now() WHERE id=?",[$d['id']]);$db->commit();
    $l=Database::one('SELECT * FROM leads WHERE id=?',[$d['lead_id']]);$payload=array_merge(json_decode($l['product_data'],true),['lead_id'=>$l['id'],'idempotency_key'=>$l['id'],'first_name'=>$l['first_name'],'last_name'=>$l['last_name'],'email'=>$l['email'],'phone'=>$l['phone']]);
    $address=json_decode($l['delivery_address']??'{}',true);foreach(['country_code','country','department_code','state','city_code','city','address','address_details','postal_code'] as $field)$payload[$field]=$address[$field]??null;$payload['phone_country']=$l['phone_country']??null;

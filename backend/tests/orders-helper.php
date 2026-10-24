@@ -40,3 +40,10 @@ if(($argv[1]??'')==='mail-queue')echo Support::json(Database::all('SELECT kind,s
 if(($argv[1]??'')==='mail-reset'){Database::query('DELETE FROM order_mail WHERE user_id=?',[$fixture['owner']]);Database::query('UPDATE users SET mail_settings=NULL WHERE id=?',[$fixture['owner']]);}
 if(($argv[1]??'')==='dropi-mark-sent')Database::query("UPDATE orders SET integration_status='sent',dropi_order_id=?,dropi_status=NULL,dropi_tracking=NULL,dropi_synced_at=NULL WHERE id=? AND user_id=?",[$argv[3],$argv[2],$fixture['owner']]);
 if(($argv[1]??'')==='dropi-sync-due'){Database::query('UPDATE orders SET dropi_synced_at=NULL WHERE user_id=?',[$fixture['owner']]);echo Support::json(App\DropiTracking::syncDue(40));}
+if(($argv[1]??'')==='admin-reset'){
+ // Plans, global defaults, audit and the account fields of both fixture users back to a clean state.
+ $ids=[$fixture['owner'],$fixture['otherOwner']];
+ Database::query("UPDATE users SET role=CASE WHEN role='superadmin' THEN 'admin' ELSE role END,status='active',plan_id=NULL,plan_expires_at=NULL,entitlement_overrides=NULL,admin_note=NULL WHERE id IN (?,?)",$ids);
+ Database::query('DELETE FROM admin_audit');Database::query('DELETE FROM plans');Database::query("DELETE FROM app_settings WHERE setting_key='entitlements'");
+ Database::query("DELETE FROM integrations WHERE user_id IN (?,?) AND name LIKE 'Admin test%'",$ids);
+}

@@ -73,7 +73,7 @@ final class DropiShipping {
  /** Quote for a published landing; null when disabled, not computable or Dropi has no carrier for the city. */
  public static function forLanding(array $landing,string $cityCode,int $quantity): ?array {
   $r=Landing::decode($landing);$c=$r['content'];
-  if(($c['commerce']['dropiShipping']??false)!==true||$c['publicPrice']===null)return null;
+  if(($c['commerce']['dropiShipping']??false)!==true||$c['publicPrice']===null||!Entitlements::allows((string)$r['user_id'],'dropi_shipping'))return null;
   $destination=self::dane($cityCode);if(!$destination)return null;
   $p=Database::one('SELECT integration_id,original_data FROM selected_products WHERE id=? AND user_id=?',[$r['selected_product_id'],$r['user_id']]);if(!$p)return null;
   $origin=self::origin(json_decode((string)$p['original_data'],true)?:[]);if(!$origin)return null;

@@ -6,7 +6,7 @@ final class Api {
  public static function owned(string $table,string $id,string $owner): array { if(!in_array($table,['integrations','selected_products','landing_pages','leads'],true)||!Support::isUuid($id))throw new HttpError(404,'Registro no encontrado.');$r=Database::one("SELECT * FROM $table WHERE id=? AND user_id=?",[$id,$owner]);if(!$r)throw new HttpError(404,'Registro no encontrado.');return $r; }
  public static function integrationView(array $r): array {return ['id'=>$r['id'],'name'=>$r['name'],'configured'=>true,'created_at'=>$r['created_at'],'updated_at'=>$r['updated_at']];}
  public static function handle(string $path,string $method): array {
-  if($path==='/api/auth/session'&&$method==='GET'){$user=null;if(isset($_SESSION['user_id'])){try{$user=Auth::user();}catch(HttpError $e){if($e->status!==401)throw $e;unset($_SESSION['user_id'],$_SESSION['session_version']);session_regenerate_id(true);$_SESSION['csrf']=bin2hex(random_bytes(32));}}return ['user'=>$user,'csrf'=>$_SESSION['csrf']];}
+  if($path==='/api/auth/session'&&$method==='GET'){$user=null;if(isset($_SESSION['user_id'])){try{$user=Auth::user();}catch(HttpError $e){if($e->status!==401)throw $e;unset($_SESSION['user_id'],$_SESSION['session_version']);session_regenerate_id(true);$_SESSION['csrf']=bin2hex(random_bytes(32));}}return ['user'=>$user?$user+['access'=>Entitlements::view($user['id'])]:null,'csrf'=>$_SESSION['csrf']];}
   if(!in_array($method,['GET','HEAD'],true))Auth::csrf();
   if($path==='/api/auth/login'&&$method==='POST')return Auth::login(self::body());
   if($method==='POST'){
@@ -17,6 +17,13 @@ final class Api {
    if($path==='/api/auth/reset-password')return AccountRecovery::complete('reset',self::body());
   }
   $u=Auth::user();$owner=$u['id'];
+  if(str_starts_with($path,'/api/admin/'))return Admin::handle($u,$path,$method);
+  if($path==='/api/access'&&$method==='GET')return Entitlements::view($owner);
+  // Plan features, enforced for the whole module here; the panel only hides what this would refuse. [pattern, feature, writes only]
+  foreach([['~^/api/orders/[^/]+/dropi~','dropi_orders',false],['~^/api/orders~','orders',false],['~^/api/landings/[^/]+/ai$~','ai',false],['~^/api/ai/~','ai',true],
+   ['~^/api/integrations/[^/]+/(products|categories)$~','catalog',false],['~^/api/webhook-settings$~','ghl',true],['~^/api/mail-settings~','mail',true],['~^/api/profile/store$~','store',false],
+   ['~^/api/landings/[^/]+/(publish)$~','publish',false],['~^/api/landings/~','landings',true],['~^/api/builder-templates$~','landings',true],['~^/api/products/[^/]+/(landing|offers)$~','landings',true]] as [$pattern,$feature,$writes])
+   if(preg_match($pattern,$path)&&(!$writes||!in_array($method,['GET','HEAD'],true))){Entitlements::require($owner,$feature);break;}
   if(preg_match('~^/api/products/([^/]+)/offers$~',$path,$m)){
    if($method==='GET')return ProductOffers::view($owner,$m[1]);
    if($method==='PUT')return ProductOffers::save($owner,$m[1],self::body());
@@ -61,7 +68,7 @@ final class Api {
   if($path==='/api/auth/logout'&&$method==='POST'){Auth::logout();return ['ok'=>true];}
   if($path==='/api/integrations'){
    if($method==='GET')return ['integrations'=>array_map([self::class,'integrationView'],Database::all('SELECT id,name,created_at,updated_at FROM integrations WHERE user_id=? ORDER BY created_at',[$owner]))];
-   if($method==='POST'){$b=self::body();$id=Support::uuid();$name=Support::text($b['name']??null,120);$token=Support::text($b['token']??null,4096);if(preg_match('/[\r\n]/',$token))throw new HttpError(422,'Token inválido.');$cipher=Crypto::encrypt($token,$id.':'.$owner);$r=Database::one('INSERT INTO integrations(id,user_id,name,token_ciphertext) VALUES(?,?,?,?) RETURNING id,name,created_at,updated_at',[$id,$owner,$name,$cipher]);return ['integration'=>self::integrationView($r)];}
+   if($method==='POST'){Entitlements::ensureRoom($owner,'integrations');$b=self::body();$id=Support::uuid();$name=Support::text($b['name']??null,120);$token=Support::text($b['token']??null,4096);if(preg_match('/[\r\n]/',$token))throw new HttpError(422,'Token inválido.');$cipher=Crypto::encrypt($token,$id.':'.$owner);$r=Database::one('INSERT INTO integrations(id,user_id,name,token_ciphertext) VALUES(?,?,?,?) RETURNING id,name,created_at,updated_at',[$id,$owner,$name,$cipher]);return ['integration'=>self::integrationView($r)];}
   }
   if(preg_match('~^/api/integrations/([^/]+)(?:/(test|products|categories))?$~',$path,$m)){
    $r=self::owned('integrations',$m[1],$owner);$action=$m[2]??'';
@@ -79,8 +86,9 @@ final class Api {
   if($path==='/api/products'){
    if($method==='GET'){$rows=Database::all('SELECT p.*,l.id AS landing_id,COALESCE(l.published_slug,l.slug) AS slug,l.status AS publication_status FROM selected_products p LEFT JOIN landing_pages l ON l.selected_product_id=p.id WHERE p.user_id=? ORDER BY p.created_at DESC',[$owner]);$store=Store::subdomainOf($owner);foreach($rows as &$p){$p['product']=json_decode($p['mapped_data'],true);$p['public_url']=$p['publication_status']==='published'?Store::landingUrl((string)$p['slug'],$store):null;unset($p['original_data'],$p['mapped_data']);}return ['products'=>$rows];}
    if($method==='POST'){
-    $b=self::body();$integration=self::owned('integrations',(string)($b['integration_id']??''),$owner);$id=(string)($b['dropi_id']??'');if(!preg_match('/^[1-9][0-9]{0,17}$/',$id))throw new HttpError(422,'ID de producto inválido.');
+    Entitlements::require($owner,'catalog');$b=self::body();$integration=self::owned('integrations',(string)($b['integration_id']??''),$owner);$id=(string)($b['dropi_id']??'');if(!preg_match('/^[1-9][0-9]{0,17}$/',$id))throw new HttpError(422,'ID de producto inválido.');
     $raw=null;foreach($_SESSION['catalog_pages'][$integration['id']]??[] as $page)if($page['at']>time()-900)foreach($page['objects'] as $p)if((string)$p['id']===$id)$raw=$p;
+    if(!Database::one('SELECT id FROM selected_products WHERE integration_id=? AND dropi_id=? AND user_id=?',[$integration['id'],$id,$owner]))Entitlements::ensureRoom($owner,'products');
     if(!$raw)$raw=Dropi::find($integration,$id);
     $r=Database::one('INSERT INTO selected_products(id,user_id,integration_id,dropi_id,original_data,mapped_data) VALUES(?,?,?,?,?::jsonb,?::jsonb) ON CONFLICT(integration_id,dropi_id) DO UPDATE SET updated_at=selected_products.updated_at RETURNING id',[Support::uuid(),$owner,$integration['id'],$id,Support::json($raw),Support::json(Product::map($raw))]);return ['id'=>$r['id']];
    }
@@ -88,7 +96,7 @@ final class Api {
   if(preg_match('~^/api/products/([^/]+)(?:/(landing|refresh))?$~',$path,$m)){
    $p=self::owned('selected_products',$m[1],$owner);$action=$m[2]??'';
    if($method==='DELETE'&&$action===''){if(Database::one('SELECT id FROM landing_pages WHERE selected_product_id=?',[$p['id']]))throw new HttpError(409,'El producto tiene una landing. Conserva su selección para mantener el historial.');Database::query('DELETE FROM selected_products WHERE id=? AND user_id=?',[$p['id'],$owner]);return ['ok'=>true];}
-   if($method==='POST'&&$action==='landing'){$r=Database::one('SELECT * FROM landing_pages WHERE selected_product_id=? AND user_id=?',[$p['id'],$owner])??Landing::create($p,$owner);return ['landing'=>Landing::decode($r)];}
+   if($method==='POST'&&$action==='landing'){$r=Database::one('SELECT * FROM landing_pages WHERE selected_product_id=? AND user_id=?',[$p['id'],$owner]);if(!$r){Entitlements::ensureRoom($owner,'landings');$r=Landing::create($p,$owner);}return ['landing'=>Landing::decode($r)];}
    if($method==='POST'&&$action==='refresh'){
     $integration=self::owned('integrations',$p['integration_id'],$owner);$raw=Dropi::find($integration,(string)$p['dropi_id']);$mapped=Support::json(Product::map($raw));$db=Database::connection();$db->beginTransaction();try{Database::query('UPDATE selected_products SET original_data=?::jsonb,mapped_data=?::jsonb,updated_at=now() WHERE id=?',[Support::json($raw),$mapped,$p['id']]);Database::query('UPDATE landing_pages SET product_snapshot=?::jsonb,updated_at=now() WHERE selected_product_id=? AND user_id=?',[$mapped,$p['id'],$owner]);$db->commit();}catch(\Throwable $e){$db->rollBack();throw $e;}return ['ok'=>true,'message'=>'Datos originales actualizados; contenido comercial conservado.'];
    }
@@ -111,7 +119,7 @@ final class Api {
    if($method==='GET'&&$action==='')return ['landing'=>Store::decorate(Landing::decode($r))];
    if($method==='PUT'&&$action===''){$b=self::body();$c=Landing::content($b['content']??[]);Blocks::ownedProducts($c['blocks'],$owner);$db=Database::connection();$db->beginTransaction();try{Database::query('SELECT id FROM landing_pages WHERE id=? AND user_id=? FOR UPDATE',[$r['id'],$owner]);Media::validateReferences(Blocks::imageUrls($c),$owner,$r['id']);$slug=Landing::slug($b['slug']??'');Landing::checkSlug($slug,$r['id']);Database::query('UPDATE landing_pages SET slug=?,content=?::jsonb,updated_at=now() WHERE id=? AND user_id=?',[$slug,Support::json($c),$r['id'],$owner]);$db->commit();}catch(\Throwable $e){$db->rollBack();throw $e;}return ['landing'=>Store::decorate(Landing::decode(self::owned('landing_pages',$r['id'],$owner)))];}
    if($method==='POST'&&$action==='render'){$b=self::body();$c=Landing::content($b['content']??[]);Blocks::ownedProducts($c['blocks'],$owner);Media::validateReferences(Blocks::imageUrls($c),$owner,$r['id']);$r['content']=$c;$r['slug']=Landing::slug($b['slug']??$r['slug']);$_GET['expires']=time()+900;$_GET['signature']=hash_hmac('sha256',$r['id'].':'.$_GET['expires'],base64_decode(Support::env('TOKEN_ENCRYPTION_KEY'),true));return ['html'=>Landing::render($r,true)];}
-   if($method==='POST'&&$action==='publish'){Landing::publish($r);return ['ok'=>true];}
+   if($method==='POST'&&$action==='publish'){if($r['status']!=='published')Entitlements::ensureRoom($owner,'published_landings');Landing::publish($r);return ['ok'=>true];}
    if($method==='POST'&&$action==='unpublish'){Database::query("UPDATE landing_pages SET status='draft',published_at=null,updated_at=now() WHERE id=? AND user_id=?",[$r['id'],$owner]);return ['ok'=>true];}
    if($method==='POST'&&$action==='preview-link'){
     $expires=time()+900;$payload=$r['id'].':'.$expires;$key=base64_decode(Support::env('TOKEN_ENCRYPTION_KEY'),true);if(!$key)throw new \RuntimeException('Falta clave de cifrado.');$signature=hash_hmac('sha256',$payload,$key);return ['url'=>'/preview/'.$r['id'].'?expires='.$expires.'&signature='.$signature,'expires_at'=>gmdate('c',$expires)];

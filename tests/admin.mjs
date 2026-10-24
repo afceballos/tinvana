@@ -1,0 +1,86 @@
+import {chromium,request} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
+import {execFile} from 'node:child_process';import {promisify} from 'node:util';import assert from 'node:assert/strict';
+// Superadmin, plans, global defaults, per-account overrides, limits and suspension. Local isolated database only.
+// Requires the test server started with the test environment (the console command reads the same variables).
+const base='http://127.0.0.1:8081',f=JSON.parse(await readFile('.tools/test-fixture.json','utf8')),run=promisify(execFile);let checks=0,browser;
+const check=(name,value)=>{assert(value,name);checks++;console.log('PASS '+name);};
+const helper=async(...a)=>(await run('.tools/php/php.exe',['backend/tests/orders-helper.php',...a])).stdout;
+const consoleCmd=async(...a)=>(await run('.tools/php/php.exe',['backend/bin/console.php',...a])).stdout;
+async function session(email){const ctx=await request.newContext({baseURL:base});const s=await(await ctx.get('/api/auth/session')).json();const r=await ctx.post('/api/auth/login',{headers:{'X-CSRF-Token':s.csrf},data:{email,password:f.password}});const csrf=(await(await ctx.get('/api/auth/session')).json()).csrf;return {ctx,status:r.status(),body:await r.json(),H:{'X-CSRF-Token':csrf}};}
+// "other" becomes the superadmin; the fixture owner (with the published landing) is the restricted account.
+let admin,owner;
+try{
+ await helper('reset-limits');await helper('admin-reset');
+ owner=await session(f.email);
+ check('session carries the account access, all enabled by default',owner.body.user.access.features.orders===true&&owner.body.user.access.limits.landings===null&&owner.body.user.access.usage.landings>=1);
+ check('admin API hidden from normal accounts',(await owner.ctx.get('/api/admin/summary')).status()===404);
+ check('fixture landing published',(await owner.ctx.post('/api/landings/'+f.landing+'/publish',{headers:owner.H})).status()===200);
+ check('console grants superadmin',(await consoleCmd('superadmin:grant',f.otherEmail)).includes('Superusuario asignado'));
+ admin=await session(f.otherEmail);const A=admin.H;
+ check('superadmin reaches the admin API',(await admin.ctx.get('/api/admin/summary')).status()===200&&admin.body.user.role==='superadmin');
+ const users=(await(await admin.ctx.get('/api/admin/users?q='+encodeURIComponent(f.email))).json()).users;
+ check('account search by email',users.length===1&&users[0].id===f.owner&&users[0].published>=1);
+ check('admin writes require CSRF',(await admin.ctx.post('/api/admin/plans',{headers:{'X-CSRF-Token':'bad'},data:{name:'X'}})).status()===419);
+ let r=await admin.ctx.post('/api/admin/plans',{headers:A,data:{name:'Básico',description:'Para empezar',price:0,period:'free',highlights:['1 integración'],features:{ai:false,orders:false},limits:{integrations:1},is_default:true}});
+ const basic=(await r.json()).plan;check('plan created as default',r.status()===200&&basic.is_default&&basic.features.ai===false&&basic.limits.integrations===1);
+ r=await admin.ctx.post('/api/admin/plans',{headers:A,data:{name:'Pro',price:49900,period:'month',features:{},limits:{}}});const pro=(await r.json()).plan;
+ check('invalid limit rejected',(await admin.ctx.post('/api/admin/plans',{headers:A,data:{name:'Malo',limits:{landings:-1}}})).status()===422);
+ let access=await(await owner.ctx.get('/api/access')).json();
+ check('default plan applies to accounts without plan',access.plan.name==='Básico'&&access.features.orders===false&&access.features.ai===false&&access.limits.integrations===1);
+ check('disabled module refused by the server',(await owner.ctx.get('/api/orders')).status()===403&&(await owner.ctx.post('/api/landings/'+f.landing+'/ai',{headers:owner.H,data:{}})).status()===403);
+ check('disabled feature message names it',(await(await owner.ctx.get('/api/orders')).json()).error.includes('Gestionar pedidos'));
+ check('limit reached refuses one more',(await owner.ctx.post('/api/integrations',{headers:owner.H,data:{name:'Admin test 1',token:'abc'}})).status()===403);
+ r=await admin.ctx.put('/api/admin/users/'+f.owner,{headers:A,data:{overrides:{features:{orders:true},limits:{integrations:null}},note:'Pagó por transferencia'}});
+ check('per-account override saved',r.status()===200&&(await r.json()).effective.features.orders===true);
+ check('override wins over the plan',(await owner.ctx.get('/api/orders')).status()===200&&(await owner.ctx.post('/api/integrations',{headers:owner.H,data:{name:'Admin test 2',token:'abc'}})).status()===200);
+ r=await admin.ctx.put('/api/admin/users/'+f.owner,{headers:A,data:{plan_id:pro.id,plan_expires_at:'2020-01-01'}});
+ check('expired plan falls back to the default plan',(await r.json()).effective.plan.name==='Básico');
+ r=await admin.ctx.put('/api/admin/users/'+f.owner,{headers:A,data:{plan_id:pro.id,plan_expires_at:null}});
+ check('assigned plan applies',(await r.json()).effective.plan.name==='Pro'&&(await(await owner.ctx.get('/api/access')).json()).features.ai===true);
+ r=await admin.ctx.put('/api/admin/entitlements',{headers:A,data:{features:{mail:false},limits:{landings:5}}});
+ check('global defaults saved',r.status()===200&&(await r.json()).defaults.limits.landings===5);
+ access=await(await owner.ctx.get('/api/access')).json();check('global defaults reach accounts under the plan',access.features.mail===false&&access.limits.landings===5&&access.features.ai===true);
+ check('mail settings refused when mail disabled',(await owner.ctx.put('/api/mail-settings',{headers:owner.H,data:{settings:{}}})).status()===403);
+ check('plan with accounts cannot be deleted',(await admin.ctx.delete('/api/admin/plans/'+pro.id,{headers:A})).status()===409);
+ check('superadmin cannot be suspended from the panel',(await admin.ctx.put('/api/admin/users/'+f.otherOwner,{headers:A,data:{status:'suspended'}})).status()===422);
+ check('public landing online before suspension',(await owner.ctx.get('/p/'+f.slug)).status()===200);
+ r=await admin.ctx.put('/api/admin/users/'+f.owner,{headers:A,data:{status:'suspended'}});check('account suspended',(await r.json()).user.status==='suspended');
+ check('open session closed on suspension',(await owner.ctx.get('/api/products')).status()===401);
+ const again=await session(f.email);check('suspended account cannot log in',again.status===403&&again.body.error.includes('suspendida'));await again.ctx.dispose();
+ const visitor=await request.newContext({baseURL:base});check('suspended account landing offline',(await visitor.get('/p/'+f.slug)).status()===404);await visitor.dispose();
+ await admin.ctx.put('/api/admin/users/'+f.owner,{headers:A,data:{status:'active'}});
+ const audit=(await(await admin.ctx.get('/api/admin/audit')).json()).entries;
+ check('every change is audited without secrets',audit.some(a=>a.action==='plan_created')&&audit.some(a=>a.action==='superadmin_granted')&&audit.some(a=>a.action==='defaults_updated')&&audit.filter(a=>a.action==='account_updated').length>=4&&!JSON.stringify(audit).includes('password')&&!JSON.stringify(audit).includes('token'));
+ // Panel
+ await owner.ctx.dispose();owner=await session(f.email);
+ browser=await chromium.launch({channel:'msedge',headless:true});const errors=[];
+ const adminPage=await(await browser.newContext({storageState:await admin.ctx.storageState(),viewport:{width:1440,height:1000},reducedMotion:'reduce'})).newPage();adminPage.on('pageerror',e=>errors.push(e.message));
+ await adminPage.goto(base+'/panel/admin');await adminPage.locator('.admin-table').waitFor();
+ check('superadmin sees Administración in the menu',await adminPage.locator('.app-sidebar nav a',{hasText:'Administración'}).count()===1);
+ check('accounts table shows plan and status',(await adminPage.locator('.admin-table').innerText()).includes(f.email)&&(await adminPage.locator('.admin-table').innerText()).includes('Pro'));
+ await adminPage.screenshot({path:'test-results/admin-accounts.png',fullPage:true});
+ await adminPage.locator('.admin-table a',{hasText:f.email}).click();await adminPage.locator('.admin-rules').first().waitFor();
+ check('account detail shows usage and note',(await adminPage.locator('main').innerText()).includes('En uso:')&&await adminPage.locator('textarea').inputValue()==='Pagó por transferencia');
+ await adminPage.screenshot({path:'test-results/admin-account.png',fullPage:true});
+ await adminPage.goto(base+'/panel/admin/planes');await adminPage.locator('.admin-plan').first().waitFor();
+ check('plans page lists plans with price',(await adminPage.locator('.admin-plans').innerText()).includes('49.900'));
+ await adminPage.screenshot({path:'test-results/admin-plans.png',fullPage:true});
+ await adminPage.getByRole('button',{name:'Editar'}).first().click();await adminPage.getByRole('button',{name:'Guardar plan'}).waitFor();await adminPage.screenshot({path:'test-results/admin-plan-edit.png',fullPage:true});
+ await adminPage.goto(base+'/panel/admin/globales');await adminPage.getByRole('button',{name:'Guardar valores globales'}).waitFor();
+ await adminPage.goto(base+'/panel/admin/auditoria');await adminPage.locator('.admin-audit li').first().waitFor();check('audit page lists changes',await adminPage.locator('.admin-audit li').count()>=5);
+ await adminPage.setViewportSize({width:390,height:900});await adminPage.goto(base+'/panel/admin');await adminPage.locator('.admin-table').waitFor();check('admin fits mobile',await adminPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ await admin.ctx.put('/api/admin/users/'+f.owner,{headers:A,data:{plan_id:basic.id,overrides:{features:{},limits:{}}}});
+ await owner.ctx.dispose();owner=await session(f.email);
+ const ownerPage=await(await browser.newContext({storageState:await owner.ctx.storageState(),viewport:{width:1440,height:1000},reducedMotion:'reduce'})).newPage();ownerPage.on('pageerror',e=>errors.push(e.message));
+ await ownerPage.goto(base+'/panel/productos');await ownerPage.locator('.app-sidebar nav a').first().waitFor();
+ const nav=await ownerPage.locator('.app-sidebar nav').innerText();
+ check('restricted account menu hides disabled modules and admin',!nav.includes('Pedidos')&&!nav.includes('Integraciones de IA')&&!nav.includes('Administración')&&nav.includes('Mis productos'));
+ await ownerPage.goto(base+'/panel/pedidos');await ownerPage.locator('.plan-locked').waitFor();
+ check('direct link to a disabled module shows the plan notice',(await ownerPage.locator('.plan-locked').innerText()).includes('Básico'));
+ await ownerPage.screenshot({path:'test-results/admin-locked.png'});
+ await ownerPage.goto(base+'/panel/admin');check('admin route not available to normal accounts',await ownerPage.locator('.admin-page').count()===0);
+ check('no browser errors',errors.length===0);
+ check('console revokes superadmin',(await consoleCmd('superadmin:revoke',f.otherEmail)).includes('retirado'));
+ console.log(`${checks} admin checks passed. Local isolated database only.`);
+}finally{await helper('admin-reset').catch(()=>{});await helper('reset-limits').catch(()=>{});await browser?.close();await admin?.ctx.dispose();await owner?.ctx.dispose();}

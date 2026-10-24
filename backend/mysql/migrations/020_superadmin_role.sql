@@ -1,0 +1,1 @@
+ALTER TABLE users DROP CONSTRAINT users_role_ck, ADD CONSTRAINT users_role_v2_ck CHECK (role IN ('superadmin','admin','user'))

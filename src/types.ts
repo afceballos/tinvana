@@ -1,4 +1,5 @@
-export type User={id:string;email:string;role:string;first_name?:string;last_name?:string;avatar?:string|null};
+export type Access={plan:{id:string;name:string}|null;features:Record<string,boolean>;limits:Record<string,number|null>;usage:Record<string,number>};
+export type User={id:string;email:string;role:string;first_name?:string;last_name?:string;avatar?:string|null;access?:Access};
 export type Integration={id:string;name:string;configured:boolean};
 export type Product={id:string;name:string;description:string;price:number|null;suggestedPrice:number|null;sku:string|null;images:string[];categories:{id:string|null;name:string|null}[];stock:number|null;warehouses:{name:string|null;city:string|null;stock:number|null}[];supplier:string|null;type?:string|null;supplierStatus?:string|null;attributes:unknown[];variations:unknown[];selectedId?:string|null};
 export type Visual={primaryColor:string;backgroundColor:string;buttonText:string;whatsapp:string};
