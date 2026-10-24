@@ -2,9 +2,19 @@
 declare(strict_types=1);
 namespace App;
 final class Landing {
- public static function defaults(): array { return ['primaryColor'=>'#193e35','backgroundColor'=>'#fafbf7','buttonText'=>'Pedir ahora','whatsapp'=>'']; }
+ public const THEMES=['modern','warm','bold'];
+ public const FONTS=['rubik','montserrat','fraunces','grotesk'];
+ public const THEME_FONTS=['modern'=>'rubik','warm'=>'fraunces','bold'=>'grotesk'];
+ public const SHARE=['native','whatsapp','facebook','copy'];
+ public static function defaults(): array { return ['primaryColor'=>'#ff6a00','backgroundColor'=>'#fff8f1','buttonText'=>'Pedir ahora','whatsapp'=>'','theme'=>'modern','font'=>'rubik','share'=>array_fill_keys(self::SHARE,false)]; }
  public static function visual(array $s): array {
-  $r=self::defaults();foreach(['primaryColor','backgroundColor'] as $k){$v=$s[$k]??$r[$k];if(!is_string($v)||!preg_match('/^#[a-f0-9]{6}$/i',$v))throw new HttpError(422,'Color inválido.');$r[$k]=$v;}
+  // Palettes that were only the old platform defaults count as "no colors chosen" and take the current defaults.
+  foreach([['#193e35','#fafbf7'],['#06444a','#f4faf7']] as [$p,$bg])if(strtolower((string)($s['primaryColor']??''))===$p&&strtolower((string)($s['backgroundColor']??''))===$bg)unset($s['primaryColor'],$s['backgroundColor']);
+  $r=self::defaults();
+  $theme=$s['theme']??'modern';if(!is_string($theme)||!in_array($theme,self::THEMES,true))throw new HttpError(422,'Estilo de landing inválido.');$r['theme']=$theme;
+  $font=$s['font']??self::THEME_FONTS[$theme];if(!is_string($font)||!in_array($font,self::FONTS,true))throw new HttpError(422,'Tipografía inválida.');$r['font']=$font;
+  $share=$s['share']??[];if(!is_array($share))throw new HttpError(422,'Opciones de compartir inválidas.');foreach(self::SHARE as $k){$v=$share[$k]??false;if(!is_bool($v))throw new HttpError(422,'Opciones de compartir inválidas.');$r['share'][$k]=$v;}
+  foreach(['primaryColor','backgroundColor'] as $k){$v=$s[$k]??$r[$k];if(!is_string($v)||!preg_match('/^#[a-f0-9]{6}$/i',$v))throw new HttpError(422,'Color inválido.');$r[$k]=$v;}
   $r['buttonText']=Support::text($s['buttonText']??$r['buttonText'],100);
   $r['whatsapp']=Support::text($s['whatsapp']??'',20,false);if($r['whatsapp']!==''&&!preg_match('/^[1-9][0-9]{7,14}$/',$r['whatsapp']))throw new HttpError(422,'WhatsApp requiere código de país y números, sin +.');return $r;
  }

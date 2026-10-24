@@ -1,7 +1,7 @@
-.delivery-fields{border:0;border-top:1px solid #ffe0cd;padding:24px 0 0;margin:24px 0;min-width:0}.delivery-fields legend{font-family:Montserrat,sans-serif;font-size:19px;font-weight:700;padding:0 12px 0 0;color:#1e1e1e}.delivery-fields>.form-help{margin:8px 0 22px;line-height:1.6}.delivery-fields .delivery-full{grid-column:1/-1}
-#lead-form .form-grid{gap:18px}#lead-form select{width:100%;min-width:0;min-height:48px;padding:12px;border:1px solid #ffe0cd;border-radius:10px;background:#fff;color:#1e1e1e;font:inherit;font-size:16px}#lead-form select:disabled{background:#fff8f1;color:#68746b}#lead-form input{font-size:16px}#lead-form input::placeholder{color:#8b4b25}#lead-form select:focus-visible{outline:3px solid #8b4b25;outline-offset:3px}
-.phone-field{display:flex;flex-direction:column;gap:8px;min-width:0}.form-help{font-size:13px;font-weight:400;color:#8b4b25;line-height:1.5}.phone-country-fallback{margin-bottom:8px}.is-phone-enhanced .phone-country-fallback{display:none}.phone-field>.iti{width:100%}.phone-field .iti__tel-input{width:100%;min-height:48px}.phone-field .iti__selected-country{min-height:44px;color:#1e1e1e;font:inherit;font-size:14px;border-radius:10px 0 0 10px}.phone-field .iti__selected-country:hover{background:#fff8f1}
-#purchase-dialog{--iti-border-color:#ffe0cd;--iti-hover-color:#fff8f1;--iti-dropdown-bg:#fff;--iti-spacer-horizontal:12px;--iti-search-icon-color:#8b4b25;--iti-text-color:#1e1e1e}#purchase-dialog .iti__country-container{z-index:2}#purchase-dialog .iti__dropdown-content{border:1px solid #ffe0cd;border-radius:14px;box-shadow:0 12px 32px #1e1e1e24;overflow:hidden;color:#1e1e1e;font-family:Montserrat,sans-serif}#purchase-dialog .iti__country{min-height:44px;gap:10px;font-size:14px}#purchase-dialog .iti__search-input{border:0;border-bottom:1px solid #ffe0cd;border-radius:0;margin:0;font-size:16px}#purchase-dialog .iti__selected-dial-code{color:#8b4b25;font-weight:600}#purchase-dialog .iti__country-list{max-height:250px}#purchase-dialog .iti__country-selector{z-index:50}
+.delivery-fields{border:0;border-top:1px solid var(--line,#ffe0cd);padding:24px 0 0;margin:24px 0;min-width:0}.delivery-fields legend{font-family:Montserrat,sans-serif;font-size:19px;font-weight:700;padding:0 12px 0 0;color:#1e1e1e}.delivery-fields>.form-help{margin:8px 0 22px;line-height:1.6}.delivery-fields .delivery-full{grid-column:1/-1}
+#lead-form .form-grid{gap:18px}#lead-form select{width:100%;min-width:0;min-height:48px;padding:12px;border:1px solid var(--line,#ffe0cd);border-radius:10px;background:#fff;color:#1e1e1e;font:inherit;font-size:16px}#lead-form select:disabled{background:var(--tint,#fff8f1);color:#68746b}#lead-form input{font-size:16px}#lead-form input::placeholder{color:var(--accent-text,#8b4b25)}#lead-form select:focus-visible{outline:3px solid var(--accent-text,#8b4b25);outline-offset:3px}
+.phone-field{display:flex;flex-direction:column;gap:8px;min-width:0}.form-help{font-size:13px;font-weight:400;color:var(--accent-text,#8b4b25);line-height:1.5}.phone-country-fallback{margin-bottom:8px}.is-phone-enhanced .phone-country-fallback{display:none}.phone-field>.iti{width:100%}.phone-field .iti__tel-input{width:100%;min-height:48px}.phone-field .iti__selected-country{min-height:44px;color:#1e1e1e;font:inherit;font-size:14px;border-radius:10px 0 0 10px}.phone-field .iti__selected-country:hover{background:var(--tint,#fff8f1)}
+#purchase-dialog{--iti-border-color:var(--line,#ffe0cd);--iti-hover-color:var(--tint,#fff8f1);--iti-dropdown-bg:#fff;--iti-spacer-horizontal:12px;--iti-search-icon-color:var(--accent-text,#8b4b25);--iti-text-color:#1e1e1e}#purchase-dialog .iti__country-container{z-index:2}#purchase-dialog .iti__dropdown-content{border:1px solid var(--line,#ffe0cd);border-radius:14px;box-shadow:0 12px 32px #1e1e1e24;overflow:hidden;color:#1e1e1e;font-family:Montserrat,sans-serif}#purchase-dialog .iti__country{min-height:44px;gap:10px;font-size:14px}#purchase-dialog .iti__search-input{border:0;border-bottom:1px solid var(--line,#ffe0cd);border-radius:0;margin:0;font-size:16px}#purchase-dialog .iti__selected-dial-code{color:var(--accent-text,#8b4b25);font-weight:600}#purchase-dialog .iti__country-list{max-height:250px}#purchase-dialog .iti__country-selector{z-index:50}
 @media(max-width:600px){.delivery-fields{padding-top:20px;margin-top:20px}#lead-form .form-grid{grid-template-columns:1fr;gap:16px}#purchase-dialog .iti__dropdown-content{max-width:calc(100vw - 32px)}}
 .iti{--iti-path-flags-1x:url('/brand/phone/flags.webp');--iti-path-flags-2x:url('/brand/phone/flags@2x.webp')}
 #lead-form .form-grid{align-items:start}.purchase-modal-top{position:sticky;top:0;z-index:4;background:#fff}
@@ -18,7 +18,7 @@
 #purchase-dialog .iti__country-name{overflow-wrap:anywhere}
 .form-label-help{display:flex;align-items:center;gap:6px}.form-label-help>label{margin:0}.form-label-help>legend{float:none;padding:0}
 #purchase-dialog .form-info{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:16px;height:16px;min-height:0;padding:0;margin:0;border:0;background:transparent;color:#1e1e1e;font:700 11px Montserrat,sans-serif;cursor:pointer;border-radius:50%;position:relative}
-.form-info::before{content:'';position:absolute;width:14px;height:14px;border:1px solid currentColor;border-radius:50%}.form-info:hover{background:#fff8f1}.form-info:focus-visible{outline:2px solid #8b4b25;outline-offset:1px}
+.form-info::before{content:'';position:absolute;width:14px;height:14px;border:1px solid currentColor;border-radius:50%}.form-info:hover{background:var(--tint,#fff8f1)}.form-info:focus-visible{outline:2px solid var(--accent-text,#8b4b25);outline-offset:1px}
 #purchase-dialog .form-tooltip{position:fixed;z-index:80;width:max-content;max-width:min(300px,calc(100vw - 56px));padding:12px 16px;border:1px solid #1e1e1e;border-radius:12px;background:#1e1e1e;color:#fff;font:400 14px/1.55 Montserrat,sans-serif;box-shadow:0 8px 28px #1e1e1e30;pointer-events:none}
 .form-tooltip[hidden],[hidden].form-help,[hidden].order-note{display:none!important}
 @media(max-width:600px){#purchase-dialog[open]{max-height:96dvh}}
@@ -37,7 +37,7 @@
 /* A compact, inline list below the telephone; it stays inside the form scroll. */
 .phone-country-dropdown:empty{display:none}
 #purchase-dialog .phone-country-dropdown .iti--detached-country-selector{position:static;inset:auto;width:100%;padding:0;margin:0;anchor-name:none;position-anchor:auto}
-#purchase-dialog .phone-country-dropdown .iti__country-selector:not(.iti__hide){display:flex;flex-direction:column;max-height:260px;width:100%!important;border:1px solid #ffe0cd;border-radius:12px;overflow:hidden;box-shadow:0 6px 18px #1e1e1e14}
+#purchase-dialog .phone-country-dropdown .iti__country-selector:not(.iti__hide){display:flex;flex-direction:column;max-height:260px;width:100%!important;border:1px solid var(--line,#ffe0cd);border-radius:12px;overflow:hidden;box-shadow:0 6px 18px #1e1e1e14}
 #purchase-dialog .phone-country-dropdown .iti__country-list{max-height:200px;min-height:0;overflow-y:auto}
 #purchase-dialog .phone-country-dropdown .iti__country{min-height:40px;font-size:13px;gap:8px}
 #purchase-dialog .phone-country-dropdown .iti__search-input{height:44px;min-height:44px;border-radius:0}
@@ -52,7 +52,7 @@
 /* Purchase confirmation popup (src/lead-success.ts). Inherits the landing --primary/--paper colours. */
 .lead-success{width:min(420px,calc(100vw - 32px));max-height:94dvh;border:0;padding:0;margin:auto;border-radius:28px;background:transparent;overflow:visible;color:#1e1e1e}
 .lead-success::backdrop{background:#1e1e1e8c;backdrop-filter:blur(4px)}
-.ls-card{position:relative;padding:30px 28px 26px;text-align:center;border-radius:28px;background:linear-gradient(180deg,var(--paper,#fff8f1) 0%,#fff 65%);border:1px solid var(--line,#ffe0cd);box-shadow:0 30px 90px #1e1e1e40}
+.ls-card{position:relative;padding:30px 28px 26px;text-align:center;border-radius:28px;background:linear-gradient(180deg,var(--paper,var(--tint,#fff8f1)) 0%,#fff 65%);border:1px solid var(--line,var(--line,#ffe0cd));box-shadow:0 30px 90px #1e1e1e40}
 .ls-art{position:relative;width:184px;height:132px;margin:0 auto 14px}
 .ls-glow{position:absolute;inset:-10px 0;border-radius:50%;background:radial-gradient(circle,#ffba3d59 0%,#ff6a0017 52%,transparent 72%)}
 .ls-bird{position:relative;display:block;width:100%;height:100%;overflow:visible}
@@ -69,10 +69,10 @@
 .ls-button:focus-visible{outline:3px solid #ffba3d;outline-offset:3px}
 @media(max-width:420px){.ls-card{padding:26px 20px 20px}.ls-art{width:156px;height:112px}.lead-success h2{font-size:23px}}
 /* Optional Dropi freight in the purchase summary (data-shipping="dropi"). */
-.order-shipping{display:grid;gap:6px;margin:10px 0 0;padding:12px 14px;border:1px solid var(--line,#ffe0cd);border-radius:12px}
+.order-shipping{display:grid;gap:6px;margin:10px 0 0;padding:12px 14px;border:1px solid var(--line,var(--line,#ffe0cd));border-radius:12px}
 .order-shipping>div{display:flex;justify-content:space-between;gap:12px;margin:0}
 .order-shipping dt{color:#57504b}.order-shipping dd{margin:0;font-variant-numeric:tabular-nums;text-align:right}
-.order-shipping .is-total{padding-top:6px;border-top:1px solid var(--line,#ffe0cd);font-weight:700;font-size:16px}
+.order-shipping .is-total{padding-top:6px;border-top:1px solid var(--line,var(--line,#ffe0cd));font-weight:700;font-size:16px}
 .order-shipping .is-total dt{color:inherit}
 .order-shipping-note{margin:6px 0 0;font-size:12px;color:#6b625c}
-.order-shipping-inline{margin:4px 0 12px;padding:10px 12px;border-radius:12px;background:var(--paper,#fff8f1);font-size:14px;font-variant-numeric:tabular-nums}
+.order-shipping-inline{margin:4px 0 12px;padding:10px 12px;border-radius:12px;background:var(--paper,var(--tint,#fff8f1));font-size:14px;font-variant-numeric:tabular-nums}

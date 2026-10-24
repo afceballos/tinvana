@@ -83,3 +83,53 @@
 :root[data-theme=dark] .ts-page .ts-copy h3,:root[data-theme=dark] .ts-page .ts-price strong,:root[data-theme=dark] .ts-page .ts-nav b{color:#1e1e1e}
 :root[data-theme=dark] .ts-page .ts-copy p,:root[data-theme=dark] .ts-page .ts-trust{color:#5c4d43}
 :root[data-theme=dark] .ts-page .ts-price s{color:#8a7667}
+/* ---------- Landing style, typography and share choices (also used in the landing editor) ---------- */
+@font-face{font-family:"LP Rubik";src:url(/landing-fonts/rubik.woff2) format("woff2");font-weight:400 800;font-display:swap}
+@font-face{font-family:"LP Montserrat";src:url(/landing-fonts/montserrat.woff2) format("woff2");font-weight:400 800;font-display:swap}
+@font-face{font-family:"LP Fraunces";src:url(/landing-fonts/fraunces.woff2) format("woff2");font-weight:400 800;font-display:swap}
+@font-face{font-family:"LP Grotesk";src:url(/landing-fonts/grotesk.woff2) format("woff2");font-weight:400 700;font-display:swap}
+.lp-font-rubik{font-family:"LP Rubik",sans-serif}.lp-font-montserrat{font-family:"LP Montserrat",sans-serif}.lp-font-fraunces{font-family:"LP Fraunces",serif}.lp-font-grotesk{font-family:"LP Grotesk",sans-serif}
+.ts-choice-group{display:grid;gap:10px;margin:0;padding:0;border:0;min-width:0}
+.ts-choice-group legend{margin-bottom:8px;font-size:14px;font-weight:700}
+.ts-choice-group input[type=radio],.ts-choice-group input[type=checkbox]{position:absolute;opacity:0;pointer-events:none}
+.ts-themes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.ts-theme{position:relative;display:grid;gap:6px;align-content:start;padding:10px 10px 12px;border:1px solid var(--stroke);border-radius:14px;background:var(--surface);cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .2s var(--ease-out)}
+.ts-theme:hover{transform:translateY(-2px);border-color:var(--orange)}
+.ts-theme.is-active{border-color:var(--orange);box-shadow:0 0 0 3px #ff6a001f}
+.ts-theme:has(input:focus-visible),.ts-font:has(input:focus-visible),.ts-share-option:has(input:focus-visible){outline:3px solid #ff6a0066;outline-offset:2px}
+.ts-theme strong{font-size:13px}.ts-theme small{font-size:12px;line-height:1.45;color:var(--muted)}
+.ts-theme-art{position:relative;display:block;height:64px;border-radius:10px;background:var(--ts-bg);overflow:hidden}
+.ts-theme-art i{position:absolute;left:10px;top:12px;width:44%;height:8px;border-radius:4px;background:#1e1e1e;opacity:.85}
+.ts-theme-art b{position:absolute;left:10px;bottom:12px;width:34%;height:14px;border-radius:999px;background:var(--ts-primary)}
+.ts-theme-art em{position:absolute;right:10px;top:10px;width:30%;height:44px;border-radius:10px;background:radial-gradient(circle at 50% 40%,#fff 0 40%,color-mix(in srgb,var(--ts-primary) 22%,#fff))}
+.ts-theme-warm .ts-theme-art{background:#fbf3e6}.ts-theme-warm .ts-theme-art i{font-family:serif;height:9px;border-radius:2px}
+.ts-theme-warm .ts-theme-art em{clip-path:polygon(0 0,calc(100% - 9px) 0,100% 9px,100% 100%,0 100%);border-radius:6px}
+.ts-theme-bold .ts-theme-art{background:var(--ts-primary)}.ts-theme-bold .ts-theme-art i{background:#fff;opacity:1}
+.ts-theme-bold .ts-theme-art b{background:#1e1e1e;border-radius:4px;box-shadow:3px 3px 0 #fff}
+.ts-theme-bold .ts-theme-art em{background:#fff;border:2px solid #1e1e1e;border-radius:6px;box-shadow:3px 3px 0 #1e1e1e}
+.ts-themes.is-compact{grid-template-columns:repeat(3,minmax(0,1fr))}.ts-themes.is-compact .ts-theme-art{height:44px}
+.ts-fonts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ts-font{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--stroke);border-radius:12px;background:var(--surface);cursor:pointer;transition:border-color .2s}
+.ts-font.is-active{border-color:var(--orange);box-shadow:0 0 0 3px #ff6a001f}
+.ts-font-sample{display:grid;place-items:center;flex:none;width:44px;height:44px;border-radius:10px;background:var(--soft);font-size:22px;font-weight:700}
+.ts-font span:last-child{display:grid;min-width:0}.ts-font strong{font-size:13px}.ts-font small{font-size:12px;color:var(--muted)}
+.ts-share{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ts-share-option{position:relative;display:flex;align-items:flex-start;gap:10px;padding:10px 12px 10px 42px;border:1px solid var(--stroke);border-radius:12px;background:var(--surface);cursor:pointer}
+.ts-share-option::before{content:"";position:absolute;left:12px;top:12px;width:20px;height:20px;border:1.5px solid var(--stroke);border-radius:6px;background:var(--surface)}
+.ts-share-option:has(input:checked){border-color:var(--orange)}
+.ts-share-option:has(input:checked)::before{background:var(--orange) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 4 4L19 6'/%3E%3C/svg%3E") center/14px no-repeat;border-color:var(--orange)}
+.ts-share-option span{display:grid;gap:2px}.ts-share-option strong{font-size:13px}.ts-share-option small{font-size:12px;line-height:1.45;color:var(--muted)}
+/* Preview follows the chosen style */
+.ts-frame{--ts-on-primary:#151311}
+.ts-cta{background:var(--ts-primary)!important;color:var(--ts-on-primary)!important;border-radius:999px}
+.ts-price em{font-style:normal;font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:color-mix(in srgb,var(--ts-primary) 16%,#fff);color:color-mix(in srgb,var(--ts-primary) 66%,#151311)}
+.ts-floats{position:absolute;right:12px;bottom:12px;display:grid;gap:8px}
+.ts-floats .ts-wa{position:static}
+.ts-share-float{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#fff;border:1px solid #1e1e1e1a;color:#1e1e1e;box-shadow:0 6px 14px -6px #0006}
+.ts-share-float .icon{width:18px;height:18px}
+.ts-look-warm .ts-page{background:#fbf3e6}
+.ts-look-warm .ts-hero h3{font-weight:600}
+.ts-look-bold .ts-hero{background:var(--ts-primary);color:var(--ts-on-primary);margin:-4px -6px 10px;padding:12px;border-radius:8px}
+.ts-look-bold .ts-hero p,.ts-look-bold .ts-hero small{color:inherit;opacity:.85}
+.ts-look-bold .ts-cta{background:#1e1e1e!important;color:#fff!important;border-radius:6px;box-shadow:3px 3px 0 #fff}
+@media (max-width:640px){.ts-themes,.ts-fonts,.ts-share{grid-template-columns:1fr}}

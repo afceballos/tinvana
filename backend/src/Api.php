@@ -102,7 +102,7 @@ final class Api {
    }
   }
   if($path==='/api/template-settings'){
-   if($method==='GET'){$r=Database::one('SELECT settings FROM template_settings WHERE user_id=?',[$owner]);return ['settings'=>$r?json_decode($r['settings'],true):Landing::defaults()];}
+   if($method==='GET'){$r=Database::one('SELECT settings FROM template_settings WHERE user_id=?',[$owner]);$s=$r?json_decode($r['settings'],true):[];return ['settings'=>array_replace($s,Landing::visual($s))];}
    if($method==='PUT'){$s=Landing::visual(self::body());Database::query('INSERT INTO template_settings(user_id,settings) VALUES(?,?::jsonb) ON CONFLICT(user_id) DO UPDATE SET settings=template_settings.settings||excluded.settings,updated_at=now()',[$owner,Support::json($s)]);return ['settings'=>$s];}
   }
   if($path==='/api/builder-templates'){

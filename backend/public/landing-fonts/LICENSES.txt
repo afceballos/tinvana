@@ -1,0 +1,4 @@
+Rubik: SIL Open Font License 1.1 (Google Fonts)
+Montserrat: SIL Open Font License 1.1 (Google Fonts)
+Fraunces: SIL Open Font License 1.1 (Google Fonts)
+Space Grotesk: SIL Open Font License 1.1 (Google Fonts)

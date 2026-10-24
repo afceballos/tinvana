@@ -91,3 +91,57 @@ El contrato se confirmó con el comando de solo lectura `dropi:shipping-probe`, 
 Comando de descubrimiento, de solo lectura: `php bin/console.php dropi:shipping-probe [email] [dane_destino] [full]`. Con `full` hace solo la cotización contra entrega y lista las transportadoras en el orden que devuelve Dropi, con `distributionCompany` y los campos superiores. Sirve para buscar la preferencia de transportadora de la cuenta (por ejemplo, TCC para Antioquia). Usa la primera integración (la del email si se indica) y el último producto seleccionado. Imprime la estructura de la bodega y la ciudad de origen, y llama solo a `orders/cotizaEnvioTransportadoraV2` (con cuerpo vacío y con un cuerpo de ejemplo) y a `trajectory/bycity`. Muestra el estado HTTP, las claves y el mensaje de Dropi, con el token redactado. No usa `orders/myorders` ni crea nada. En GoDaddy se ejecuta una vez por cron con `-d register_argc_argv=1`.
 
 **Resultado de la primera ejecución en producción (2026-10-23, reportado por el usuario):** `orders/cotizaEnvioTransportadoraV2` existe y acepta el cuerpo `{EnvioConCobro, ValorDeclarado, ciudad_remitente:{cod_dane}, ciudad_destino:{cod_dane}}`. Responde con `objects`, una entrada por transportadora (VELOCES, ENVIA, INTERRAPIDISIMO…). La ciudad de origen sale de la bodega del producto (`warehouse.city.cod_dane`, por ejemplo Cali `76001000`). El destino `11001` falló: Dropi usa el DANE de 8 dígitos (`11001000`). `trajectory/bycity` respondió vacío. El comando ahora completa los códigos de 5 dígitos con `000`, prueba contra entrega y pago anticipado y resume cada transportadora en una línea, para ver los campos del precio.
+
+## Rediseño de las landings (2026-10-24)
+
+Se usaron las skills `ui-ux-pro-max` (patrón de conversión con el llamado a la acción repetido, contraste, movimiento ligero y fijos sin solaparse) y `frontend-design`.
+
+**Estilos** (`visual.theme`, elegibles en la plantilla y en cada landing):
+- **Comercio moderno** (`modern`, por defecto): el producto sobre un «escenario» con halo del color de marca, precio grande y botón ancho.
+- **Cálido** (`warm`): papel crema, titulares editoriales y tarjetas con la esquina doblada.
+- **Audaz** (`bold`): presentación a todo color, bordes de 2 px y sombras sólidas; el botón se hunde al pulsarlo.
+
+**Tipografía** (`visual.font`): Rubik, Montserrat, Fraunces o Space Grotesk. Son variables, solo latín, de 22 a 38 KB, y se alojan en `backend/public/landing-fonts/` (OFL). Solo se precarga la fuente elegida. Con Fraunces, el texto corrido usa la fuente del sistema.
+
+**Color:**
+- El servidor calcula el color del texto sobre el botón (`--on-primary`): blanco si alcanza 4,5:1 y, si no, casi negro.
+- También detecta si el fondo es oscuro (`data-paper`), para invertir el texto y las tarjetas.
+- Las paletas que eran solo el valor por defecto antiguo (`#193e35`/`#fafbf7` y `#06444a`/`#f4faf7`) se tratan como «sin color» y toman el nuevo valor por defecto, `#ff6a00`/`#fff8f1`.
+
+**Llamado a la acción:**
+- En la caja de compra, el precio va grande y el ahorro («Ahorras N%») se muestra solo con un precio anterior real y mayor.
+- La cantidad va en una píldora y el botón tiene un destello cada pocos segundos.
+- Los mensajes de envío y pago van como chips.
+- La barra fija de compra (opción existente «Barra fija en móvil») aparece al pasar la presentación del producto.
+
+**Botones flotantes:**
+- **WhatsApp:** botón abajo a la derecha cuando hay número, con un pulso breve.
+- **Compartir** (`visual.share`: nativo del celular, WhatsApp, Facebook y copiar enlace, todos opcionales): un `<details>` encima del de WhatsApp, que funciona sin JavaScript. En el celular, si la opción nativa está activa, abre directamente el menú del teléfono. Copiar el enlace confirma con «Enlace copiado».
+- **Con la barra fija:** cuando aparece, los flotantes suben para no quedar encima.
+
+**Cuadrículas sin huecos:** en las cuadrículas de tres columnas, una tarjeta sobrante ocupa toda la fila y dos sobrantes se la reparten (lo mismo en dos columnas en tablet). Aplica a ventajas, contenido, envíos, galería, productos relacionados y lista de productos.
+
+**Movimiento:**
+- Una entrada orquestada en la presentación.
+- Aparición de secciones y elementos al hacer scroll (desplazamiento de 12–16 px, escalonado).
+- Destello del botón y pulso de WhatsApp.
+- Todo es CSS más un IntersectionObserver. El contenido es visible sin JavaScript (las animaciones solo se activan cuando el script marca `motion-ready`).
+- Con `prefers-reduced-motion` no hay movimiento.
+
+**Rendimiento:**
+- `landing-runtime.js` bajó de 160 KB a 91 KB (29 KB comprimido). GSAP se reemplazó por CSS y la Web Animations API, también en la confirmación con el pájaro.
+- Las landings ya no cargan `landing.css` ni `brand/brand.css`.
+- Los recursos llevan `?v=` con la fecha de modificación, para que un despliegue no quede oculto tras la caché.
+
+**Otros cambios:**
+- El pie de página dice «Página creada con Tinvana».
+- El logo por defecto del encabezado es el de Tinvana, sin parches en el navegador.
+- Los testimonios muestran estrellas.
+- El formulario de compra toma los colores de la landing.
+
+**Archivos:** `backend/public/blocks.css` (reescrito), `LandingRenderer.php`, `Landing.php` (`THEMES`, `FONTS`, `SHARE`), `LandingHeader.php`, `src/landing-runtime.ts`, `src/lead-success.ts`, `src/TemplateStudio.tsx` (`DesignChoices`, compartido con el editor) y `src/Builder.tsx`.
+
+**Pruebas:**
+- `tests/landing-design.mjs` (33): estilos, contraste, cuadrícula, flotantes, compartir, ahorro, barra fija, scroll, sin JavaScript, movimiento reducido y peso del script.
+- `tests/template-design.mjs` (6): plantilla y editor.
+- Regresión aislada prueba por prueba, idéntica a la línea base previa al cambio: `builder-http`, `gallery`, `header`, `visual`, `geography` y `brand` ya fallaban antes en este entorno.

@@ -640,6 +640,18 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** a pedido del usuario, la precarga dura un mínimo de 1,8 s desde el inicio de la carga, más el despegue, para que se alcance a ver sin alargar las cargas lentas.
 - **Comprobado (local):** `preload.mjs` 25 (medido: despegue a 2.024 ms y fin a 2.853 ms), `npm test` 107, `admin` 39 y `order-dates`.
 
+### 2026-10-24 · Rediseño de las landings
+- **Pedido del usuario:** bloques más modernos, animados y con mejor llamado a la acción, carga rápida, WhatsApp flotante, compartir opcional, cuadrículas sin huecos y configuración en la plantilla.
+- **Cambio:**
+  - tres estilos (moderno por defecto, cálido y audaz) y cuatro tipografías;
+  - contraste automático del botón y ahorro real;
+  - barra fija al pasar el producto, WhatsApp flotante y compartir opcional;
+  - cuadrículas sin huecos y movimiento con CSS;
+  - script de 160 KB a 91 KB, sin GSAP.
+  - Se aplica a todas las landings (también las publicadas) sin cambiar su contenido. Detalle en [BUILDER.md](BUILDER.md).
+- **Comprobado (local):** `landing-design.mjs` 33, `template-design.mjs` 6, y regresión aislada idéntica a la línea base (`npm test` 107, PHP 69, `builder`, `lead-success`, `dropi-shipping`, `product-list`, `dropi-block`, `delivery-ui`, `store-router`, `orders`…). Capturas de los tres estilos en escritorio y móvil revisadas.
+- **Pendiente:** verlo con productos e imágenes reales en producción; las pruebas usan imágenes de prueba.
+
 ### Plantilla para la próxima actualización
 
 ```text
