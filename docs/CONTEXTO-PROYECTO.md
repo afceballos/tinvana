@@ -623,6 +623,13 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** filtro por rango de fechas de creación en la lista de pedidos, en días de Colombia, con atajos y el rango en la URL. Detalle en [ORDERS.md](ORDERS.md).
 - **Comprobado (local):** `order-dates.mjs` 13 (incluye el límite de medianoche en hora de Colombia), `orders.mjs` 38, `order-editing.mjs` 52, `admin.mjs` 39 y `npm test` 107.
 
+### 2026-10-24 · Página de error animada y redirección por sesión vencida
+- **Cambio:**
+  - página de error con la marca, animada, para el 404 del panel y para todas las páginas que rechaza el servidor;
+  - la vigilancia de sesión no la renueva y lleva al inicio de sesión con un aviso y regreso a la página anterior.
+  - Detalle en [MODERN-UI.md](MODERN-UI.md).
+- **Comprobado (local):** `errors-session.mjs` 15 (sesión de 8 s: las consultas de sondeo no la renuevan), `npm test` 107, `orders`, `order-dates`, `admin`, `compact` y `modern`.
+
 ### Plantilla para la próxima actualización
 
 ```text

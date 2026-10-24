@@ -84,3 +84,19 @@ En cada pantalla:
 - **Contraseña:** icono de candado (nuevo `lock` en `ui.tsx`) y chip «Sesión protegida».
 
 Se conservan títulos, textos y lógica. Pasan `store-address.mjs` 20, `alerts.mjs` 18, `modern.mjs` 17, `compact.mjs` 27, `webhook-card.mjs` 13, `dropi-integrations-ui.mjs` 10 y `profile.mjs`. Revisadas además Plantilla, Consultas, Pedidos, Mis productos y Mis archivos, que ya tenían el estilo moderno.
+
+## Página de error y sesión vencida (2026-10-24)
+
+**Página de error** (`src/ErrorScreen.tsx`, `src/error-screen.css`):
+- **Cuándo aparece:** una sola página para las rutas desconocidas del panel y para cualquier página que rechace el servidor PHP (404 de direcciones o landings, vista previa vencida, tienda sin página, 419, 429, 5xx).
+- **Cómo la sirve PHP:** `tinvanaErrorPage()` en `backend/public/index.php` responde con el código de estado real y el `index.html` del panel, más un `<meta name="tinvana-error">` con estado, mensaje e inicio. React detecta ese meta y muestra solo la página de error, sin consultar la sesión.
+- **La API no cambia:** sigue respondiendo JSON.
+- **Textos:** uno amable por código de estado. El mensaje del servidor aparece debajo cuando aporta algo, por ejemplo «Producto no encontrado».
+- **Animación:** un pájaro de origami orbita el «0», hay una estela punteada y papeles que caen. Se desactiva con `prefers-reduced-motion`.
+- **Temas:** tiene modo claro y oscuro.
+
+**Sesión vencida:**
+- **Vigilancia:** el panel consulta `GET /api/auth/session` cada minuto y al volver a la pestaña, con la cabecera `X-Session-Probe: 1`. `Auth::start` no cuenta esa consulta como actividad, así que una pestaña inactiva no mantiene viva la sesión.
+- **Al vencer:** cuando la sesión ya no existe, o cuando cualquier petición recibe 401, se lleva al usuario al inicio de sesión con el aviso «Tu sesión se cerró por inactividad». Al volver a entrar regresa a la página del panel donde estaba.
+
+Pruebas: `tests/errors-session.mjs` 15, con el servidor de prueba en `SESSION_LIFETIME=8`.

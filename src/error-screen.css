@@ -1,0 +1,58 @@
+/* Error page (404 and other server statuses): Tinvana paper palette, an origami bird orbiting the middle digit,
+   a dashed flight trail and drifting paper scraps. Everything stops under prefers-reduced-motion. */
+.err-screen{--err-bg:#FFF8F1;--err-ink:#1E1E1E;--err-muted:#75665c;--err-accent:#FF6A00;--err-soft:#FFE0CD;--err-card:#ffffffcc;
+ position:relative;min-height:100dvh;display:flex;flex-direction:column;align-items:center;overflow:hidden;padding:28px 16px;background:var(--err-bg);color:var(--err-ink);font-family:Montserrat,sans-serif;isolation:isolate}
+:root[data-theme=dark] .err-screen{--err-bg:#141210;--err-ink:#f6efe9;--err-muted:#b9aca2;--err-soft:#3a2516;--err-card:#1f1b18cc}
+.err-logo{display:block;height:auto}.err-logo.on-dark{display:none}
+:root[data-theme=dark] .err-logo.on-light{display:none}:root[data-theme=dark] .err-logo.on-dark{display:block}
+.err-top{width:100%;max-width:1100px;display:flex;justify-content:center}
+.err-center{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;max-width:640px;padding:24px 0}
+.err-foot{margin:0;font-size:13px;color:var(--err-muted)}
+
+/* Sky: soft blobs and paper scraps */
+.err-sky{position:absolute;inset:0;z-index:-1;pointer-events:none}
+.err-blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:.55;animation:err-drift 18s ease-in-out infinite alternate}
+.err-blob.a{width:420px;height:420px;left:-120px;top:-80px;background:radial-gradient(circle,#ffb27a,transparent 70%)}
+.err-blob.b{width:520px;height:520px;right:-160px;top:20%;background:radial-gradient(circle,#ffd9bf,transparent 70%);animation-duration:24s}
+.err-blob.c{width:360px;height:360px;left:30%;bottom:-160px;background:radial-gradient(circle,#ff8c3a55,transparent 70%);animation-duration:20s}
+:root[data-theme=dark] .err-blob{opacity:.22}
+.err-paper{position:absolute;top:-40px;width:14px;height:14px;background:var(--err-accent);clip-path:polygon(50% 0,100% 100%,0 100%);opacity:.0;animation:err-fall 14s linear infinite}
+.err-paper.p0{left:6%;animation-delay:0s}.err-paper.p1{left:17%;animation-delay:-3s;width:10px;height:10px;background:#ffb27a}
+.err-paper.p2{left:29%;animation-delay:-7s}.err-paper.p3{left:42%;animation-delay:-11s;background:#ffd9bf}
+.err-paper.p4{left:55%;animation-delay:-2s;width:9px;height:9px}.err-paper.p5{left:67%;animation-delay:-9s;background:#ffb27a}
+.err-paper.p6{left:78%;animation-delay:-5s;width:12px;height:12px}.err-paper.p7{left:88%;animation-delay:-12s;background:#ffd9bf}
+.err-paper.p8{left:95%;animation-delay:-6s;width:8px;height:8px}
+
+/* 4 [bird orbit] 4 */
+.err-code{display:flex;align-items:center;justify-content:center;gap:clamp(4px,2vw,18px);font-weight:800;line-height:1;font-size:clamp(96px,22vw,200px);letter-spacing:-.06em}
+.err-digit{background:linear-gradient(160deg,var(--err-accent) 10%,#ff9a4d 55%,var(--err-ink) 140%);-webkit-background-clip:text;background-clip:text;color:transparent;animation:err-rise .9s cubic-bezier(.2,.8,.2,1) both}
+.err-digit:last-child{animation-delay:.12s}
+.err-orbit{position:relative;width:.78em;height:.78em;flex:none;animation:err-rise .9s .06s cubic-bezier(.2,.8,.2,1) both}
+.err-ring{position:absolute;inset:0;border-radius:50%;border:.06em dashed color-mix(in srgb,var(--err-accent) 70%,transparent);animation:err-spin 22s linear infinite}
+.err-ring.r2{inset:18%;border-style:solid;border-width:.025em;border-color:var(--err-soft);animation-direction:reverse;animation-duration:14s}
+.err-bird{position:absolute;inset:0;animation:err-spin 6s linear infinite}
+.err-bird img{position:absolute;top:-.16em;left:50%;width:.42em;height:auto;transform:translateX(-50%) rotate(12deg);filter:drop-shadow(0 .05em .06em #6c300c40);animation:err-flap .6s ease-in-out infinite alternate}
+
+.err-trail{width:min(560px,90vw);height:auto;margin:-6px 0 6px;overflow:visible}
+.err-trail path{fill:none;stroke:var(--err-accent);stroke-width:2.5;stroke-linecap:round;stroke-dasharray:.012 .02;opacity:.55;animation:err-dash 3s linear infinite}
+
+.err-eyebrow{color:var(--err-accent);animation:err-fade .7s .25s both}
+.err-screen h1{margin:8px 0 10px;font-size:clamp(28px,4.4vw,42px);line-height:1.12;letter-spacing:-.035em;color:var(--err-ink);animation:err-fade .7s .32s both}
+.err-text{margin:0;font-size:17px;line-height:1.6;color:var(--err-muted);animation:err-fade .7s .4s both}
+.err-detail{margin:14px 0 0;padding:10px 14px;border:1px dashed var(--err-soft);border-radius:12px;background:var(--err-card);font-size:14px;color:var(--err-ink);animation:err-fade .7s .45s both}
+.err-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:26px;animation:err-fade .7s .52s both}
+.err-actions .primary,.err-actions .secondary{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 22px;border-radius:14px;font:700 15px Montserrat,sans-serif;text-decoration:none;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease}
+.err-actions .primary{border:0;background:var(--err-accent);color:#fff;box-shadow:0 12px 26px -12px #ff6a00aa}
+.err-actions .secondary{border:1px solid var(--err-soft);background:var(--err-card);color:var(--err-ink)}
+.err-actions .primary:hover,.err-actions .secondary:hover{transform:translateY(-2px)}
+.err-actions :focus-visible{outline:3px solid color-mix(in srgb,var(--err-accent) 55%,transparent);outline-offset:3px}
+
+@keyframes err-spin{to{transform:rotate(360deg)}}
+@keyframes err-flap{from{transform:translateX(-50%) rotate(6deg) scaleY(1)}to{transform:translateX(-50%) rotate(16deg) scaleY(.86)}}
+@keyframes err-dash{to{stroke-dashoffset:-.064}}
+@keyframes err-rise{from{opacity:0;transform:translateY(28px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes err-fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes err-drift{to{transform:translate(40px,30px) scale(1.08)}}
+@keyframes err-fall{0%{opacity:0;transform:translateY(0) rotate(0)}10%{opacity:.7}90%{opacity:.5}100%{opacity:0;transform:translateY(110vh) rotate(540deg)}}
+@media (prefers-reduced-motion:reduce){.err-screen *{animation:none!important}.err-paper{display:none}}
+@media (max-width:560px){.err-text{font-size:15px}.err-actions{width:100%}.err-actions>*{flex:1}}

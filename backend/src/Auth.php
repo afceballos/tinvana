@@ -9,7 +9,9 @@ final class Auth {
   session_name('zenzales_session');session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>$secure,'httponly'=>true,'samesite'=>$same]);
   if(!is_dir(dirname(__DIR__).'/storage/sessions'))mkdir(dirname(__DIR__).'/storage/sessions',0700,true);session_save_path(dirname(__DIR__).'/storage/sessions');session_start();
   if(isset($_SESSION['last_active'])&&time()-$_SESSION['last_active']>(int)Support::env('SESSION_LIFETIME','7200')){$_SESSION=[];session_regenerate_id(true);}
-  $_SESSION['last_active']=time();$_SESSION['csrf']??=bin2hex(random_bytes(32));
+  // The panel checks the session periodically with X-Session-Probe; that check must not count as activity,
+  // otherwise an idle tab would keep the session alive forever.
+  if(($_SERVER['HTTP_X_SESSION_PROBE']??'')!=='1'||!isset($_SESSION['last_active']))$_SESSION['last_active']=time();$_SESSION['csrf']??=bin2hex(random_bytes(32));
  }
  public static function user(): array { if(empty($_SESSION['user_id']))throw new HttpError(401,'Inicia sesión para continuar.');$u=Database::one('SELECT id,email,role,status,profile,avatar_id,session_version,email_verified_at FROM users WHERE id=?',[$_SESSION['user_id']]);if(!$u||!$u['email_verified_at'])throw new HttpError(401,'Sesión inválida.');if($u['status']==='suspended'){unset($_SESSION['user_id']);throw new HttpError(401,'Tu cuenta está suspendida. Escríbenos para reactivarla.');}if((int)($_SESSION['session_version']??0)!==(int)$u['session_version']){unset($_SESSION['user_id']);throw new HttpError(401,'La sesion ha terminado.');}$profile=json_decode($u['profile'],true);$u['first_name']=$profile['first_name']??'';$u['last_name']=$profile['last_name']??'';$u['avatar']=$u['avatar_id']?'/api/profile/avatar?v='.$u['avatar_id']:null;unset($u['profile'],$u['avatar_id'],$u['session_version'],$u['email_verified_at'],$u['status']);return $u; }
  public static function csrf(): void { $token=$_SERVER['HTTP_X_CSRF_TOKEN']??$_POST['csrf']??'';if(!is_string($token)||!hash_equals($_SESSION['csrf']??'', $token))throw new HttpError(419,'La sesión del formulario venció. Recarga e intenta nuevamente.'); }
