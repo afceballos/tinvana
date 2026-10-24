@@ -96,7 +96,11 @@ final class LandingRenderer {
   return (1.05/($l($hex)+.05))>=4.5?'#ffffff':'#151311';
  }
  /** Static asset URL with its modification time, so a deploy is never hidden behind a cached old file. */
- public static function asset(string $path):string {$file=dirname(__DIR__).'/public'.$path;return $path.(is_file($file)?'?v='.filemtime($file):'');}
+ public static function asset(string $path):string {
+  // The web root (public_html on cPanel) holds the served copy; the repository layout keeps it in backend/public.
+  foreach([rtrim((string)($_SERVER['DOCUMENT_ROOT']??''),'/\\'),dirname(__DIR__).'/public'] as $root)if($root!==''&&is_file($root.$path))return $path.'?v='.filemtime($root.$path);
+  return $path;
+ }
  public static function fontHead(string $font):string {
   $file='/landing-fonts/'.$font.'.woff2';
   return '<link rel="preload" href="'.$file.'" as="font" type="font/woff2" crossorigin><style>@font-face{font-family:"Landing";src:url('.$file.') format("woff2");font-weight:400 800;font-style:normal;font-display:swap}</style>';
