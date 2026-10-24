@@ -27,6 +27,13 @@ try{
  await page.locator('.login-form, form').first().waitFor({timeout:15000});await page.waitForTimeout(1300);
  check('preload leaves once the app is ready',await page.locator('.tv-preload').count()===0);
  await ctx.close();
+ // 1b. Fast session: the preload still stays long enough to be seen (1.8 s from page start), but not much longer.
+ ctx=await browser.newContext({viewport:{width:1440,height:900}});page=await ctx.newPage();
+ await page.goto(base+'/login',{waitUntil:'commit'});await page.locator('.tv-preload.is-leaving').waitFor({timeout:8000});
+ const leaveAt=await page.evaluate(()=>performance.now());await page.locator('.tv-preload').waitFor({state:'detached',timeout:5000});const goneAt=await page.evaluate(()=>performance.now());
+ check(`preload visible about 1.8 s before take-off (${Math.round(leaveAt)} ms)`,leaveAt>=1750&&leaveAt<3000);
+ check(`whole preload over within about 3 s (${Math.round(goneAt)} ms)`,goneAt<3300);
+ await ctx.close();
  // 2. React preload while the session check is slow, with rotating messages.
  ctx=await browser.newContext({viewport:{width:1440,height:900}});page=await ctx.newPage();page.on('pageerror',e=>errors.push(e.message));
  await slow(page,'**/api/auth/session',5200);await page.goto(base+'/login');await page.waitForTimeout(1500);

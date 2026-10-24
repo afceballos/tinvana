@@ -109,6 +109,7 @@ Pruebas: `tests/errors-session.mjs` 15, con el servidor de prueba en `SESSION_LI
 - **Un solo marcado y una sola hoja:** el mismo marcado vive en `index.html`, que se ve antes de JavaScript, y en `LoadingScreen` (`src/Loading.tsx`), que se ve mientras se verifica la sesión. Ambos usan una sola hoja, `backend/public/brand/preload.css`, que se carga en el `<head>`. Así el cambio de HTML a React no mueve nada.
 - **Solo CSS:** funciona antes de que cargue el bundle.
 - **Mensajes:** en React rotan cada 2,2 s, y a los 7 s aparece el aviso de conexión lenta.
+- **Duración mínima:** la precarga se ve al menos 1,8 s desde que empieza a cargar la página (`PRELOAD_MIN_MS` en `src/main.tsx`) y luego despega en unos 0,95 s, unos 2,8 s en total. Si la carga ya tardó más, no se añade espera. Con movimiento reducido no hay mínimo.
 - **Salida:** al estar listo el panel, `PreloadExit` reproduce un despegue (el pájaro sale hacia arriba, los anillos se expanden y la capa se desvanece) en lugar del antiguo `BrandEntrance`, que se eliminó.
 - **Temas y accesibilidad:** modo claro y oscuro (por `data-theme` o, antes de JavaScript, por la preferencia del sistema) y versión estática con `prefers-reduced-motion`.
 - **Limpieza:** se retiraron los estilos antiguos `.startup-*` y `.loader-*` de `motion.css`, `modern.css`, `brand.css` y `tinvana.css`.

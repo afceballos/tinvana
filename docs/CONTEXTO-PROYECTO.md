@@ -636,6 +636,10 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Limitación:** `motion.mjs` apunta a una URL de túnel antigua y no se puede ejecutar; no se modificó.
 - **Observación:** `errors-session.mjs` falló una vez justo después de otras pruebas, sin causa identificada; las tres ejecuciones siguientes pasaron (15/15).
 
+### 2026-10-24 · Precarga con duración mínima
+- **Cambio:** a pedido del usuario, la precarga dura un mínimo de 1,8 s desde el inicio de la carga, más el despegue, para que se alcance a ver sin alargar las cargas lentas.
+- **Comprobado (local):** `preload.mjs` 25 (medido: despegue a 2.024 ms y fin a 2.853 ms), `npm test` 107, `admin` 39 y `order-dates`.
+
 ### Plantilla para la próxima actualización
 
 ```text
