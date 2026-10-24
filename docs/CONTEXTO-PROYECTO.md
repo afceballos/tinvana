@@ -652,6 +652,14 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado (local):** `landing-design.mjs` 33, `template-design.mjs` 6, y regresión aislada idéntica a la línea base (`npm test` 107, PHP 69, `builder`, `lead-success`, `dropi-shipping`, `product-list`, `dropi-block`, `delivery-ui`, `store-router`, `orders`…). Capturas de los tres estilos en escritorio y móvil revisadas.
 - **Pendiente:** verlo con productos e imágenes reales en producción; las pruebas usan imágenes de prueba.
 
+### 2026-10-24 · Ritmo visual en landings generadas con IA
+- **Cambio:** las landings completas creadas con IA alternan fondos entre secciones y cierran con una banda de llamado a la acción. Heredan el estilo, la tipografía, los colores y los botones flotantes de la landing. Detalle en [BUILDER.md](BUILDER.md).
+- **Comprobado (local):** `ai.php` 38 y `landing-design.mjs` 34.
+
+### 2026-10-24 · Ajustes del rediseño: imagen fija, llamado a la acción y pasos
+- **Cambio:** imagen fija junto a textos largos; llamado a la acción como título, texto, precio y botón, centrado por defecto; pasos con número centrado. Además se corrigió la barra fija de compra, que podía no aparecer con un desplazamiento rápido. Detalle en [BUILDER.md](BUILDER.md).
+- **Comprobado (local):** `landing-design.mjs` 39, `lead-success` 12, `builder`, `product-list`, `dropi-shipping` 20 y `ai.php` 38.
+
 ### Plantilla para la próxima actualización
 
 ```text

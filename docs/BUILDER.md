@@ -145,3 +145,26 @@ Se usaron las skills `ui-ux-pro-max` (patrón de conversión con el llamado a la
 - `tests/landing-design.mjs` (33): estilos, contraste, cuadrícula, flotantes, compartir, ahorro, barra fija, scroll, sin JavaScript, movimiento reducido y peso del script.
 - `tests/template-design.mjs` (6): plantilla y editor.
 - Regresión aislada prueba por prueba, idéntica a la línea base previa al cambio: `builder-http`, `gallery`, `header`, `visual`, `geography` y `brand` ya fallaban antes en este entorno.
+
+**Landings creadas con IA (2026-10-24):**
+- **Configuración visual:** la IA solo escribe el contenido y elige tipos y variantes existentes. La landing conserva su estilo, tipografía, colores, WhatsApp y opciones de compartir, así que se ve con el diseño nuevo.
+- **Ritmo de fondos:** al aplicar una landing completa generada, `AiLanding::rhythm` asigna el ritmo visual:
+  - la presentación con el fondo de la página;
+  - las secciones siguientes alternando blanco y el tono suave de marca;
+  - el llamado a la acción final como banda del color de marca, centrada.
+- **Una sola sección:** al regenerar una sección se conserva su estilo, como antes.
+- **Pruebas:** `backend/tests/ai.php` (38) y `landing-design.mjs` (34, con captura del ritmo).
+
+**Ajustes tras la revisión del usuario (2026-10-24):**
+- **Imagen fija junto a textos largos** (desde 761 px):
+  - aplica a la presentación del producto, imagen + texto, «Qué incluye» con imagen, galería con texto y el llamado a la acción con imagen;
+  - la imagen queda fija bajo el encabezado mientras el texto avanza;
+  - con texto corto, el texto se centra junto a la imagen.
+- **Llamado a la acción:**
+  - muestra título, texto y después el precio (con el ahorro real) y el botón que abre el formulario, sin la caja de compra ni la cantidad, que siguen en la presentación;
+  - la banda siempre va centrada; tarjeta, mínimo e imagen siguen la alineación elegida en «Estilo y espaciado»;
+  - los bloques nuevos de este tipo empiezan centrados.
+- **Pasos de «Cómo se usa»:** en las variantes de pasos y cuadrícula, número centrado sobre el texto y línea punteada entre pasos. Las variantes verticales siguen siendo «numerada» y «línea de tiempo».
+- **Barra fija de compra:** se calcula al hacer scroll y aparece siempre que la caja de compra de la presentación no está a la vista: ya pasada o todavía abajo por una descripción larga. Se oculta en el primer tramo de la página. Antes, con un desplazamiento rápido podía no aparecer.
+- **Pruebas:** `landing-design.mjs` 39.
+- **Corrección (reportada por el usuario):** en el editor, elegir una tipografía desplazaba la página hasta una zona vacía. Las tarjetas de opción no contenían su radio oculto, así que el navegador saltaba hasta él al enfocarlo. Ahora cada radio queda sobre su tarjeta. `template-design.mjs` (10) comprueba que elegir estilo, tipografía o compartir no desplaza la página ni el panel; sin la corrección, la prueba reproduce el salto.

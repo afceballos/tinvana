@@ -54,12 +54,14 @@ if(!preview&&!reduced()&&'IntersectionObserver' in window){
  window.addEventListener('pagehide',()=>reveal.disconnect());
 }
 
-// Sticky purchase bar: appears once the hero purchase box has scrolled out of view.
+// Sticky purchase bar: visible whenever the hero purchase box is out of view (already passed, or still below a long
+// description), except right at the top of the page. Checked on scroll so a fast jump past the box is never missed.
 const sticky=document.querySelector<HTMLElement>('[data-sticky-buy]');
 if(sticky){
- const anchor=document.querySelector('[data-hero-buy]')||document.querySelector('.purchase-box');
- const show=(visible:boolean)=>{sticky.classList.toggle('is-visible',visible);document.body.classList.toggle('sticky-on',visible);};
- if(anchor){const watch=new IntersectionObserver(([entry])=>show(!entry.isIntersecting&&entry.boundingClientRect.top<0));watch.observe(anchor);window.addEventListener('pagehide',()=>watch.disconnect());}else show(true);
+ const anchor=document.querySelector('[data-hero-buy]')||document.querySelector('.purchase-box');let frame=0;
+ const update=()=>{frame=0;const r=anchor?.getBoundingClientRect();const visible=window.scrollY>160&&(!r||r.bottom<0||r.top>window.innerHeight);sticky.classList.toggle('is-visible',visible);document.body.classList.toggle('sticky-on',visible);};
+ const schedule=()=>{if(!frame)frame=requestAnimationFrame(update);};
+ window.addEventListener('scroll',schedule,{passive:true});window.addEventListener('resize',schedule,{passive:true});update();
 }
 
 // Share menu (<details>, so it opens without JavaScript). Native share on phones when enabled; copy link with confirmation.

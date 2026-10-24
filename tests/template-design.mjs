@@ -21,6 +21,10 @@ try{
  check('choices persist after reload',await page.locator('.ts-theme',{hasText:'Audaz'}).evaluate(e=>e.classList.contains('is-active'))&&await page.locator('.ts-share-option',{hasText:'Copiar enlace'}).locator('input').isChecked());
  await page.goto(base+'/panel/landings/'+f.landing);await page.locator('.builder-page-settings').click();await page.locator('.builder-design').waitFor();
  await page.locator('.builder-design summary').click();await page.locator('.builder-design .ts-theme',{hasText:'Cálido'}).click();
+ // Choosing an option must not move the page or the settings panel.
+ const scrolls=()=>page.evaluate(()=>{const out=[window.scrollY];let e=document.querySelector('.builder-design');while(e){if(e.scrollHeight>e.clientHeight+2)out.push(e.scrollTop);e=e.parentElement;}return out;});
+ for(const target of ['.builder-design .ts-font:has-text("Montserrat")','.builder-design .ts-font:has-text("Space Grotesk")','.builder-design .ts-share-option:has-text("Facebook")','.builder-design .ts-theme:has-text("Audaz")']){await page.locator(target).scrollIntoViewIfNeeded();await page.waitForTimeout(150);const before=await scrolls();await page.locator(target).click();await page.waitForTimeout(250);const after=await scrolls();check('choosing '+target.split('"')[1]+' does not scroll',JSON.stringify(before)===JSON.stringify(after));}
+ await page.locator('.builder-design .ts-theme',{hasText:'Cálido'}).click();
  check('landing editor offers the same choices',await page.locator('.builder-design .ts-font',{hasText:'Fraunces'}).evaluate(e=>e.classList.contains('is-active')));
  await page.locator('.builder-design').scrollIntoViewIfNeeded();await page.screenshot({path:'test-results/builder-design.png'});
  check('no browser errors',errors.length===0);

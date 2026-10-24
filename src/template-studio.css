@@ -91,7 +91,9 @@
 .lp-font-rubik{font-family:"LP Rubik",sans-serif}.lp-font-montserrat{font-family:"LP Montserrat",sans-serif}.lp-font-fraunces{font-family:"LP Fraunces",serif}.lp-font-grotesk{font-family:"LP Grotesk",sans-serif}
 .ts-choice-group{display:grid;gap:10px;margin:0;padding:0;border:0;min-width:0}
 .ts-choice-group legend{margin-bottom:8px;font-size:14px;font-weight:700}
-.ts-choice-group input[type=radio],.ts-choice-group input[type=checkbox]{position:absolute;opacity:0;pointer-events:none}
+/* The real input sits invisibly over its own card, so focusing it never scrolls the page elsewhere. */
+.ts-choice-group label{position:relative}
+.ts-choice-group input[type=radio],.ts-choice-group input[type=checkbox]{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;pointer-events:none}
 .ts-themes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .ts-theme{position:relative;display:grid;gap:6px;align-content:start;padding:10px 10px 12px;border:1px solid var(--stroke);border-radius:14px;background:var(--surface);cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .2s var(--ease-out)}
 .ts-theme:hover{transform:translateY(-2px);border-color:var(--orange)}

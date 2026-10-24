@@ -44,4 +44,8 @@ aiCheck('existing images sent as count only',$input['imageCount']===1);
 $_ENV['OPENAI_API_KEY']='unused-global-secret';aiReject('missing own key rejected despite global environment key',fn()=>AiClient::request([],AiLanding::schema(),['provider'=>'openai','key'=>'']),422);
 $claude=['stop_reason'=>'end_turn','content'=>[['type'=>'text','text'=>Support::json($raw)]],'usage'=>['input_tokens'=>50,'output_tokens'=>75]];aiCheck('Claude message response parsed',AiClient::parseClaude($claude)['usage']['outputTokens']===75);$bad=$claude;$bad['stop_reason']='max_tokens';aiReject('Claude truncated generation rejected',fn()=>AiClient::parseClaude($bad));$bad['stop_reason']='refusal';aiReject('Claude refusal reported',fn()=>AiClient::parseClaude($bad),422);
 aiReject('unsupported credential provider refused',fn()=>App\AiConnections::provider('other'),422);aiReject('credential header injection refused',fn()=>App\AiConnections::key(str_repeat('x',25)."\r\nX-Test: x"),422);
+$r=AiLanding::rhythm(Blocks::validate([Blocks::make('hero'),Blocks::make('benefits'),Blocks::make('faq'),Blocks::make('divider'),Blocks::make('specs'),Blocks::make('cta')]));
+aiCheck('full AI landing alternates section backgrounds after the hero',array_column(array_column($r,'style'),'tone')===['paper','white','soft','paper','white','paper']);
+aiCheck('closing call to action becomes a centered brand band',$r[5]['variant']==='band'&&$r[5]['style']['align']==='center');
+aiCheck('rhythm keeps blocks valid',Blocks::validate($r)===$r);
 echo "$passed AI checks passed. No OpenAI request made.\n";

@@ -76,13 +76,28 @@ final class AiLanding {
   foreach($blocks as $block){if($block['type']==='gallery'&&!$current['images'])throw new HttpError(502,'La IA propuso una galería sin imágenes disponibles.');if(in_array($block['type'],['benefits','list','includes','usage','specs','faq'],true)){if(!$block['data']['items'])throw new HttpError(502,'La IA devolvió una sección sin contenido suficiente.');foreach($block['data']['items'] as $item)if($item['title']===''||($block['type']==='faq'&&$item['description']==='')||($block['type']==='specs'&&$item['value']===''))throw new HttpError(502,'La IA devolvió elementos incompletos.');}}
   if($target)$content['blocks']=array_map(fn($b)=>$b['id']===$target['id']?$blocks[0]:$b,$content['blocks']);
   else {
-   $content=array_merge($content,$new);$content['blocks']=$blocks;$items=[];$used=[];
+   $content=array_merge($content,$new);$content['blocks']=self::rhythm($blocks);$items=[];$used=[];
    foreach($current['header']['items'] as $item){$old=null;foreach($current['blocks'] as $block)if($block['id']===$item['id'])$old=$block;if(!$old)continue;foreach($blocks as $block)if($block['type']===$old['type']&&!isset($used[$block['id']])){$items[]=[...$item,'id'=>$block['id']];$used[$block['id']]=true;break;}}
    $content['header']['items']=$items;if($content['header']['mode']==='custom'&&!$items)$content['header']['mode']='auto';
   }
   if(!is_array($raw['notes'])||!array_is_list($raw['notes'])||count($raw['notes'])>10)throw new HttpError(502,'Notas de IA inválidas.');
   $notes=array_map(fn($note)=>self::plain($note,500),$raw['notes']);foreach(self::validateIds($raw['sourceIds'],$sources,true) as $ref)$evidence[$ref]=$sources[$ref];
   return ['content'=>Landing::content($content),'notes'=>$notes,'sources'=>array_values($evidence),'generatedBlockIds'=>array_column($blocks,'id')];
+ }
+ /**
+  * Visual rhythm for a full AI landing: the hero keeps the page background, the sections after it alternate
+  * white and the brand's soft tint, and a closing call to action becomes a centered brand-color band.
+  * Single-section regeneration never calls this, so it keeps the style the section already had.
+  */
+ public static function rhythm(array $blocks):array {
+  $tones=['white','soft'];$n=0;$last=count($blocks)-1;
+  foreach($blocks as $i=>&$block){
+   if($block['type']==='hero'){$block['style']['tone']='paper';continue;}
+   if($block['type']==='cta'&&$i===$last){$block['variant']='band';$block['style']['tone']='paper';$block['style']['align']='center';continue;}
+   if($block['type']==='divider')continue;
+   $block['style']['tone']=$tones[$n++%2];
+  }
+  unset($block);return $blocks;
  }
  public static function prepare(array $row,array $body):array {
   $row=Landing::decode($row);$content=Landing::content($body['content']??$row['content']);Blocks::ownedProducts($content['blocks'],$row['user_id']);Media::validateReferences(Blocks::imageUrls($content),$row['user_id'],$row['id']);

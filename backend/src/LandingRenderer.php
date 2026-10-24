@@ -16,6 +16,13 @@ final class LandingRenderer {
   $messages='';foreach(['Shipping'=>'shipping','Delivery'=>'delivery','Payment'=>'payment'] as $flag=>$key)if($o['show'.$flag]&&$o[$key]!=='')$messages.='<p>'.self::icon($key==='shipping'?'send':'check').$e($o[$key]).'</p>';
   return $html.($messages?'<div class="purchase-messages">'.$messages.'</div>':'').'</div>';
  }
+ /** Call-to-action block: title and text come first, then the price (with real savings) and the button that opens the form. */
+ public static function ctaActions(array $c,string $text=''):string {
+  $o=$c['commerce'];$price=$c['publicPrice'];
+  $save=$o['previousPrice']!==null&&$price!==null&&$o['previousPrice']>$price?(int)round((1-$price/$o['previousPrice'])*100):0;
+  $line=$price!==null?'<p class="cta-price"><strong>'.Support::escape(self::money($price)).'</strong>'.($o['previousPrice']!==null?'<del>'.self::money($o['previousPrice']).'</del>':'').($save>0?'<span class="price-save">Ahorras '.$save.'%</span>':'').'</p>':'';
+  return '<div class="cta-actions">'.$line.self::cta($c,$text).'</div>';
+ }
  public static function gallery(array $images,string $title,string $variant,bool $hero=false):string {
   if(!$images)return self::image('',$title);
   if($hero||$variant==='thumbnails'){
@@ -74,7 +81,7 @@ final class LandingRenderer {
    $html=$variant==='image-text'?'<div>'.$gallery.'</div><div>'.$heading.$subtitle.'<div class="rich-content">'.$text.'</div></div>':$heading.$subtitle.$gallery.($text?'<div class="rich-content">'.$text.'</div>':'');
   }elseif($type==='imageText'){$html='<div class="editorial-image">'.self::image($d['image']?:($c['images'][0]??''),$d['title']).'</div><div>'.$heading.$subtitle.'<div class="rich-content">'.$text.'</div>'.self::items($b).($d['ctaText']?self::cta($c,$d['ctaText']):'').'</div>';
   }elseif($type==='includes'&&$variant==='image-text'){$html='<div class="editorial-image">'.self::image($d['image']?:($c['images'][0]??''),$d['title']).'</div><div>'.$heading.$subtitle.self::items($b).'</div>';
-  }elseif($type==='cta'){$html=($d['image']?'<div class="cta-image">'.self::image($d['image'],$d['title']).'</div>':'').'<div>'.$heading.$subtitle.($text?'<div class="rich-content">'.$text.'</div>':'').self::purchase($c,$d['ctaText']).'</div>';
+  }elseif($type==='cta'){$html=($d['image']?'<div class="cta-image">'.self::image($d['image'],$d['title']).'</div>':'').'<div class="cta-copy">'.$heading.$subtitle.($text?'<div class="rich-content">'.$text.'</div>':'').self::ctaActions($c,$d['ctaText']).'</div>';
   }elseif($type==='shipping'){
    $rows='';foreach(['coverage'=>'Cobertura','cost'=>'Costo de envío','delivery'=>'Tiempo de entrega','carrier'=>'Transportadora','conditions'=>'Condiciones'] as $key=>$label)if($d[$key]!=='')$rows.='<li class="shipping-item">'.self::icon('send').'<div><h3>'.$label.'</h3><p>'.$e($d[$key]).'</p></div></li>';
    $inside=($text?'<div class="rich-content">'.$text.'</div>':'').'<ul class="shipping-items">'.$rows.'</ul>';$html=$heading.($variant==='accordion'?'<details class="block-accordion"><summary>Ver condiciones de entrega <span aria-hidden="true">+</span></summary>'.$inside.'</details>':$inside);
