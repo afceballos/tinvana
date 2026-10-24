@@ -100,3 +100,19 @@ Se conservan títulos, textos y lógica. Pasan `store-address.mjs` 20, `alerts.m
 - **Al vencer:** cuando la sesión ya no existe, o cuando cualquier petición recibe 401, se lleva al usuario al inicio de sesión con el aviso «Tu sesión se cerró por inactividad». Al volver a entrar regresa a la página del panel donde estaba.
 
 Pruebas: `tests/errors-session.mjs` 15, con el servidor de prueba en `SESSION_LIFETIME=8`.
+
+## Pantalla de precarga (2026-10-24)
+
+**Escena:** el pájaro de origami flota en el centro; un arco naranja gira alrededor de una pista punteada; seis papeles doblados orbitan a distintas velocidades; hay ondas que salen del centro, una cuadrícula de puntos con fondo cálido en movimiento, el título con brillo («tomando vuelo») y una barra de progreso con barrido.
+
+**Cómo está hecha:**
+- **Un solo marcado y una sola hoja:** el mismo marcado vive en `index.html`, que se ve antes de JavaScript, y en `LoadingScreen` (`src/Loading.tsx`), que se ve mientras se verifica la sesión. Ambos usan una sola hoja, `backend/public/brand/preload.css`, que se carga en el `<head>`. Así el cambio de HTML a React no mueve nada.
+- **Solo CSS:** funciona antes de que cargue el bundle.
+- **Mensajes:** en React rotan cada 2,2 s, y a los 7 s aparece el aviso de conexión lenta.
+- **Salida:** al estar listo el panel, `PreloadExit` reproduce un despegue (el pájaro sale hacia arriba, los anillos se expanden y la capa se desvanece) en lugar del antiguo `BrandEntrance`, que se eliminó.
+- **Temas y accesibilidad:** modo claro y oscuro (por `data-theme` o, antes de JavaScript, por la preferencia del sistema) y versión estática con `prefers-reduced-motion`.
+- **Limpieza:** se retiraron los estilos antiguos `.startup-*` y `.loader-*` de `motion.css`, `modern.css`, `brand.css` y `tinvana.css`.
+
+Pruebas: `tests/preload.mjs` 23 (sin saltos entre HTML y React a 1440 px y 390 px, versión estática, rotación de mensajes, despegue, oscuro en móvil y movimiento reducido).
+
+`tests/motion.mjs` ya no se puede ejecutar: apunta a un túnel temporal antiguo. Sus comprobaciones de la precarga las cubre `preload.mjs`.

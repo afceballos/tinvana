@@ -1,0 +1,75 @@
+/* Tinvana preload: the same markup is in index.html (before JavaScript) and in LoadingScreen (while the session loads),
+   so the handoff is seamless. CSS-only animation: paper folds orbiting the origami bird, a spinning arc, ripples,
+   a shimmering title and a progress sweep. `.is-leaving` plays the take-off when the panel is ready. */
+.tv-preload{--pl-bg:#FFF8F1;--pl-ink:#1E1E1E;--pl-muted:#75665c;--pl-accent:#FF6A00;--pl-peach:#FFB27A;--pl-soft:#FFE0CD;--pl-track:#f3dccb;
+ position:fixed;inset:0;z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;overflow:hidden;
+ background:var(--pl-bg);color:var(--pl-ink);font-family:Montserrat,'Segoe UI',sans-serif;isolation:isolate}
+:root[data-theme=dark] .tv-preload{--pl-bg:#14110e;--pl-ink:#f6eee7;--pl-muted:#b9aca2;--pl-soft:#3a2516;--pl-track:#2f241c}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .tv-preload{--pl-bg:#14110e;--pl-ink:#f6eee7;--pl-muted:#b9aca2;--pl-soft:#3a2516;--pl-track:#2f241c}}
+
+/* Backdrop: drifting glows and a faint dotted grid */
+.tv-preload::before,.tv-preload::after{content:"";position:absolute;z-index:-1;border-radius:50%;filter:blur(70px);pointer-events:none}
+.tv-preload::before{width:520px;height:520px;left:-160px;top:-180px;background:radial-gradient(circle,#ffb27a88,transparent 70%);animation:pl-drift 14s ease-in-out infinite alternate}
+.tv-preload::after{width:600px;height:600px;right:-220px;bottom:-240px;background:radial-gradient(circle,#ff6a0033,transparent 70%);animation:pl-drift 18s ease-in-out infinite alternate-reverse}
+.pl-grid{position:absolute;inset:0;z-index:-1;background-image:radial-gradient(color-mix(in srgb,var(--pl-accent) 22%,transparent) 1px,transparent 1.4px);background-size:26px 26px;
+ -webkit-mask-image:radial-gradient(circle at 50% 46%,#000 0,transparent 62%);mask-image:radial-gradient(circle at 50% 46%,#000 0,transparent 62%);opacity:.55}
+
+.pl-brand{position:absolute;left:40px;top:32px;animation:pl-rise .7s .05s both}
+.pl-brand img{display:block;width:170px;height:auto}.pl-brand .on-dark{display:none}
+:root[data-theme=dark] .pl-brand .on-light{display:none}:root[data-theme=dark] .pl-brand .on-dark{display:block}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .pl-brand .on-light{display:none}:root:not([data-theme=light]) .pl-brand .on-dark{display:block}}
+.pl-foot{position:absolute;bottom:26px;left:0;right:0;width:100%;max-width:none;margin:0;text-align:center;font-size:12px;letter-spacing:.02em;color:var(--pl-muted);animation:pl-rise .7s .5s both}
+
+/* Scene */
+.pl-center{display:flex;flex-direction:column;align-items:center;text-align:center;max-width:520px}
+.pl-scene{position:relative;width:240px;height:240px;margin-bottom:26px;animation:pl-pop .8s cubic-bezier(.2,.9,.25,1.2) both}
+.pl-ring{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.pl-ring circle{fill:none;stroke-linecap:round}
+.pl-ring .track{stroke:var(--pl-track);stroke-width:1.5;stroke-dasharray:2 7}
+.pl-ring .arc{stroke:var(--pl-accent);stroke-width:3.5;stroke-dasharray:24 76;transform-origin:50% 50%;animation:pl-spin 1.6s cubic-bezier(.55,.15,.45,.85) infinite}
+.pl-ring .arc2{stroke:var(--pl-peach);stroke-width:2;stroke-dasharray:10 90;transform-origin:50% 50%;animation:pl-spin 2.6s linear infinite reverse}
+.pl-ripple{position:absolute;left:50%;top:50%;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--pl-accent) 45%,transparent);opacity:0;animation:pl-ripple 2.8s ease-out infinite}
+.pl-ripple.r2{animation-delay:1.4s}
+.pl-orbit{position:absolute;inset:var(--inset,14px);animation:pl-spin var(--speed,9s) linear infinite;animation-delay:var(--delay,0s)}
+.pl-orbit>i{position:absolute;left:50%;top:-6px;width:var(--size,14px);height:var(--size,14px);margin-left:calc(var(--size,14px)/-2);background:var(--color,var(--pl-accent));
+ clip-path:polygon(50% 0,100% 100%,0 100%);transform:rotate(var(--tilt,20deg));filter:drop-shadow(0 3px 3px #6c300c26);animation:pl-tumble var(--speed,9s) ease-in-out infinite}
+.pl-orbit.o1{--inset:6px;--speed:8s;--size:16px}
+.pl-orbit.o2{--inset:6px;--speed:8s;--delay:-4s;--size:10px;--color:var(--pl-peach);--tilt:-30deg}
+.pl-orbit.o3{--inset:30px;--speed:11s;--delay:-2s;--size:12px;--color:#ff8c3a;--tilt:60deg}
+.pl-orbit.o4{--inset:30px;--speed:11s;--delay:-7.5s;--size:8px;--color:var(--pl-soft)}
+.pl-orbit.o5{--inset:-8px;--speed:15s;--delay:-5s;--size:9px;--color:var(--pl-peach);--tilt:110deg}
+.pl-orbit.o6{--inset:-8px;--speed:15s;--delay:-12s;--size:12px;--tilt:-80deg}
+.pl-bird{position:absolute;left:50%;top:50%;width:132px;height:auto;margin:-52px 0 0 -66px;filter:drop-shadow(0 14px 18px #6c300c33);animation:pl-float 3.2s ease-in-out infinite}
+.pl-shadow{position:absolute;left:50%;bottom:44px;width:84px;height:12px;margin-left:-42px;border-radius:50%;background:radial-gradient(closest-side,#6c300c38,transparent);animation:pl-shadow 3.2s ease-in-out infinite}
+
+/* Copy and progress */
+.pl-center h1{margin:0 0 10px;font-size:clamp(25px,4vw,36px);line-height:1.2;letter-spacing:-.04em;font-weight:700;animation:pl-rise .7s .2s both}
+.pl-center h1 span{background:linear-gradient(90deg,var(--pl-accent),#ffb27a,var(--pl-accent));background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:pl-shine 2.4s linear infinite}
+.pl-center p{margin:0;min-height:24px;font-size:15px;line-height:1.6;color:var(--pl-muted);animation:pl-rise .7s .3s both}
+.pl-bar{position:relative;width:200px;height:4px;margin-top:26px;border-radius:99px;background:var(--pl-track);overflow:hidden;animation:pl-rise .7s .4s both}
+.pl-bar>span{position:absolute;inset:0 auto 0 0;width:42%;border-radius:99px;background:linear-gradient(90deg,transparent,var(--pl-accent) 55%,#ffb27a);box-shadow:0 0 12px #ff6a0099;animation:pl-sweep 1.5s cubic-bezier(.6,0,.4,1) infinite}
+.pl-msg{display:inline-block;animation:pl-swap .45s ease both}
+
+/* Take-off when the panel is ready */
+.tv-preload.is-leaving{animation:pl-leave .7s .15s ease forwards;pointer-events:none}
+.tv-preload.is-leaving .pl-bird{animation:pl-takeoff .75s cubic-bezier(.55,0,.75,.3) forwards}
+.tv-preload.is-leaving .pl-orbit,.tv-preload.is-leaving .pl-ring,.tv-preload.is-leaving .pl-ripple,.tv-preload.is-leaving .pl-shadow{transition:transform .6s ease,opacity .5s ease;transform:scale(1.35);opacity:0}
+.tv-preload.is-leaving .pl-center h1,.tv-preload.is-leaving .pl-center p,.tv-preload.is-leaving .pl-bar{animation:pl-out .35s ease forwards}
+
+@keyframes pl-spin{to{transform:rotate(360deg)}}
+@keyframes pl-tumble{50%{transform:rotate(calc(var(--tilt,20deg) + 180deg)) scale(.8)}}
+@keyframes pl-float{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-12px) rotate(3deg)}}
+@keyframes pl-shadow{0%,100%{transform:scaleX(1);opacity:1}50%{transform:scaleX(.72);opacity:.55}}
+@keyframes pl-ripple{0%{transform:scale(.6);opacity:.7}100%{transform:scale(1.9);opacity:0}}
+@keyframes pl-shine{to{background-position:-200% 0}}
+@keyframes pl-sweep{0%{transform:translateX(-110%)}100%{transform:translateX(260%)}}
+@keyframes pl-drift{to{transform:translate(60px,40px) scale(1.1)}}
+@keyframes pl-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes pl-pop{from{opacity:0;transform:scale(.82) rotate(-6deg)}to{opacity:1;transform:none}}
+@keyframes pl-swap{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes pl-takeoff{0%{transform:translateY(0) rotate(0)}30%{transform:translate(-8px,10px) rotate(-6deg)}100%{transform:translate(260px,-320px) rotate(-18deg) scale(.55);opacity:0}}
+@keyframes pl-leave{to{opacity:0;visibility:hidden}}
+@keyframes pl-out{to{opacity:0;transform:translateY(-8px)}}
+
+@media (max-width:600px){.pl-brand{left:20px;top:22px}.pl-brand img{width:140px}.pl-scene{width:200px;height:200px}.pl-bird{width:112px;margin:-44px 0 0 -56px}.pl-shadow{bottom:36px}}
+@media (prefers-reduced-motion:reduce){.tv-preload *,.tv-preload::before,.tv-preload::after{animation:none!important;transition:none!important}.pl-bar>span{width:100%;opacity:.55}.tv-preload.is-leaving{display:none}}

@@ -630,6 +630,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
   - Detalle en [MODERN-UI.md](MODERN-UI.md).
 - **Comprobado (local):** `errors-session.mjs` 15 (sesión de 8 s: las consultas de sondeo no la renuevan), `npm test` 107, `orders`, `order-dates`, `admin`, `compact` y `modern`.
 
+### 2026-10-24 · Nueva pantalla de precarga
+- **Cambio:** una sola escena animada (HTML y React con el mismo marcado y una sola hoja `preload.css`) y una salida de despegue en lugar de la entrada separada. Detalle en [MODERN-UI.md](MODERN-UI.md).
+- **Comprobado (local):** `preload.mjs` 23, `errors-session.mjs` 15, `npm test` 107, `admin`, `orders`, `compact` y `modern`.
+- **Limitación:** `motion.mjs` apunta a una URL de túnel antigua y no se puede ejecutar; no se modificó.
+- **Observación:** `errors-session.mjs` falló una vez justo después de otras pruebas, sin causa identificada; las tres ejecuciones siguientes pasaron (15/15).
+
 ### Plantilla para la próxima actualización
 
 ```text
