@@ -168,3 +168,10 @@ Se usaron las skills `ui-ux-pro-max` (patrón de conversión con el llamado a la
 - **Barra fija de compra:** se calcula al hacer scroll y aparece siempre que la caja de compra de la presentación no está a la vista: ya pasada o todavía abajo por una descripción larga. Se oculta en el primer tramo de la página. Antes, con un desplazamiento rápido podía no aparecer.
 - **Pruebas:** `landing-design.mjs` 39.
 - **Corrección (reportada por el usuario):** en el editor, elegir una tipografía desplazaba la página hasta una zona vacía. Las tarjetas de opción no contenían su radio oculto, así que el navegador saltaba hasta él al enfocarlo. Ahora cada radio queda sobre su tarjeta. `template-design.mjs` (10) comprueba que elegir estilo, tipografía o compartir no desplaza la página ni el panel; sin la corrección, la prueba reproduce el salto.
+- **Alineación del texto por sección** (`style.align`: izquierda, centro o derecha; se añadió derecha):
+  - gobierna el título, la descripción, el texto y el contenido de las tarjetas, con el ícono o el número moviéndose con el texto;
+  - las filas con ícono al lado del texto (casillas, viñetas, listas, pasos verticales, preguntas, especificaciones, envíos) se siguen leyendo de izquierda a derecha, y el bloque se mueve con la sección;
+  - en «Cómo se usa» (pasos y cuadrícula), números, texto y la línea entre pasos siguen la misma alineación del título;
+  - las secciones nuevas de «Cómo se usa» y de llamado a la acción empiezan centradas (también las creadas con IA).
+- **Cantidad en el formulario:** con la cantidad activada, el formulario de pedido muestra «¿Cuántas unidades quieres?» con su selector, sincronizado con el total, el campo enviado y las cajas de compra. Así se puede elegir aunque se abra desde un llamado a la acción sin selector.
+- **Pruebas:** `landing-design.mjs` 40 y `blocks.php` 101.

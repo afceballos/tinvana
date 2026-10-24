@@ -35,7 +35,7 @@ final class Blocks {
    $variant=$b['variant']??$definition['variants'][0];if(!is_string($variant)||!in_array($variant,$definition['variants'],true))throw new HttpError(422,'Variante de sección inválida.');
    $visible=$b['visible']??true;if(!is_bool($visible))throw new HttpError(422,'Visibilidad de sección inválida.');
    $style=$b['style']??[];if(!is_array($style))throw new HttpError(422,'Estilo inválido.');$cleanStyle=[];
-   foreach(['tone'=>['paper','white','soft','brand'],'space'=>['compact','normal','large'],'align'=>['left','center'],'ratio'=>['square','landscape','portrait']] as $key=>$values){$v=$style[$key]??$values[0];if(!is_string($v)||!in_array($v,$values,true))throw new HttpError(422,'Estilo de sección inválido.');$cleanStyle[$key]=$v;}
+   foreach(['tone'=>['paper','white','soft','brand'],'space'=>['compact','normal','large'],'align'=>['left','center','right'],'ratio'=>['square','landscape','portrait']] as $key=>$values){$v=$style[$key]??$values[0];if(!is_string($v)||!in_array($v,$values,true))throw new HttpError(422,'Estilo de sección inválido.');$cleanStyle[$key]=$v;}
    $d=$b['data']??[];if(!is_array($d))throw new HttpError(422,'Contenido de sección inválido.');$data=[];
    foreach($definition['fields'] as $field){
     if($field==='dropiFields'){$fields=$d[$field]??self::DROPI_FIELDS;if(!is_array($fields)||!array_is_list($fields)||count($fields)>8)throw new HttpError(422,'Campos de Dropi inválidos.');foreach($fields as $key)if(!is_string($key)||!in_array($key,self::DROPI_FIELDS,true))throw new HttpError(422,'Campo de Dropi no permitido.');$data[$field]=array_values(array_unique($fields));continue;}
@@ -59,7 +59,7 @@ final class Blocks {
    $out[]=['id'=>$b['id'],'type'=>$type,'visible'=>$visible,'variant'=>$variant,'style'=>$cleanStyle,'data'=>$data];
   }return $out;
  }
- public static function make(string $type,array $data=[]):array {$r=self::registry()[$type];return ['id'=>Support::uuid(),'type'=>$type,'visible'=>true,'variant'=>$r['variants'][0],'style'=>['tone'=>'paper','space'=>'normal','align'=>'left','ratio'=>'landscape'],'data'=>$data];}
+ public static function make(string $type,array $data=[]):array {$r=self::registry()[$type];return ['id'=>Support::uuid(),'type'=>$type,'visible'=>true,'variant'=>$r['variants'][0],'style'=>['tone'=>'paper','space'=>'normal','align'=>in_array($type,['cta','usage'],true)?'center':'left','ratio'=>'landscape'],'data'=>$data];}
  public static function legacy(array $c):array {
   $blocks=[self::make('hero',['title'=>'','text'=>''])];
   foreach(array_chunk($c['features']??[],20) as $chunk)$blocks[]=self::make('benefits',['title'=>'Características','items'=>array_map(fn($f)=>['id'=>Support::uuid(),'title'=>$f],$chunk)]);

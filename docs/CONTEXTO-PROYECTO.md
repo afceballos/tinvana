@@ -660,6 +660,14 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** imagen fija junto a textos largos; llamado a la acción como título, texto, precio y botón, centrado por defecto; pasos con número centrado. Además se corrigió la barra fija de compra, que podía no aparecer con un desplazamiento rápido. Detalle en [BUILDER.md](BUILDER.md).
 - **Comprobado (local):** `landing-design.mjs` 39, `lead-success` 12, `builder`, `product-list`, `dropi-shipping` 20 y `ai.php` 38.
 
+### 2026-10-24 · Alineación por sección y cantidad en el formulario
+- **Cambio:**
+  - alineación izquierda, centro o derecha por sección, aplicada también a las tarjetas y a los pasos;
+  - «Cómo se usa» y el llamado a la acción empiezan centrados;
+  - selector de cantidad dentro del formulario de pedido.
+  - Detalle en [BUILDER.md](BUILDER.md).
+- **Comprobado (local):** `landing-design.mjs` 40, `template-design.mjs` 10, `builder`, `lead-success` 12, `product-list`, `blocks.php` 101, `ai.php` 38 y `run.php` 69.
+
 ### Plantilla para la próxima actualización
 
 ```text

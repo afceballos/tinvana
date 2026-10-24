@@ -71,9 +71,21 @@ body.block-page{margin:0;background:var(--paper);color:var(--ink);font:400 17px/
 .tone-brand .rich-content a{color:inherit}
 .space-compact{padding-block:clamp(36px,5vw,56px)}.space-large{padding-block:clamp(80px,11vw,144px)}
 .align-center .block-inner{text-align:center}
-.align-center h2,.align-center .block-subtitle,.align-center .rich-content{margin-inline:auto}
-.align-center .purchase-box{margin-inline:auto}
-.align-center .block-items{text-align:left}
+.align-right .block-inner{text-align:right}
+.align-center :is(h2,.block-subtitle,.rich-content,.purchase-box){margin-inline:auto}
+.align-right :is(h2,.block-subtitle,.rich-content,.purchase-box){margin-left:auto;margin-right:0}
+:is(.align-center,.align-right) .rich-content :is(ul,ol){padding-left:0;list-style-position:inside}
+/* Cards follow the section alignment: their icon or number moves with the text. */
+.align-center .block-item{text-align:center}.align-right .block-item{text-align:right}
+.align-center .block-item :is(.item-icon,.item-number){margin-inline:auto}
+.align-right .block-item :is(.item-icon,.item-number){margin-left:auto;margin-right:0}
+/* Rows with the icon beside the text keep reading left to right; the list itself moves with the section. */
+:is(.align-center,.align-right) :is(.variant-checks,.variant-icons,.variant-bullets,.variant-list,.variant-horizontal,.variant-numbered,.variant-steps,.variant-compact,.variant-timeline,.type-hero,.type-imageText,.type-precautions) .block-item,
+:is(.align-center,.align-right):is(.variant-checks,.variant-icons,.variant-bullets,.variant-list,.variant-horizontal,.variant-numbered,.variant-steps,.variant-compact,.variant-timeline,.type-hero,.type-imageText,.type-precautions) .block-item,
+:is(.align-center,.align-right) :is(.shipping-item,.block-accordion,.spec-row,.dropi-warehouses li){text-align:left}
+:is(.align-center,.align-right):is(.variant-checks,.variant-icons,.variant-bullets,.variant-list,.variant-horizontal,.variant-numbered,.variant-steps,.variant-compact,.variant-timeline,.type-hero,.type-imageText,.type-precautions) .block-item :is(.item-icon,.item-number){margin-inline:0}
+.align-center:is(.variant-numbered,.variant-steps,.variant-compact,.variant-timeline,.type-faq,.type-policies) :is(.block-items,.block-faq){max-width:780px;margin-inline:auto}
+.align-right:is(.variant-numbered,.variant-steps,.variant-compact,.variant-timeline,.type-faq,.type-policies) :is(.block-items,.block-faq){max-width:780px;margin-left:auto}
 .block-icon{width:22px;height:22px;flex-shrink:0}
 .block-image-empty{display:grid;place-items:center;min-height:200px;width:100%;border-radius:var(--r-md);background:var(--tint);color:var(--muted);font-size:14px}
 
@@ -167,13 +179,16 @@ body.block-page{margin:0;background:var(--paper);color:var(--ink);font:400 17px/
 .variant-compact .block-item{padding:16px 20px}
 
 /* ---------- Usage: stepper and timeline ---------- */
-.type-usage:is(.variant-stepper,.variant-grid) .block-item{display:flex;flex-direction:column;align-items:center;text-align:center}
-.type-usage:is(.variant-stepper,.variant-grid) .item-number,.type-usage:is(.variant-stepper,.variant-grid) .item-icon{margin:0 auto 18px}
+.type-usage:is(.variant-stepper,.variant-grid) .block-item{display:flex;flex-direction:column;align-items:flex-start;text-align:left;--step-x:40px}
+.type-usage.align-center:is(.variant-stepper,.variant-grid) .block-item{align-items:center;text-align:center;--step-x:50%}
+.type-usage.align-right:is(.variant-stepper,.variant-grid) .block-item{align-items:flex-end;text-align:right;--step-x:calc(100% - 40px)}
+.type-usage:is(.variant-stepper,.variant-grid) .block-item :is(.item-number,.item-icon){margin:0 0 18px}
+.type-usage.variant-grid .block-item{--step-x:0}
 .type-usage.variant-stepper .block-item{border:0;background:none;padding:0 12px}
 .type-usage.variant-stepper .item-number{position:relative;z-index:1;width:56px;height:56px;font-size:22px;box-shadow:0 0 0 8px var(--paper)}
 .type-usage.variant-stepper.tone-white .item-number{box-shadow:0 0 0 8px var(--surface)}
 .type-usage.variant-stepper.tone-soft .item-number{box-shadow:0 0 0 8px var(--tint)}
-.type-usage.variant-stepper .block-item::after{content:"";position:absolute;top:27px;left:50%;width:calc(100% + clamp(14px,2vw,24px));height:2px;background:repeating-linear-gradient(90deg,var(--primary) 0 8px,transparent 8px 14px);opacity:.45}
+.type-usage.variant-stepper .block-item::after{content:"";position:absolute;top:27px;left:var(--step-x,50%);width:calc(100% + clamp(14px,2vw,24px));height:2px;background:repeating-linear-gradient(90deg,var(--primary) 0 8px,transparent 8px 14px);opacity:.45}
 .type-usage.variant-stepper .block-item:last-child::after,.type-usage.variant-stepper .block-item:nth-child(3n)::after{display:none}
 .type-usage.variant-stepper .item-description{max-width:32ch}
 .type-usage.variant-timeline .block-items{grid-template-columns:1fr;gap:0;position:relative;padding-left:4px}
@@ -381,6 +396,8 @@ a.selected-product-card:hover .selected-product-link .block-icon{transform:trans
 .order-summary p{margin:2px 0;font-size:14px;color:#5f5650}
 .order-total{display:flex;justify-content:space-between;gap:16px;margin-top:18px;padding:16px 0;border-block:1px solid #ece6e1;font-size:17px}
 .order-total strong{font-variant-numeric:tabular-nums}
+.order-quantity{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:16px;padding:12px 14px;border-radius:16px;background:var(--tint);font-weight:650}
+.order-quantity .quantity-control{background:#fff}
 .order-note{margin-bottom:20px;font-size:13px;line-height:1.6;color:#5f5650}
 #image-zoom{width:min(1000px,94vw);max-height:94dvh;margin:auto;padding:16px;border:0;border-radius:var(--r-lg);background:#fff}
 #image-zoom>button{display:block;margin-left:auto}

@@ -28,9 +28,9 @@ try{
  const long=Array.from({length:10},(_,i)=>'<p>Párrafo '+(i+1)+' con información del producto para comprobar que la imagen acompaña la lectura cuando el texto es largo.</p>').join('');
  hero.data={...hero.data,text:long};
  c.blocks=[hero,
-  block('usage','stepper',{title:'Cómo se usa',subtitle:'',items:[item('Abre la caja','Retira el empaque.'),item('Llénalo','Agrega agua.'),item('Disfruta','Listo para usar.')]}),
+  block('usage','stepper',{title:'Cómo se usa',subtitle:'',items:[item('Abre la caja','Retira el empaque.'),item('Llénalo','Agrega agua.'),item('Disfruta','Listo para usar.')]},{align:'center'}),
   block('imageText','image-left',{title:'Pensado para tu día',subtitle:'',text:long,image:'',ctaText:'',items:[]}),
-  block('benefits','cards',{title:'Por qué te va a gustar',subtitle:'Cuatro razones',items:[item('Resistente','Dura años.'),item('Liviano','Pesa poco.'),item('Fácil de limpiar','Agua y jabón.'),item('Garantía','Seis meses.')]}),
+  block('benefits','cards',{title:'Por qué te va a gustar',subtitle:'Cuatro razones',items:[item('Resistente','Dura años.'),item('Liviano','Pesa poco.'),item('Fácil de limpiar','Agua y jabón.'),item('Garantía','Seis meses.')]},{align:'right'}),
   block('testimonials','cards',{title:'Lo que dicen',subtitle:'',items:[{...item('Ana P.','Me encantó, llegó rápido.'),rating:5},{...item('Luis R.','Muy buena calidad.'),rating:4}]}),
   block('faq','accordion',{title:'Preguntas frecuentes',subtitle:'',items:[item('¿Cuánto tarda?','<p>De 2 a 5 días.</p>'),item('¿Puedo pagar al recibir?','<p>Sí, contra entrega.</p>')]}),
   block('cta','band',{title:'Pídelo hoy',subtitle:'Últimas unidades',text:'',image:'',ctaText:'Quiero el mío'},{align:'center'})];
@@ -68,12 +68,18 @@ try{
  check('image + text keeps the image in view with long text',(await page.locator('.type-imageText .editorial-image').boundingBox()).y<200&&(await page.locator('.type-imageText .editorial-image').boundingBox()).y>=0);
  // Steps centered
  const step=page.locator('.type-usage .block-item').first();const sb=await step.boundingBox();const nb=await step.locator('.item-number').boundingBox();
- check('step numbers are centered over their text',Math.abs((nb.x+nb.width/2)-(sb.x+sb.width/2))<3);
+ check('centered steps: title and numbers share the alignment',Math.abs((nb.x+nb.width/2)-(sb.x+sb.width/2))<3&&await page.locator('.type-usage h2').evaluate(e=>getComputedStyle(e).textAlign)==='center');
+ const card=page.locator('.type-benefits .block-item').first();const cardBox=await card.boundingBox();const iconBox=await card.locator('.item-icon').boundingBox();
+ check('right alignment moves title, text and card icons to the right',await page.locator('.type-benefits h2').evaluate(e=>getComputedStyle(e).textAlign)==='right'&&await card.evaluate(e=>getComputedStyle(e).textAlign)==='right'&&cardBox.x+cardBox.width-(iconBox.x+iconBox.width)<40);
  // Call to action: title, text, then price and button, centered, without the purchase box
  const cta=page.locator('.type-cta');await cta.scrollIntoViewIfNeeded();await page.waitForTimeout(700);const cb=await cta.boundingBox();const bb=await cta.locator('.buy-trigger').boundingBox();
  check('call to action shows price and button after the text, centered',await cta.locator('.purchase-box').count()===0&&await cta.locator('.cta-actions .cta-price').count()===1&&Math.abs((bb.x+bb.width/2)-(cb.x+cb.width/2))<4);
  await page.screenshot({path:'test-results/landing-cta.png'});await page.evaluate(()=>window.scrollTo(0,0));
- await page.locator('.type-hero .buy-trigger').click();await page.locator('#purchase-dialog[open]').waitFor();check('purchase dialog still opens',true);await page.keyboard.press('Escape');
+ // The dialog opened from the closing call to action (no quantity there) lets the buyer choose how many.
+ await page.locator('.type-cta .buy-trigger').click();await page.locator('#purchase-dialog[open]').waitFor();
+ await page.locator('#purchase-dialog .order-quantity [data-quantity-step="1"]').click();await page.locator('#purchase-dialog .order-quantity [data-quantity-step="1"]').click();
+ check('quantity can be chosen inside the order dialog',await page.locator('#purchase-dialog [data-summary-quantity]').textContent()==='3'&&await page.locator('[data-lead-quantity]').inputValue()==='3'&&(await page.locator('#purchase-dialog [data-summary-total]').textContent()).includes('269.700')&&await page.locator('.type-hero [data-quantity]').inputValue()==='3');
+ await page.screenshot({path:'test-results/landing-dialog-quantity.png'});await page.keyboard.press('Escape');
  // Mobile: sticky bar appears after the hero purchase box, floating buttons move above it.
  const m=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});const mp=await m.newPage();mp.on('pageerror',e=>errors.push(e.message));
  await mp.goto(base+'/p/'+f.slug);await mp.locator('.type-hero h1').waitFor();await mp.waitForTimeout(400);
