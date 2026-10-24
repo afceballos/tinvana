@@ -49,6 +49,12 @@ final class Orders {
   $status=$q['status']??'';if(!is_string($status)||!in_array($status,['','draft','confirmed','cancelled'],true))throw new HttpError(422,'Estado inválido.');
   $page=max(1,min(10000,(int)($q['page']??1)));$args=[$owner];$where='user_id=?';
   if($status!==''){$where.=' AND sale_status=?';$args[]=$status;}
+  // Date range by Colombia calendar day (UTC-5, no DST): from 00:00 of `from` to the end of `to`.
+  $day=function(string $key)use($q):?\DateTimeImmutable{$v=$q[$key]??'';if($v==='')return null;if(!is_string($v)||!preg_match('/^\d{4}-\d{2}-\d{2}$/D',$v)||!checkdate((int)substr($v,5,2),(int)substr($v,8,2),(int)substr($v,0,4)))throw new HttpError(422,'Fecha inválida.');return new \DateTimeImmutable($v.'T00:00:00-05:00');};
+  $from=$day('from');$to=$day('to');
+  if($from&&$to&&$from>$to)throw new HttpError(422,'La fecha inicial debe ser anterior o igual a la final.');
+  if($from){$where.=' AND created_at>=?';$args[]=Database::timestamp($from->format(DATE_ATOM));}
+  if($to){$where.=' AND created_at<?';$args[]=Database::timestamp($to->modify('+1 day')->format(DATE_ATOM));}
   $rows=Database::all('SELECT * FROM orders WHERE '.$where.' ORDER BY created_at DESC,id DESC LIMIT 26 OFFSET '.(($page-1)*25),$args);
   return ['orders'=>array_map([self::class,'view'],array_slice($rows,0,25)),'hasNext'=>count($rows)>25,'page'=>$page];
  }

@@ -619,6 +619,10 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado (local):** `admin.mjs` 39 y la regresión de pedidos, Dropi, correos, perfil, tienda, constructor, IA e interfaz.
 - **Pendiente:** aplicar en producción (deploy y `migrate:auto`, migraciones 020 a 025) y asignar el superusuario con `superadmin:grant`. La pasarela de pago y la página pública de planes son el siguiente paso.
 
+### 2026-10-24 · Filtro de pedidos por fecha
+- **Cambio:** filtro por rango de fechas de creación en la lista de pedidos, en días de Colombia, con atajos y el rango en la URL. Detalle en [ORDERS.md](ORDERS.md).
+- **Comprobado (local):** `order-dates.mjs` 13 (incluye el límite de medianoche en hora de Colombia), `orders.mjs` 38, `order-editing.mjs` 52, `admin.mjs` 39 y `npm test` 107.
+
 ### Plantilla para la próxima actualización
 
 ```text

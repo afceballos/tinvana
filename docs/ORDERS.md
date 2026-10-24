@@ -36,7 +36,10 @@ La dirección ahora se puede corregir en el pedido. Una dirección incompleta no
 
 ## API privada
 
-- `GET /api/orders?page=1&status=draft` y `GET /api/orders/{id}`.
+- `GET /api/orders?page=1&status=draft&from=AAAA-MM-DD&to=AAAA-MM-DD` y `GET /api/orders/{id}`.
+  - `from` y `to` son opcionales y filtran por fecha de creación en días calendario de Colombia (UTC-5): desde las 00:00 de `from` hasta el final de `to`.
+  - Una fecha inválida, o `from` posterior a `to`, responde 422.
+  - En el panel: campos «Desde» y «Hasta», atajos (Hoy, Últimos 7 días, Últimos 30 días, Este mes) y «Quitar fechas». El rango queda en la URL y se combina con el filtro de estado.
 - `POST /api/orders` con `{lead_id}`: conversión idempotente.
 - `POST /api/orders/{id}/quote`: `{version,quantity,unit_price,shipping_price,notes}`; importes decimales sin separadores de miles.
 - `POST /api/orders/{id}/confirm`: `{version,quote_id,evidence,accepted:true}`.
