@@ -21,6 +21,7 @@ try {
  if($storeBase!==null&&str_ends_with($host,'.'.$storeBase)){
   $label=substr($host,0,-strlen('.'.$storeBase));
   if(!Store::isReserved($label)){
+   $main=rtrim((string)Support::env('APP_URL'),'/');if(preg_match('~^https?://[^/]+$~',$main))header("Content-Security-Policy: default-src 'self'; img-src 'self' https: http: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ".$main."; form-action 'self'; frame-ancestors 'self'; base-uri 'none'");
    $storeOwner=preg_match('/^[a-z0-9-]+$/',$label)?Store::owner($label):null;
    if($storeOwner===null)throw new HttpError(404,'Tienda no encontrada.');
    if(preg_match('~^/p/([a-z0-9]+(?:-[a-z0-9]+)*)(?:/lead|/shipping)?$~',$path,$mine)){
@@ -53,6 +54,13 @@ try {
   $name=pathinfo($asset['original_name']?:'imagen',PATHINFO_FILENAME).'.webp';header('Content-Type: image/webp');header('Content-Length: '.filesize($file));header("Content-Disposition: attachment; filename=imagen.webp; filename*=UTF-8''".rawurlencode($name));if($method==='GET')readfile($file);exit;
  }
  if($path==='/api/profile/avatar'&&in_array($method,['GET','HEAD'],true)){$user=Auth::user();$r=Database::one('SELECT avatar_id FROM users WHERE id=?',[$user['id']]);$file=$r['avatar_id']?App\Profile::avatarPath($r['avatar_id']):'';if(!$file||!is_file($file))throw new HttpError(404,'Foto no disponible.');header('Content-Type: image/webp');header('Content-Length: '.filesize($file));if($method==='GET')readfile($file);exit;}
+ if(preg_match('~^/api/landings/([a-f0-9-]+)/owner$~',$path,$m)&&$method==='GET'){
+  $origin=(string)($_SERVER['HTTP_ORIGIN']??'');$app=parse_url((string)Support::env('APP_URL'));$authority=($app['host']??'').(isset($app['port'])?':'.$app['port']:'');
+  if($storeBase!==null&&preg_match('~^'.preg_quote((string)($app['scheme']??'https'),'~').'://([a-z0-9-]+)\.'.preg_quote($authority,'~').'$~',$origin,$o)&&!Store::isReserved($o[1])){header('Access-Control-Allow-Origin: '.$origin);header('Access-Control-Allow-Credentials: true');}
+  header('Vary: Origin');header('Content-Type: application/json; charset=utf-8');$owner=false;
+  if(!empty($_SESSION['user_id'])&&Support::isUuid($m[1])){try{$u=Auth::user();$owner=(bool)Database::one('SELECT id FROM landing_pages WHERE id=? AND user_id=?',[$m[1],$u['id']]);}catch(HttpError){}}
+  echo Support::json(['owner'=>$owner,'edit'=>$owner?rtrim((string)Support::env('APP_URL'),'/').'/panel/landings/'.$m[1]:null]);exit;
+ }
  if($api){header('Content-Type: application/json; charset=utf-8');echo Support::json(Api::handle($path,$method));exit;}
  if(preg_match('~^/p/([a-z0-9]+(?:-[a-z0-9]+)*)(/lead|/shipping)?$~',$path,$m)){
   // Landings of suspended accounts are offline (pages, lead form and freight quote).

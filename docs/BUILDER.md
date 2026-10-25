@@ -180,5 +180,9 @@ Se usaron las skills `ui-ux-pro-max` (patrón de conversión con el llamado a la
 - **Quién lo ve:** en la página pública aparece un botón flotante abajo a la izquierda, que lleva a `/panel/landings/{id}`. `LandingRenderer::ownerTools` solo lo genera si la sesión del panel es válida y pertenece al dueño de la landing. Los visitantes, otras cuentas y la vista previa del editor no lo reciben en el HTML.
 - **Caché:** las páginas ya se sirven con `Cache-Control: no-store`, así que la versión del dueño no se guarda en cachés compartidas.
 - **En móvil:** es un botón redondo con nombre accesible; sube cuando aparece la barra de compra.
-- **Limitación:** la cookie de sesión es del dominio principal, así que en los subdominios de tienda no aparece.
-- **Pruebas:** `tests/owner-edit.mjs` (12).
+- **Subdominios de tienda** (`tienda.dominio`): la cookie de sesión es del dominio principal y no se envía al subdominio.
+  - La página lleva `data-owner-check` y el script consulta `GET {APP_URL}/api/landings/{id}/owner` con `credentials:include`. Es una petición del mismo sitio, así que el navegador envía la sesión del dominio principal.
+  - La respuesta es solo `{owner, edit}`. CORS con credenciales se permite únicamente a los subdominios de tienda del mismo dominio y esquema, y la CSP de esas páginas amplía `connect-src` solo a `APP_URL`.
+  - La cookie de sesión no se amplía a los subdominios.
+- **Pruebas:** `tests/owner-edit.mjs` (12) y `tests/owner-edit-store.mjs` (6, con subdominios reales resueltos a 127.0.0.1).
+- **Corrección:** al confirmar una compra, la ventana de éxito se abría 200 ms después de empezar a cerrar el formulario. A veces guardaba el scroll bloqueado y, al cerrarla, la página quedaba sin scroll. Ahora se abre cuando el formulario termina de cerrarse; `lead-success.mjs` pasó cuatro veces seguidas.

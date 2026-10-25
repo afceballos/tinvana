@@ -9,6 +9,8 @@ if(!preg_match('/^[a-f0-9]{8}$/D',$tag))throw new RuntimeException('Invalid tag.
 $like='store-router-'.$tag.'-%@example.test';
 if($op==='cleanup'){Database::query('DELETE FROM users WHERE email LIKE ?',[$like]);exit;}
 if($op==='unpublish'){Database::query("UPDATE landing_pages SET status='draft' WHERE user_id IN (SELECT id FROM users WHERE email=?)",['store-router-'.$tag.'-a@example.test']);exit;}
+// Known password for store a's owner (browser tests that sign in on the main domain); printed back only to the test.
+if($op==='password'){$pass='Store-'.bin2hex(random_bytes(8));Database::query('UPDATE users SET password_hash=? WHERE email=?',[password_hash($pass,PASSWORD_DEFAULT),'store-router-'.$tag.'-a@example.test']);echo Support::json(['email'=>'store-router-'.$tag.'-a@example.test','password'=>$pass]);exit;}
 if($op==='clear'){Database::query('UPDATE users SET store_subdomain=NULL WHERE email=?',['store-router-'.$tag.'-a@example.test']);exit;}
 if($op!=='setup')throw new RuntimeException('Unknown operation.');
 $out=[];

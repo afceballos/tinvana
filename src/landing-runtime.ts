@@ -20,7 +20,8 @@ document.querySelectorAll<HTMLButtonElement>('[data-quantity-step]').forEach(but
 
 const purchase=document.querySelector<HTMLDialogElement>('#purchase-dialog');
 let trigger:HTMLElement|null=null;let closing=false;let overflow='';
-function closePurchase(){if(!purchase?.open||closing)return;closing=true;const finish=()=>{purchase.close();document.body.style.overflow=overflow;trigger?.focus();closing=false;};if(reduced()){finish();return;}purchase.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(12px)'}],{duration:170,easing:'ease-in'}).finished.then(finish,finish);}
+// Resolves once the dialog is really closed and the page scroll restored, so anything opened next sees the true state.
+function closePurchase():Promise<void>{if(!purchase?.open||closing)return Promise.resolve();closing=true;const finish=()=>{purchase.close();document.body.style.overflow=overflow;trigger?.focus();closing=false;};if(reduced()){finish();return Promise.resolve();}return purchase.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(12px)'}],{duration:170,easing:'ease-in'}).finished.then(finish,finish);}
 document.querySelectorAll<HTMLButtonElement>('[data-buy]').forEach(button=>button.addEventListener('click',()=>{if(!purchase||purchase.open)return;setQuantity(quantity);trigger=button;overflow=document.body.style.overflow;document.body.style.overflow='hidden';purchase.showModal();purchase.querySelector<HTMLInputElement>('input[name=first_name]')?.focus();if(!reduced())purchase.animate([{opacity:0,transform:'translateY(24px) scale(.98)'},{opacity:1,transform:'none'}],{duration:320,easing:ease});}));
 purchase?.addEventListener('cancel',event=>{event.preventDefault();closePurchase();});
 document.querySelector('[data-close-purchase]')?.addEventListener('click',closePurchase);
@@ -41,7 +42,7 @@ form?.addEventListener('submit',async event=>{
  event.preventDefault();if(submitting||preview)return;setQuantity(quantity);submitting=true;
  const status=document.querySelector<HTMLElement>('#lead-status')!;const button=form.querySelector<HTMLButtonElement>('button[type=submit]')!;
  button.disabled=true;button.textContent='Enviando solicitud…';form.setAttribute('aria-busy','true');status.dataset.state='pending';status.textContent='Guardando tu solicitud…';
- try{const payload=Object.fromEntries(new FormData(form));const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':String(payload.csrf)},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok)throw new Error(result.error||'No se pudo guardar la solicitud.');status.dataset.state='success';status.textContent=result.message;button.textContent='Solicitud recibida';form.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input:not([type=hidden]),select').forEach(input=>input.disabled=true);form.dispatchEvent(new Event('lead-saved'));if(purchase?.open){const returnTo=trigger;closePurchase();setTimeout(()=>showLeadSuccess(reduced(),returnTo),reduced()?0:200);}}
+ try{const payload=Object.fromEntries(new FormData(form));const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':String(payload.csrf)},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok)throw new Error(result.error||'No se pudo guardar la solicitud.');status.dataset.state='success';status.textContent=result.message;button.textContent='Solicitud recibida';form.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input:not([type=hidden]),select').forEach(input=>input.disabled=true);form.dispatchEvent(new Event('lead-saved'));if(purchase?.open){const returnTo=trigger;void closePurchase().then(()=>showLeadSuccess(reduced(),returnTo));}}
  catch(error){status.dataset.state='error';status.textContent=(error as Error).message;button.disabled=false;button.textContent='Reintentar solicitud';submitting=false;}
  finally{form.setAttribute('aria-busy','false');}
 });
@@ -80,6 +81,17 @@ if(share){
  share.addEventListener('toggle',()=>{if(!share.open&&status)status.textContent='';});
  document.addEventListener('click',event=>{if(share.open&&!share.contains(event.target as Node))share.open=false;});
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&share.open){share.open=false;share.querySelector('summary')?.focus();}});
+}
+
+// Store subdomain: ask the main domain (with its session) whether the viewer owns this landing; only then add the shortcut.
+const ownerCheck=document.body.dataset.ownerCheck;
+if(ownerCheck&&!preview&&!document.querySelector('.owner-edit')){
+ fetch(ownerCheck,{credentials:'include'}).then(r=>r.ok?r.json():null).then((data:{owner?:boolean;edit?:string}|null)=>{
+  if(!data?.owner||!data.edit||!/^https?:\/\//.test(data.edit))return;
+  const link=document.createElement('a');link.className='owner-edit';link.href=data.edit;link.setAttribute('aria-label','Editar esta landing en el panel');
+  link.innerHTML='<svg aria-hidden="true" class="block-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4Z M13 7l4 4"/></svg><span>Editar landing</span>';
+  document.body.append(link);
+ }).catch(()=>{});
 }
 
 const pageHeader=document.querySelector<HTMLElement>('.landing-header');

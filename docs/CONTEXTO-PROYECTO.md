@@ -671,7 +671,8 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 ### 2026-10-25 · Atajo para editar desde la landing
 - **Cambio:** botón «Editar landing» en la página pública, visible solo para el dueño con sesión iniciada. Detalle en [BUILDER.md](BUILDER.md).
 - **Comprobado (local):** `owner-edit.mjs` 12, `landing-design.mjs` 40 y `store-router` 20.
-- **Limitación:** no aparece en los subdominios de tienda, porque la sesión es del dominio principal.
+- **Subdominios de tienda:** la landing consulta al dominio principal si quien la ve es el dueño (CORS solo para subdominios de tienda, sin ampliar la cookie de sesión). Comprobado con `owner-edit-store.mjs` 6.
+- **Corrección:** se resolvió una condición de carrera por la que, tras confirmar una compra, la página podía quedar sin scroll.
 
 ### Plantilla para la próxima actualización
 
