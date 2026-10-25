@@ -668,6 +668,11 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
   - Detalle en [BUILDER.md](BUILDER.md).
 - **Comprobado (local):** `landing-design.mjs` 40, `template-design.mjs` 10, `builder`, `lead-success` 12, `product-list`, `blocks.php` 101, `ai.php` 38 y `run.php` 69.
 
+### 2026-10-25 · Atajo para editar desde la landing
+- **Cambio:** botón «Editar landing» en la página pública, visible solo para el dueño con sesión iniciada. Detalle en [BUILDER.md](BUILDER.md).
+- **Comprobado (local):** `owner-edit.mjs` 12, `landing-design.mjs` 40 y `store-router` 20.
+- **Limitación:** no aparece en los subdominios de tienda, porque la sesión es del dominio principal.
+
 ### Plantilla para la próxima actualización
 
 ```text

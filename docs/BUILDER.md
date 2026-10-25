@@ -175,3 +175,10 @@ Se usaron las skills `ui-ux-pro-max` (patrón de conversión con el llamado a la
   - las secciones nuevas de «Cómo se usa» y de llamado a la acción empiezan centradas (también las creadas con IA).
 - **Cantidad en el formulario:** con la cantidad activada, el formulario de pedido muestra «¿Cuántas unidades quieres?» con su selector, sincronizado con el total, el campo enviado y las cajas de compra. Así se puede elegir aunque se abra desde un llamado a la acción sin selector.
 - **Pruebas:** `landing-design.mjs` 40 y `blocks.php` 101.
+
+**Atajo «Editar landing» (2026-10-25):**
+- **Quién lo ve:** en la página pública aparece un botón flotante abajo a la izquierda, que lleva a `/panel/landings/{id}`. `LandingRenderer::ownerTools` solo lo genera si la sesión del panel es válida y pertenece al dueño de la landing. Los visitantes, otras cuentas y la vista previa del editor no lo reciben en el HTML.
+- **Caché:** las páginas ya se sirven con `Cache-Control: no-store`, así que la versión del dueño no se guarda en cachés compartidas.
+- **En móvil:** es un botón redondo con nombre accesible; sube cuando aparece la barra de compra.
+- **Limitación:** la cookie de sesión es del dominio principal, así que en los subdominios de tienda no aparece.
+- **Pruebas:** `tests/owner-edit.mjs` (12).
