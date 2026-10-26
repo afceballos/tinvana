@@ -7,7 +7,7 @@ import {WhatsAppTabs} from './WhatsAppTabs';
 
 type Account={id:string;phone_number_id:string;waba_id:string;display_phone:string|null;verified_name:string|null;quality_rating:string|null;status:'pending'|'connected'|'error';last_error:string|null;last_tested_at:string|null;source:string;token_configured:boolean;own_app:boolean;verify_token:string|null};
 type Platform={webhook_url:string;verify_token_configured:boolean;app_secret_configured:boolean;graph_version:string};
-type Subscription={checked:boolean;apps:string[];error:string|null};
+type Subscription={checked:boolean;apps:string[];error:string|null;subscribed:boolean;subscribe_error:string|null};
 type Diagnostics={last_event_at:string|null;pending:number;failed:number;last_failure:string|null;signature_rejected_at:string|null;waba_mismatch:{count:number;at:string;received_waba_id:string}|null};
 type View={account:Account|null;platform:Platform;diagnostics:Diagnostics|null};
 const when=(v:string|null)=>v?new Date(v).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}):'Nunca';
@@ -39,13 +39,15 @@ export function WhatsAppConnection(){
    {view.diagnostics&&<Diagnosis d={view.diagnostics} ownApp={a.own_app} waba={a.waba_id}/>}
    <div className="wa-diagnosis wa-subscription">
     <h3>Suscripción de la app a esta cuenta</h3>
-    {sub===null?<p className="small muted">Pulsa «Probar conexión» para revisar si tu app de Meta está suscrita a los mensajes de esta cuenta de WhatsApp. Sin esa suscripción, Meta no envía a Tinvana los mensajes reales (la prueba del panel de Meta sí llega).</p>
-     :!sub.checked?<p className="store-warning" role="note">No se pudo revisar la suscripción: {sub.error}</p>
+    {sub===null?<p className="small muted">Al pulsar «Probar conexión», Tinvana suscribe tu app de Meta a los mensajes de esta cuenta de WhatsApp. Sin esa suscripción, Meta no envía a Tinvana los mensajes reales (la prueba del panel de Meta sí llega).</p>
      :<>
-      {sub.apps.length?<p className="wa-sub-ok"><Icon name="check"/>Apps suscritas: {sub.apps.join(', ')}</p>:<p className="store-warning" role="alert">Ninguna app está suscrita a esta cuenta de WhatsApp, por eso los mensajes de tus clientes no llegan a Tinvana.</p>}
-      {sub.apps.some(n=>/WA DevX|Webhook Events 1P/i.test(n))&&<p className="store-warning" role="alert">«{sub.apps.find(n=>/WA DevX|Webhook Events 1P/i.test(n))}» es una app interna de Meta para las pruebas del panel, no la tuya. Pulsa «Suscribir mi app» para que los mensajes reales lleguen a Tinvana.</p>}
-      {sub.apps.length>0&&<p className="small muted">Debe aparecer el nombre de tu app de Meta (la del token que pegaste). Si no aparece, pulsa «Suscribir mi app».</p>}
-      <div className="row"><button type="button" className={sub.apps.length?'secondary':'primary'} disabled={busy} onClick={()=>void run(async()=>{const r=await post<View&{message:string;subscription:Subscription}>('/api/whatsapp/account/subscribe');setView(r);setSub(r.subscription);setNotice(r.message);})}>{busy?'Suscribiendo…':'Suscribir mi app'}</button></div>
+      {sub.subscribed&&<p className="wa-sub-ok"><Icon name="check"/>Tu app quedó suscrita a los mensajes de esta cuenta. Se confirma cada vez que pruebas la conexión.</p>}
+      {sub.subscribe_error&&<p className="store-warning" role="alert">No se pudo suscribir tu app: {sub.subscribe_error} Revisa que el token tenga el permiso <code>whatsapp_business_management</code> y vuelve a intentarlo.</p>}
+      {!sub.checked?<p className="store-warning" role="note">No se pudo leer la lista de apps suscritas: {sub.error}</p>
+       :sub.apps.length?<p className="small muted">Apps suscritas: {sub.apps.join(', ')}</p>
+       :!sub.subscribed&&<p className="store-warning" role="alert">Ninguna app está suscrita a esta cuenta de WhatsApp, por eso los mensajes de tus clientes no llegan a Tinvana.</p>}
+      {!sub.subscribed&&sub.apps.some(n=>/WA DevX|Webhook Events 1P/i.test(n))&&<p className="store-warning" role="alert">«{sub.apps.find(n=>/WA DevX|Webhook Events 1P/i.test(n))}» es una app interna de Meta para las pruebas del panel, no la tuya. Pulsa «Suscribir mi app» para que los mensajes reales lleguen a Tinvana.</p>}
+      <div className="row"><button type="button" className={sub.subscribed?'secondary':'primary'} disabled={busy} onClick={()=>void run(async()=>{const r=await post<View&{message:string;subscription:Subscription}>('/api/whatsapp/account/subscribe');setView(r);setSub(r.subscription);setNotice(r.message);})}>{busy?'Suscribiendo…':sub.subscribed?'Volver a suscribir':'Suscribir mi app'}</button></div>
      </>}
    </div>
    {a.status==='pending'&&<p className="small muted">Prueba la conexión para confirmar que Meta reconoce el número y el token.</p>}

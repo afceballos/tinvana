@@ -12,14 +12,14 @@ const helper=async(...a)=>(await run('.tools/php/php.exe',['backend/tests/whatsa
 const events=async()=>JSON.parse(await helper('events'));
 const SECRET=process.env.WHATSAPP_APP_SECRET,VERIFY=process.env.WHATSAPP_VERIFY_TOKEN;assert(SECRET&&VERIFY,'WhatsApp test environment missing');
 const PHONE='106540352242922',WABA='102290129340398',TOKEN='EAAG'+'x'.repeat(60);
-const graphCalls=[];let subscribed=false,devx=false;
+const graphCalls=[];let subscribed=false,devx=false,subscribeFails=false;
 const graph=createServer({key:await readFile('.tools/test-key.pem'),cert:await readFile('.tools/test-cert.pem')},(req,res)=>{
  graphCalls.push(req.method+' '+req.url);const auth=req.headers.authorization||'';
  const send=(s,b)=>{res.writeHead(s,{'Content-Type':'application/json'});res.end(JSON.stringify(b));};
  if(auth!=='Bearer '+TOKEN)return send(401,{error:{message:'Invalid OAuth access token.',type:'OAuthException',code:190}});
  if(req.method==='GET'&&req.url.startsWith('/'+PHONE+'?'))return send(200,{verified_name:'Tienda Andrés',display_phone_number:'+57 300 555 0142',quality_rating:'GREEN',id:PHONE});
  // Official shapes: GET → {data:[{whatsapp_business_api_data:{id,link,name}}]}, POST → {success:true}.
- if(req.url==='/'+WABA+'/subscribed_apps'){if(req.method==='POST'){subscribed=true;return send(200,{success:true});}return send(200,{data:[...(devx?[{whatsapp_business_api_data:{id:'999',link:'https://example.test/devx',name:'WA DevX Webhook Events 1P App'}}]:[]),...(subscribed?[{whatsapp_business_api_data:{id:'1234567890',link:'https://example.test/app',name:'Tinbana WP'}}]:[])]});}
+ if(req.url==='/'+WABA+'/subscribed_apps'){if(req.method==='POST'){if(subscribeFails)return send(403,{error:{message:'Permissions error',type:'OAuthException',code:200}});subscribed=true;return send(200,{success:true});}return send(200,{data:[...(devx?[{whatsapp_business_api_data:{id:'999',link:'https://example.test/devx',name:'WA DevX Webhook Events 1P App'}}]:[]),...(subscribed?[{whatsapp_business_api_data:{id:'1234567890',link:'https://example.test/app',name:'Tinbana WP'}}]:[])]});}
  send(400,{error:{message:'Unsupported get request.',type:'GraphMethodException',code:100}});
 });
 await new Promise(r=>graph.listen(8446,'127.0.0.1',r));
@@ -41,8 +41,9 @@ try{
  check('credentials saved pending a test, token never returned',r.status()===200&&JSON.parse(saved).account.status==='pending'&&!saved.includes(TOKEN)&&!saved.includes('ciphertext'));
  r=await owner.ctx.post('/api/whatsapp/account/test',{headers:owner.H});v=await r.json();
  check('read-only test reads the number from Meta and marks it connected',r.status()===200&&v.account.status==='connected'&&v.account.display_phone==='+57 300 555 0142'&&v.account.quality_rating==='GREEN'&&v.message.includes('Tienda Andrés'));
- check('the test only reads: the number and the subscribed apps (no message sent, nothing subscribed)',graphCalls.length===2&&graphCalls.every(c=>c.startsWith('GET '))&&graphCalls[0].startsWith('GET /'+PHONE+'?fields=')&&graphCalls[1]==='GET /'+WABA+'/subscribed_apps'&&!subscribed);
- check('the test reports that no app is subscribed to the account',v.subscription.checked&&v.subscription.apps.length===0);
+ check('the test reads the number, subscribes the app automatically and reads the list (no message sent)',JSON.stringify(graphCalls.map(c=>c.split('?')[0]))===JSON.stringify(['GET /'+PHONE,'POST /'+WABA+'/subscribed_apps','GET /'+WABA+'/subscribed_apps'])&&subscribed);
+ check('the test reports the automatic subscription',v.subscription.subscribed&&v.subscription.apps.includes('Tinbana WP')&&v.message.includes('suscrita'));
+ subscribed=false;
  check('subscribing requires CSRF',(await owner.ctx.post('/api/whatsapp/account/subscribe',{headers:{'X-CSRF-Token':'bad'}})).status()===419&&!subscribed);
  r=await owner.ctx.post('/api/whatsapp/account/subscribe',{headers:owner.H});const subView=await r.json();
  check('subscribing posts to subscribed_apps and reads the list back',r.ok()&&subscribed&&graphCalls.includes('POST /'+WABA+'/subscribed_apps')&&subView.subscription.apps[0]==='Tinbana WP');
@@ -117,13 +118,13 @@ try{
  await page.reload();await page.locator('.wa-account').waitFor();check('reloading the module page works',true);
  const diagText=await page.locator('.wa-diagnosis').first().innerText();
  check('the connection card shows the message diagnosis and the account-id mismatch with the id to use',/último mensaje o estado recibido/i.test(diagText)&&(await page.locator('.wa-diagnosis').first().locator('[role=alert]').innerText()).includes('555555555555555'));
- await page.getByRole('button',{name:'Probar conexión'}).click();await page.getByRole('button',{name:'Suscribir mi app'}).waitFor();
- check('after testing, an unsubscribed account is explained with a button to subscribe',(await page.locator('.wa-subscription').innerText()).includes('Ninguna app está suscrita'));
- // Real case seen in production: only Meta's internal test app («WA DevX Webhook Events 1P App») is subscribed.
- devx=true;await page.getByRole('button',{name:'Probar conexión'}).click();await page.locator('.wa-subscription',{hasText:'app interna de Meta'}).waitFor();
- check('when only Meta\'s internal test app is subscribed, it is explained and the subscribe button is still offered',await page.getByRole('button',{name:'Suscribir mi app'}).isVisible());
- await page.getByRole('button',{name:'Suscribir mi app'}).click();await page.locator('.wa-sub-ok',{hasText:'Tinbana WP'}).waitFor();
- check('the button subscribes the app and shows it',subscribed&&(await page.locator('.wa-sub-ok').innerText()).includes('Tinbana WP'));
+ // Real case seen in production: only Meta's internal test app («WA DevX Webhook Events 1P App») was subscribed.
+ devx=true;subscribed=false;await page.getByRole('button',{name:'Probar conexión'}).click();await page.locator('.wa-sub-ok',{hasText:'quedó suscrita'}).waitFor();
+ check('testing the connection subscribes the app on its own, even with Meta\'s internal app present',subscribed&&(await page.locator('.wa-subscription').innerText()).includes('Tinbana WP')&&await page.locator('.wa-subscription',{hasText:'app interna de Meta'}).count()===0);
+ subscribed=false;subscribeFails=true;await page.getByRole('button',{name:'Probar conexión'}).click();await page.locator('.wa-subscription',{hasText:'No se pudo suscribir tu app'}).waitFor();
+ check('if Meta refuses the subscription, the test still connects and explains it with the button to retry',!subscribed&&(await page.locator('.wa-subscription').innerText()).includes('app interna de Meta')&&await page.getByRole('button',{name:'Suscribir mi app'}).isVisible());
+ subscribeFails=false;await page.getByRole('button',{name:'Suscribir mi app'}).click();await page.locator('.wa-sub-ok',{hasText:'quedó suscrita'}).waitFor();
+ check('the button retries and subscribes the app',subscribed&&(await page.locator('.wa-subscription').innerText()).includes('Tinbana WP'));
  await page.locator('.wa-soon').scrollIntoViewIfNeeded();await page.waitForTimeout(800);const soon=await page.locator('.wa-soon').evaluate(el=>{const r=el.getBoundingClientRect(),c=getComputedStyle(el);return {h:r.height,op:c.opacity,vis:c.visibility,anim:c.animationName,cls:el.className};});check('Meta signup card visible, button coming soon and disabled',soon.h>80&&+soon.op>0.9&&await page.getByRole('button',{name:/Conectar con Meta/}).isDisabled());
  await page.evaluate(()=>scrollTo(0,0));await page.waitForTimeout(400);await page.screenshot({path:'test-results/whatsapp-connection.png',fullPage:true});
  const pad=await page.locator('.wa-account').evaluate(el=>{const card=el.getBoundingClientRect(),head=el.querySelector('.webhook-head').getBoundingClientRect();return {gap:Math.round(head.left-card.left),scrollLeft:el.scrollLeft};});

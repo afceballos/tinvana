@@ -714,7 +714,8 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Hallazgo (informado por el propietario):** con la app publicada, la revisión de suscripción mostraba «WA DevX Webhook Events 1P App», la app interna de Meta para las pruebas del panel, y no la app de la plataforma; por eso la prueba llegaba y los mensajes reales no.
 - **Cambio:** Conexión lista las apps suscritas, advierte si solo está la app interna de Meta y ofrece siempre «Suscribir mi app». La prueba reproduce ese caso.
 - **Comprobado (local):** `whatsapp-connection.mjs` 52 y `whatsapp-inbox.mjs` 46.
-- **Siguiente paso:** desplegar, pulsar «Suscribir mi app» en producción y escribir al número de prueba.
+- **Resultado (informado por el propietario, 2026-10-26, no comprobado por el asistente):** tras desplegar y pulsar «Suscribir mi app», los mensajes escritos al número de prueba ya llegan a la bandeja de tinbana.com. Pendiente: confirmar una respuesta enviada desde la bandeja y sus estados de entrega.
+- **Mejora pedida por el propietario:** «Probar conexión» suscribe la app automáticamente; el botón queda para reintentar. Comprobado en local: `whatsapp-connection.mjs` 52 y `whatsapp-inbox.mjs` 46.
 
 ### Plantilla para la próxima actualización
 
