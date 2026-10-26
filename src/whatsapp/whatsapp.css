@@ -24,3 +24,6 @@
 .wa-check{display:flex!important;flex-direction:row!important;align-items:center;gap:10px;font-weight:500}
 .wa-check input{width:18px;height:18px;min-height:0;flex:none}
 .wa-token{overflow-wrap:anywhere}
+.wa-diagnosis{display:grid;gap:10px;padding-top:12px;border-top:1px solid var(--line)}
+.wa-diagnosis h3{margin:0;font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.wa-diagnosis p{margin:0}

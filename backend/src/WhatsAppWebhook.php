@@ -45,7 +45,7 @@ final class WhatsAppWebhook {
   }
   $platform=self::signedWith($raw,$sig,Support::env('WHATSAPP_APP_SECRET'));$own=[];
   foreach($accounts as $a)if($a&&!empty($a['app_secret_ciphertext'])&&self::signedWith($raw,$sig,WhatsAppAccount::appSecret($a)))$own[$a['id']]=true;
-  if(!$platform&&!$own)return ['status'=>401]+$out;
+  if(!$platform&&!$own){self::noteRejected();return ['status'=>401]+$out;}
   foreach($entries as $entry){
    if(!is_array($entry)||!is_array($entry['changes']??null))continue;$waba=is_scalar($entry['id']??null)?(string)$entry['id']:'';
    foreach($entry['changes'] as $change){
@@ -72,6 +72,20 @@ final class WhatsAppWebhook {
    }
   }
   return $out;
+ }
+ /**
+  * Remembers when a signed delivery failed the signature check (no content kept), so the Conexión screen can point to a
+  * wrong WHATSAPP_APP_SECRET. Meta always signs, so unsigned requests are not counted. At most one write per minute.
+  */
+ private static function noteRejected(): void {
+  try{
+   $row=Database::one("SELECT updated_at FROM app_settings WHERE setting_key='whatsapp_signature_rejected'");
+   if(!$row)Database::query("INSERT INTO app_settings(setting_key,value) VALUES('whatsapp_signature_rejected',?::jsonb)",['{}']);
+   elseif(strtotime((string)$row['updated_at'])<time()-60)Database::query("UPDATE app_settings SET updated_at=now() WHERE setting_key='whatsapp_signature_rejected'");
+  }catch(\Throwable){/* a diagnostic must never break the webhook */}
+ }
+ public static function lastRejectedAt(): ?string {
+  return Database::one("SELECT updated_at FROM app_settings WHERE setting_key='whatsapp_signature_rejected'")['updated_at']??null;
  }
  private static function store(string $key,string $kind,?string $phoneId,?string $owner,array|\stdClass $payload,string $status): bool {
   if(Database::one('SELECT id FROM whatsapp_events WHERE dedupe_key=?',[$key]))return false;

@@ -7,7 +7,8 @@ import {WhatsAppTabs} from './WhatsAppTabs';
 
 type Account={id:string;phone_number_id:string;waba_id:string;display_phone:string|null;verified_name:string|null;quality_rating:string|null;status:'pending'|'connected'|'error';last_error:string|null;last_tested_at:string|null;source:string;token_configured:boolean;own_app:boolean;verify_token:string|null};
 type Platform={webhook_url:string;verify_token_configured:boolean;app_secret_configured:boolean;graph_version:string};
-type View={account:Account|null;platform:Platform};
+type Diagnostics={last_event_at:string|null;pending:number;failed:number;last_failure:string|null;signature_rejected_at:string|null};
+type View={account:Account|null;platform:Platform;diagnostics:Diagnostics|null};
 const when=(v:string|null)=>v?new Date(v).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}):'Nunca';
 const quality:Record<string,string>={GREEN:'Alta',YELLOW:'Media',RED:'Baja',UNKNOWN:'Sin calificar'};
 const states:Record<Account['status'],[string,string]>={connected:['on','Conectado'],pending:['off','Sin probar'],error:['off','Con error']};
@@ -34,6 +35,7 @@ export function WhatsAppConnection(){
    </dl>
    <div className="webhook-url"><Icon name="lock"/><code>Token de acceso permanente · cifrado</code></div>
    {a.status==='error'&&a.last_error&&<p className="store-warning" role="note">{a.last_error}</p>}
+   {view.diagnostics&&<Diagnosis d={view.diagnostics} ownApp={a.own_app}/>}
    {a.status==='pending'&&<p className="small muted">Prueba la conexión para confirmar que Meta reconoce el número y el token.</p>}
    {!editing&&<div className="row"><button className="primary" disabled={busy} onClick={()=>void run(async()=>{const r=await post<View&{message:string}>('/api/whatsapp/account/test');setView(r);setNotice(r.message);})}>{busy?'Probando…':'Probar conexión'}</button><button className="secondary" disabled={busy} onClick={()=>setEditing(true)}>Reemplazar credenciales</button><button className="secondary danger" disabled={busy} onClick={()=>setConfirmDelete(true)}>Eliminar número</button></div>}
    {confirmDelete&&<div className="wa-confirm" role="alertdialog" aria-labelledby="wa-delete-title"><strong id="wa-delete-title">¿Eliminar este número de Tinvana?</strong><p className="small">Se borran también sus conversaciones y mensajes guardados en Tinvana. En Meta el número sigue existiendo.</p><div className="row"><button className="primary danger-fill" disabled={busy} onClick={()=>void run(async()=>{const r=await api<View>('/api/whatsapp/account',{method:'DELETE'});setView(r);setConfirmDelete(false);setNotice('Número eliminado de Tinvana.');})}>Sí, eliminar</button><button className="secondary" disabled={busy} onClick={()=>setConfirmDelete(false)}>Cancelar</button></div></div>}
@@ -67,4 +69,19 @@ export function WhatsAppConnection(){
    <button className="primary" type="button" disabled aria-disabled="true">Conectar con Meta · Próximamente</button>
   </section>
  </>;
+}
+
+// Explains an empty inbox: what reached this store from Meta and whether Tinvana refused signed deliveries.
+function Diagnosis({d,ownApp}:{d:Diagnostics;ownApp:boolean}){
+ const rejectedLater=d.signature_rejected_at!==null&&(d.last_event_at===null||new Date(d.signature_rejected_at)>new Date(d.last_event_at));
+ return <div className="wa-diagnosis">
+  <h3>Mensajes recibidos de Meta</h3>
+  <dl className="wa-facts">
+   <div><dt>Último mensaje o estado recibido</dt><dd>{d.last_event_at?when(d.last_event_at):'Ninguno todavía'}</dd></div>
+   <div><dt>Por procesar</dt><dd>{d.pending}{d.pending>0&&<span className="small muted"> · se procesan en menos de un minuto</span>}</dd></div>
+   {d.failed>0&&<div><dt>Con error al procesar</dt><dd>{d.failed}{d.last_failure&&<span className="small muted"> · {d.last_failure}</span>}</dd></div>}
+  </dl>
+  {rejectedLater&&<p className="store-warning" role="alert">Tinvana rechazó una entrega de Meta por firma inválida el {when(d.signature_rejected_at)}. {ownApp?'Revisa que la clave secreta de tu app guardada aquí sea exactamente la de Meta (Configuración de la app → Básica).':'El administrador debe revisar que WHATSAPP_APP_SECRET en el servidor sea exactamente la clave secreta de la app de Meta, sin espacios.'}</p>}
+  {!d.last_event_at&&!rejectedLater&&<p className="small muted">Si escribiste al número y aquí no aparece nada, Meta no está enviando los mensajes a Tinvana: revisa en tu app de Meta que el webhook esté verificado y suscrito al campo <code>messages</code>.</p>}
+ </div>;
 }

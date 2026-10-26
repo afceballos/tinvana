@@ -703,6 +703,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Datos reales:** ninguno. No se desplegó.
 - **Límites y siguiente paso:** el cron `whatsapp:work` debe añadirse en cPanel. Etapa 3: agente de IA con fichas aprobadas y ajustes.
 
+### 2026-10-26 · Diagnóstico de mensajes de WhatsApp
+- **Contexto:** tras desplegar la etapa 2, el propietario escribió al número de prueba y el mensaje no apareció en la bandeja. El asistente comprobó que producción tiene la versión nueva (mismo asset que el repositorio) y que el webhook responde 401 a una entrega sin firma; no tiene acceso a registros ni a la base de producción.
+- **Cambio:** diagnóstico en Conexión (último evento recibido, pendientes, fallidos y aviso de firma inválida). Detalle en [WHATSAPP.md](WHATSAPP.md).
+- **Comprobado (local):** `whatsapp-connection.mjs` 42 y `whatsapp-inbox.mjs` 46.
+- **Siguiente paso:** desplegar, volver a escribir al número de prueba y leer el diagnóstico.
+
 ### Plantilla para la próxima actualización
 
 ```text

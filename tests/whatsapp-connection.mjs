@@ -57,11 +57,16 @@ try{
  check('unsigned delivery refused',(await meta.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json'},data:body})).status()===401);
  check('wrong signature refused',(await meta.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json','X-Hub-Signature-256':sign(body+' ')},data:body})).status()===401);
  check('refused deliveries store nothing',(await events()).length===0);
+ let diag=(await(await owner.ctx.get('/api/whatsapp/account')).json()).diagnostics;
+ check('a signed delivery with a wrong signature is noted for the diagnosis, an unsigned one is not',diag.signature_rejected_at!==null&&diag.last_event_at===null&&diag.pending===0);
  r=await meta.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json','X-Hub-Signature-256':sign(body)},data:body});
  let e=await events();
  check('signed message stored once and acknowledged',r.status()===200&&await r.text()==='EVENT_RECEIVED'&&e.length===1&&e[0].dedupe_key==='msg:wamid.TEST1'&&e[0].kind==='message'&&e[0].user_id===f.owner&&e[0].payload.message.text.body==='Hola');
  for(let i=0;i<10;i++)await meta.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json','X-Hub-Signature-256':sign(body)},data:body});
  check('the same event delivered ten times is stored once',(await events()).length===1);
+ diag=(await(await owner.ctx.get('/api/whatsapp/account')).json()).diagnostics;
+ check('the diagnosis shows when the last message from Meta arrived',diag.last_event_at!==null&&diag.failed===0);
+ check('another store does not get this store\'s diagnosis',(await(await other.ctx.get('/api/whatsapp/account')).json()).diagnostics===null);
  const statuses=delivery({body:{statuses:[{id:'wamid.OUT1',status:'sent',timestamp:'1777000100',recipient_id:'573001112233'},{id:'wamid.OUT1',status:'delivered',timestamp:'1777000101',recipient_id:'573001112233'}]}});
  for(let i=0;i<3;i++)await meta.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json','X-Hub-Signature-256':sign(statuses)},data:statuses});
  e=await events();check('each delivery status is stored once',e.filter(x=>x.kind==='status').length===2&&e.some(x=>x.dedupe_key==='st:wamid.OUT1:delivered'));
@@ -99,6 +104,7 @@ try{
  await page.locator('.wa-tabs a',{hasText:'Conexión'}).click();await page.waitForURL('**/panel/whatsapp/conexion');await page.locator('.wa-account').waitFor();
  check('menu shows Ventas WhatsApp and the Conexión tab opens the connection',await page.locator('.app-sidebar nav a',{hasText:'Ventas WhatsApp'}).count()===1&&(await page.locator('.wa-account').innerText()).includes('+57 300 555 0142'));
  await page.reload();await page.locator('.wa-account').waitFor();check('reloading the module page works',true);
+ check('the connection card shows the message diagnosis',/último mensaje o estado recibido/i.test(await page.locator('.wa-diagnosis').innerText())&&await page.locator('.wa-diagnosis [role=alert]').count()===0);
  await page.locator('.wa-soon').scrollIntoViewIfNeeded();await page.waitForTimeout(800);const soon=await page.locator('.wa-soon').evaluate(el=>{const r=el.getBoundingClientRect(),c=getComputedStyle(el);return {h:r.height,op:c.opacity,vis:c.visibility,anim:c.animationName,cls:el.className};});check('Meta signup card visible, button coming soon and disabled',soon.h>80&&+soon.op>0.9&&await page.getByRole('button',{name:/Conectar con Meta/}).isDisabled());
  await page.evaluate(()=>scrollTo(0,0));await page.waitForTimeout(400);await page.screenshot({path:'test-results/whatsapp-connection.png',fullPage:true});
  await page.getByRole('button',{name:'Eliminar número'}).click();check('deleting asks for confirmation and explains what is removed',(await page.locator('.wa-confirm').innerText()).includes('conversaciones'));

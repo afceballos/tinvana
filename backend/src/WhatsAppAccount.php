@@ -26,7 +26,15 @@ final class WhatsAppAccount {
   $a=self::ofUser($owner);
   return ['account'=>$a?['id'=>$a['id'],'phone_number_id'=>$a['phone_number_id'],'waba_id'=>$a['waba_id'],'display_phone'=>$a['display_phone'],'verified_name'=>$a['verified_name'],'quality_rating'=>$a['quality_rating'],
    'status'=>$a['status'],'last_error'=>$a['last_error'],'last_tested_at'=>$a['last_tested_at'],'source'=>$a['source'],'token_configured'=>true,
-   'own_app'=>!empty($a['app_secret_ciphertext']),'verify_token'=>!empty($a['app_secret_ciphertext'])&&!empty($a['verify_token_ciphertext'])?Crypto::decrypt((string)$a['verify_token_ciphertext'],$a['id'].':'.$a['user_id'].':verify'):null]:null,'platform'=>self::platform()];
+   'own_app'=>!empty($a['app_secret_ciphertext']),'verify_token'=>!empty($a['app_secret_ciphertext'])&&!empty($a['verify_token_ciphertext'])?Crypto::decrypt((string)$a['verify_token_ciphertext'],$a['id'].':'.$a['user_id'].':verify'):null]:null,'platform'=>self::platform(),'diagnostics'=>$a?self::diagnostics($owner):null];
+ }
+ /** What reached this store from Meta, to explain an empty inbox. Counts and dates only, no message contents. */
+ private static function diagnostics(string $owner): array {
+  $e=Database::one("SELECT MAX(received_at) AS last_event_at,SUM(CASE WHEN status IN ('pending','processing') THEN 1 ELSE 0 END) AS pending,SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) AS failed FROM whatsapp_events WHERE user_id=?",[$owner]);
+  $err=Database::one("SELECT error FROM whatsapp_events WHERE user_id=? AND status='failed' ORDER BY received_at DESC LIMIT 1",[$owner]);
+  $rejected=WhatsAppWebhook::lastRejectedAt();
+  return ['last_event_at'=>$e['last_event_at']??null,'pending'=>(int)($e['pending']??0),'failed'=>(int)($e['failed']??0),'last_failure'=>$err['error']??null,
+   'signature_rejected_at'=>$rejected!==null&&strtotime($rejected)>time()-7*86400?$rejected:null];
  }
  private static function digits(mixed $v,string $label): string {
   $v=is_string($v)?trim($v):'';if(!preg_match('/^[0-9]{5,32}$/D',$v))throw new HttpError(422,'El '.$label.' debe tener solo números, como aparece en Meta.');return $v;

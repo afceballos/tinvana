@@ -13,6 +13,7 @@ if($op==='reset'){
  Database::query("DELETE FROM whatsapp_events WHERE user_id IN (?,?) OR user_id IS NULL",$ids);
  Database::query('DELETE FROM whatsapp_contacts WHERE user_id IN (?,?)',$ids);
  Database::query('UPDATE users SET entitlement_overrides=NULL WHERE id IN (?,?)',$ids);
+ Database::query("DELETE FROM app_settings WHERE setting_key='whatsapp_signature_rejected'");
  echo 'ok';exit;
 }
 if($op==='events'){
