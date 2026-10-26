@@ -33,8 +33,13 @@ final class WhatsAppAccount {
   $e=Database::one("SELECT MAX(received_at) AS last_event_at,SUM(CASE WHEN status IN ('pending','processing') THEN 1 ELSE 0 END) AS pending,SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) AS failed FROM whatsapp_events WHERE user_id=?",[$owner]);
   $err=Database::one("SELECT error FROM whatsapp_events WHERE user_id=? AND status='failed' ORDER BY received_at DESC LIMIT 1",[$owner]);
   $rejected=WhatsAppWebhook::lastRejectedAt();
+  // Deliveries for this number that were discarded because Meta sent them with another WhatsApp Business Account id.
+  $a=self::ofUser($owner);
+  $m=$a?Database::one("SELECT COUNT(*) AS n,MAX(received_at) AS at FROM whatsapp_events WHERE user_id IS NULL AND phone_number_id=? AND error LIKE 'waba:%' AND received_at>now()-interval '7 days'",[$a['phone_number_id']]):null;
+  $mw=$m&&(int)$m['n']>0?Database::one("SELECT error FROM whatsapp_events WHERE user_id IS NULL AND phone_number_id=? AND error LIKE 'waba:%' ORDER BY received_at DESC LIMIT 1",[$a['phone_number_id']]):null;
   return ['last_event_at'=>$e['last_event_at']??null,'pending'=>(int)($e['pending']??0),'failed'=>(int)($e['failed']??0),'last_failure'=>$err['error']??null,
-   'signature_rejected_at'=>$rejected!==null&&strtotime($rejected)>time()-7*86400?$rejected:null];
+   'signature_rejected_at'=>$rejected!==null&&strtotime($rejected)>time()-7*86400?$rejected:null,
+   'waba_mismatch'=>$mw?['count'=>(int)$m['n'],'at'=>$m['at'],'received_waba_id'=>substr((string)$mw['error'],5)]:null];
  }
  private static function digits(mixed $v,string $label): string {
   $v=is_string($v)?trim($v):'';if(!preg_match('/^[0-9]{5,32}$/D',$v))throw new HttpError(422,'El '.$label.' debe tener solo números, como aparece en Meta.');return $v;

@@ -52,7 +52,8 @@ final class WhatsAppWebhook {
     if(!is_array($change))continue;$value=is_array($change['value']??null)?$change['value']:[];$field=(string)($change['field']??'');
     $phoneId=is_scalar($value['metadata']['phone_number_id']??null)?(string)$value['metadata']['phone_number_id']:'';
     // The owner is the account with this phone_number_id; a different WABA id means it is not this store's number.
-    $account=$accounts[$phoneId]??null;if($account&&$waba!==''&&$account['waba_id']!==$waba)$account=null;
+    $account=$accounts[$phoneId]??null;$mismatch=null;
+    if($account&&$waba!==''&&$account['waba_id']!==$waba){$mismatch=preg_match('/^[0-9]{5,32}$/D',$waba)?'waba:'.$waba:'waba:?';$account=null;}
     $trusted=$account&&($platform||isset($own[$account['id']]));
     // A store's app may not speak for numbers that are not its own: skip without storing anything.
     if(!$trusted&&!$platform){$out['ignored']++;continue;}
@@ -66,7 +67,7 @@ final class WhatsAppWebhook {
     foreach($items as [$kind,$key,$data]){
      // Events for numbers that are not connected (or another WABA) are kept only as a dedupe marker, without content.
      $payload=$account?$data+['metadata'=>$value['metadata']??[],'waba_id'=>$waba]:new \stdClass();
-     $done=self::store(mb_substr($key,0,255),$kind,$phoneId!==''?mb_substr($phoneId,0,64):null,$account['user_id']??null,$payload,$account?'pending':'ignored');
+     $done=self::store(mb_substr($key,0,255),$kind,$phoneId!==''?mb_substr($phoneId,0,64):null,$account['user_id']??null,$payload,$account?'pending':'ignored',$account?null:$mismatch);
      if(!$done)$out['duplicates']++;elseif($account)$out['stored']++;else $out['ignored']++;
     }
    }
@@ -87,9 +88,9 @@ final class WhatsAppWebhook {
  public static function lastRejectedAt(): ?string {
   return Database::one("SELECT updated_at FROM app_settings WHERE setting_key='whatsapp_signature_rejected'")['updated_at']??null;
  }
- private static function store(string $key,string $kind,?string $phoneId,?string $owner,array|\stdClass $payload,string $status): bool {
+ private static function store(string $key,string $kind,?string $phoneId,?string $owner,array|\stdClass $payload,string $status,?string $error=null): bool {
   if(Database::one('SELECT id FROM whatsapp_events WHERE dedupe_key=?',[$key]))return false;
-  try{Database::query('INSERT INTO whatsapp_events(id,dedupe_key,kind,phone_number_id,user_id,payload,status,processed_at) VALUES(?,?,?,?,?,?::jsonb,?,'.($status==='ignored'?'now()':'NULL').')',[Support::uuid(),$key,$kind,$phoneId,$owner,Support::json($payload),$status]);}
+  try{Database::query('INSERT INTO whatsapp_events(id,dedupe_key,kind,phone_number_id,user_id,payload,status,error,processed_at) VALUES(?,?,?,?,?,?::jsonb,?,?,'.($status==='ignored'?'now()':'NULL').')',[Support::uuid(),$key,$kind,$phoneId,$owner,Support::json($payload),$status,$error]);}
   catch(\PDOException $e){
    // A concurrent delivery of the same event won the unique key: that is a duplicate, not an error.
    if(Database::one('SELECT id FROM whatsapp_events WHERE dedupe_key=?',[$key]))return false;throw $e;

@@ -92,7 +92,7 @@ Menú «Ventas WhatsApp» → `/panel/whatsapp/conexion` (con el mismo sistema d
 
 ### Diagnóstico en Conexión
 
-La tarjeta del número muestra el último mensaje o estado recibido de Meta, cuántos eventos esperan proceso y cuántos fallaron (con el tipo de error). Si una entrega **firmada** de Meta no pasa la validación, se anota la hora en `app_settings` (`whatsapp_signature_rejected`, como mucho una vez por minuto y sin contenido; las solicitudes sin firma no cuentan) y la tarjeta avisa que se revise `WHATSAPP_APP_SECRET` o la clave de la app propia. Sin eventos ni rechazos, indica revisar la suscripción del webhook al campo `messages`.
+La tarjeta del número muestra el último mensaje o estado recibido de Meta, cuántos eventos esperan proceso y cuántos fallaron (con el tipo de error). Si una entrega **firmada** de Meta no pasa la validación, se anota la hora en `app_settings` (`whatsapp_signature_rejected`, como mucho una vez por minuto y sin contenido; las solicitudes sin firma no cuentan) y la tarjeta avisa que se revise `WHATSAPP_APP_SECRET` o la clave de la app propia. Sin eventos ni rechazos, indica revisar la suscripción del webhook al campo `messages`. Si llegan entregas para el número con otro WhatsApp Business Account ID, se descartan por seguridad, se anota ese ID (no es dato personal) y la tarjeta indica cuál pegar en las credenciales.
 
 ### Suscripción de la app a la cuenta (documentación oficial, 2026-10-26)
 

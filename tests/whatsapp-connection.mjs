@@ -82,6 +82,9 @@ try{
  const otherWaba=delivery(textMessage('wamid.OTHERWABA'),'555555555555555');await meta.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json','X-Hub-Signature-256':sign(otherWaba)},data:otherWaba});
  e=await events();const ignored=e.filter(x=>x.status==='ignored');
  check('events of another number or WhatsApp account are ignored without keeping their content',ignored.length===2&&ignored.every(x=>x.user_id===null&&Object.keys(x.payload).length===0));
+ diag=(await(await owner.ctx.get('/api/whatsapp/account')).json()).diagnostics;
+ check('messages for this number sent with another account id are shown in the diagnosis with that id',diag.waba_mismatch?.count===1&&diag.waba_mismatch.received_waba_id==='555555555555555');
+ check('another store never sees that mismatch',(await(await other.ctx.get('/api/whatsapp/account')).json()).diagnostics===null);
  // A second store with its number in its own Meta app (own app secret and own verify token).
  const OTHER_PHONE='109876543210987',OTHER_WABA='108765432109876',OTHER_SECRET='otherStoreAppSecret0123456789ab';
  const signOther=b=>'sha256='+createHmac('sha256',OTHER_SECRET).update(b).digest('hex');
@@ -112,7 +115,8 @@ try{
  await page.locator('.wa-tabs a',{hasText:'Conexión'}).click();await page.waitForURL('**/panel/whatsapp/conexion');await page.locator('.wa-account').waitFor();
  check('menu shows Ventas WhatsApp and the Conexión tab opens the connection',await page.locator('.app-sidebar nav a',{hasText:'Ventas WhatsApp'}).count()===1&&(await page.locator('.wa-account').innerText()).includes('+57 300 555 0142'));
  await page.reload();await page.locator('.wa-account').waitFor();check('reloading the module page works',true);
- check('the connection card shows the message diagnosis',/último mensaje o estado recibido/i.test(await page.locator('.wa-diagnosis').first().innerText())&&await page.locator('.wa-diagnosis').first().locator('[role=alert]').count()===0);
+ const diagText=await page.locator('.wa-diagnosis').first().innerText();
+ check('the connection card shows the message diagnosis and the account-id mismatch with the id to use',/último mensaje o estado recibido/i.test(diagText)&&(await page.locator('.wa-diagnosis').first().locator('[role=alert]').innerText()).includes('555555555555555'));
  await page.getByRole('button',{name:'Probar conexión'}).click();await page.getByRole('button',{name:'Suscribir mi app'}).waitFor();
  check('after testing, an unsubscribed account is explained with a button to subscribe',(await page.locator('.wa-subscription').innerText()).includes('Ninguna app está suscrita'));
  await page.getByRole('button',{name:'Suscribir mi app'}).click();await page.locator('.wa-sub-ok').waitFor();

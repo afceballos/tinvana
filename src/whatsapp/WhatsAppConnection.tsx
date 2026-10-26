@@ -8,7 +8,7 @@ import {WhatsAppTabs} from './WhatsAppTabs';
 type Account={id:string;phone_number_id:string;waba_id:string;display_phone:string|null;verified_name:string|null;quality_rating:string|null;status:'pending'|'connected'|'error';last_error:string|null;last_tested_at:string|null;source:string;token_configured:boolean;own_app:boolean;verify_token:string|null};
 type Platform={webhook_url:string;verify_token_configured:boolean;app_secret_configured:boolean;graph_version:string};
 type Subscription={checked:boolean;apps:string[];error:string|null};
-type Diagnostics={last_event_at:string|null;pending:number;failed:number;last_failure:string|null;signature_rejected_at:string|null};
+type Diagnostics={last_event_at:string|null;pending:number;failed:number;last_failure:string|null;signature_rejected_at:string|null;waba_mismatch:{count:number;at:string;received_waba_id:string}|null};
 type View={account:Account|null;platform:Platform;diagnostics:Diagnostics|null};
 const when=(v:string|null)=>v?new Date(v).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}):'Nunca';
 const quality:Record<string,string>={GREEN:'Alta',YELLOW:'Media',RED:'Baja',UNKNOWN:'Sin calificar'};
@@ -36,7 +36,7 @@ export function WhatsAppConnection(){
    </dl>
    <div className="webhook-url"><Icon name="lock"/><code>Token de acceso permanente · cifrado</code></div>
    {a.status==='error'&&a.last_error&&<p className="store-warning" role="note">{a.last_error}</p>}
-   {view.diagnostics&&<Diagnosis d={view.diagnostics} ownApp={a.own_app}/>}
+   {view.diagnostics&&<Diagnosis d={view.diagnostics} ownApp={a.own_app} waba={a.waba_id}/>}
    <div className="wa-diagnosis wa-subscription">
     <h3>Suscripción de la app a esta cuenta</h3>
     {sub===null?<p className="small muted">Pulsa «Probar conexión» para revisar si tu app de Meta está suscrita a los mensajes de esta cuenta de WhatsApp. Sin esa suscripción, Meta no envía a Tinvana los mensajes reales (la prueba del panel de Meta sí llega).</p>
@@ -81,7 +81,7 @@ export function WhatsAppConnection(){
 }
 
 // Explains an empty inbox: what reached this store from Meta and whether Tinvana refused signed deliveries.
-function Diagnosis({d,ownApp}:{d:Diagnostics;ownApp:boolean}){
+function Diagnosis({d,ownApp,waba}:{d:Diagnostics;ownApp:boolean;waba:string}){
  const rejectedLater=d.signature_rejected_at!==null&&(d.last_event_at===null||new Date(d.signature_rejected_at)>new Date(d.last_event_at));
  return <div className="wa-diagnosis">
   <h3>Mensajes recibidos de Meta</h3>
@@ -91,6 +91,7 @@ function Diagnosis({d,ownApp}:{d:Diagnostics;ownApp:boolean}){
    {d.failed>0&&<div><dt>Con error al procesar</dt><dd>{d.failed}{d.last_failure&&<span className="small muted"> · {d.last_failure}</span>}</dd></div>}
   </dl>
   {rejectedLater&&<p className="store-warning" role="alert">Tinvana rechazó una entrega de Meta por firma inválida el {when(d.signature_rejected_at)}. {ownApp?'Revisa que la clave secreta de tu app guardada aquí sea exactamente la de Meta (Configuración de la app → Básica).':'El administrador debe revisar que WHATSAPP_APP_SECRET en el servidor sea exactamente la clave secreta de la app de Meta, sin espacios.'}</p>}
-  {!d.last_event_at&&!rejectedLater&&<p className="small muted">Si escribiste al número y aquí no aparece nada, Meta no está enviando los mensajes a Tinvana: revisa en tu app de Meta que el webhook esté verificado y suscrito al campo <code>messages</code>.</p>}
+  {d.waba_mismatch&&<p className="store-warning" role="alert">Meta envió {d.waba_mismatch.count===1?'1 mensaje':d.waba_mismatch.count+' mensajes'} a tu número con la cuenta de WhatsApp <code>{d.waba_mismatch.received_waba_id}</code> (el último el {when(d.waba_mismatch.at)}), pero aquí guardaste <code>{waba}</code>. Por seguridad Tinvana los descartó. Pulsa «Reemplazar credenciales» y escribe <code>{d.waba_mismatch.received_waba_id}</code> en WhatsApp Business Account ID.</p>}
+  {!d.last_event_at&&!rejectedLater&&!d.waba_mismatch&&<p className="small muted">Si escribiste al número y aquí no aparece nada, Meta no está enviando los mensajes a Tinvana: revisa en tu app de Meta que el webhook esté verificado y suscrito al campo <code>messages</code>.</p>}
  </div>;
 }
