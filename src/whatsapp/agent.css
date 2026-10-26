@@ -1,0 +1,43 @@
+/* Agente IA (etapa 3): ajustes del agente y fichas de productos. Mismo sistema de tarjetas del módulo. */
+.wa-agent-form{display:grid;gap:18px}
+.wa-agent-form fieldset{border:0;margin:0;padding:0;display:grid;gap:10px;min-width:0}
+.wa-agent-form legend{font-weight:700;margin-bottom:8px;padding:0}
+.wa-agent-form label{display:grid;gap:6px}
+.wa-switch{display:flex!important;flex-direction:row!important;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);cursor:pointer}
+.wa-switch input{width:20px;height:20px;min-height:0;flex:none}
+.wa-switch span{display:grid;gap:2px}
+.wa-switch small{color:var(--muted);font-size:13px}
+.wa-choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.wa-choice{position:relative;display:grid!important;gap:4px;padding:12px 14px 12px 40px;border:1px solid var(--line);border-radius:14px;background:var(--surface);cursor:pointer}
+.wa-choice input{position:absolute;left:14px;top:14px;width:16px;height:16px;min-height:0;margin:0;accent-color:var(--brand-accent)}
+.wa-choice small{color:var(--muted);font-size:13px;line-height:1.45}
+.wa-choice.is-on{border-color:var(--brand-accent);background:color-mix(in srgb,var(--brand-accent) 7%,var(--surface))}
+.wa-checklist{display:grid;gap:8px}
+.wa-days{display:flex;flex-wrap:wrap;gap:6px}
+.wa-days button{min-width:52px;min-height:36px;padding:4px 10px;border:1px solid var(--line);border-radius:10px;background:transparent;color:var(--ink);font-weight:600;cursor:pointer}
+.wa-days button.is-on{background:var(--brand-accent);border-color:var(--brand-accent);color:#fff}
+.wa-hours{display:flex;flex-wrap:wrap;gap:12px}
+.wa-hours label{min-width:140px}
+.wa-sheet-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.wa-sheet-list li{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.wa-sheet-list li.is-open{border-color:var(--brand-accent)}
+.wa-sheet-list img,.wa-sheet-noimg{width:48px;height:48px;border-radius:10px;object-fit:cover;flex:none;background:var(--soft);display:grid;place-items:center}
+.wa-sheet-noimg .icon{width:20px;height:20px;color:var(--muted)}
+.wa-sheet-list li>div{display:grid;gap:4px;min-width:0;flex:1}
+.wa-sheet-list strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wa-sheet-state{display:flex;flex-wrap:wrap;gap:6px}
+.wa-sheet-list .secondary{flex:none;min-height:36px;padding:6px 12px;font-size:14px}
+.wa-tag.is-ok{background:#dcfce7;color:#15803d}
+.wa-sheet-editor{display:grid;gap:14px;padding-top:14px;border-top:1px solid var(--line)}
+.wa-sheet-editor-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:8px}
+.wa-sheet-editor-head h3{margin:2px 0 0}
+.wa-sheet-editor fieldset{border:0;margin:0;padding:0;display:grid;gap:10px}
+.wa-sheet-editor legend{font-weight:700;margin-bottom:8px;padding:0}
+.wa-sheet-editor .row .icon{width:16px;height:16px;margin-right:6px;vertical-align:-3px}
+.wa-sheet-source summary{cursor:pointer;color:var(--muted);font-size:14px}
+.wa-sheet-source p{white-space:pre-wrap;font-size:14px;color:var(--muted);max-height:220px;overflow:auto}
+.wa-faq{display:grid;gap:8px;padding:12px;border:1px dashed var(--line);border-radius:12px}
+.wa-faq .secondary{justify-self:start;min-height:32px;padding:4px 10px;font-size:13px}
+.wa-agent-status .wa-facts{grid-template-columns:repeat(3,minmax(0,1fr))}
+:root[data-theme=dark] .wa-tag.is-ok{background:#123222;color:#4ade80}
+@media (max-width:640px){.wa-agent-status .wa-facts{grid-template-columns:1fr}.wa-sheet-list li{flex-wrap:wrap}.wa-sheet-list .secondary{width:100%}}

@@ -31,6 +31,14 @@ final class Admin {
    if($method==='PUT')return ['plan'=>self::savePlan($actor,$m[1],Api::body())];
    if($method==='DELETE')return self::deletePlan($actor,$m[1]);
   }
+  if($path==='/api/admin/whatsapp-agent'){
+   if($method==='GET')return ['defaults'=>WhatsAppAgentSettings::defaults(),'catalog'=>WhatsAppAgentSettings::catalog()];
+   if($method==='PUT'){
+    $before=WhatsAppAgentSettings::defaults();$after=WhatsAppAgentSettings::saveDefaults(Api::body());
+    if($after!=$before)self::log($actor,null,'whatsapp_agent_defaults_updated',['before'=>$before,'after'=>$after]);
+    return ['defaults'=>$after,'catalog'=>WhatsAppAgentSettings::catalog()];
+   }
+  }
   if($path==='/api/admin/audit'&&$method==='GET')return self::audit($_GET);
   throw new HttpError(404,'Ruta no encontrada.');
  }

@@ -5,6 +5,8 @@ import {useFeedbackState} from './Notifications';
 import {InlineLoading} from './Loading';
 import {Icon} from './ui';
 import './admin.css';
+import {AgentSettingsForm,type AgentCatalog,type AgentSettings} from './whatsapp/AgentSettingsForm';
+import './whatsapp/agent.css';
 
 type Rules={features:Record<string,boolean>;limits:Record<string,number|null>};
 type Catalog={features:Record<string,string>;limits:Record<string,string>};
@@ -19,7 +21,7 @@ const when=(v:string|null)=>v?new Date(v).toLocaleString('es-CO',{dateStyle:'med
 const cash=(n:number|null,currency='COP')=>n===null?'Sin precio':new Intl.NumberFormat('es-CO',{style:'currency',currency,maximumFractionDigits:0}).format(n);
 const periods={free:'Gratis',month:'por mes',year:'por año',once:'pago único'};
 const limitText=(v:number|null|undefined)=>v===null||v===undefined?'Ilimitado':String(v);
-const actions:Record<string,string>={account_updated:'Cuenta actualizada',defaults_updated:'Valores globales actualizados',plan_created:'Plan creado',plan_updated:'Plan actualizado',plan_deleted:'Plan eliminado',superadmin_granted:'Superusuario asignado (consola)',superadmin_revoked:'Superusuario retirado (consola)'};
+const actions:Record<string,string>={account_updated:'Cuenta actualizada',defaults_updated:'Valores globales actualizados',whatsapp_agent_defaults_updated:'Agente de WhatsApp: predeterminados actualizados',plan_created:'Plan creado',plan_updated:'Plan actualizado',plan_deleted:'Plan eliminado',superadmin_granted:'Superusuario asignado (consola)',superadmin_revoked:'Superusuario retirado (consola)'};
 
 function Card({icon,eyebrow,title,state,children,className=''}:{icon:string;eyebrow:string;title:string;state?:ReactNode;children:ReactNode;className?:string}){
  return <section className={'panel webhook-current admin-card '+className}><div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name={icon}/></span><div><span className="eyebrow">{eyebrow}</span><h2>{title}</h2></div>{state}</div>{children}</section>;
@@ -48,7 +50,7 @@ export function AdminPage(){
   <div className="section-heading"><div><span className="eyebrow">Superusuario</span><h1>Administración</h1></div></div>
   <p className="muted">Administra las cuentas, los planes y lo que cada uno puede usar. Los cambios se aplican en el servidor y quedan registrados en la auditoría. Desde aquí nunca se ven contraseñas, tokens ni claves.</p>
   <nav className="admin-tabs" aria-label="Secciones de administración">{tabs.map(([key,label])=><NavLink key={key} to={'/panel/admin'+(key==='cuentas'?'':'/'+key)} end className={tab===key?'active':''}>{label}</NavLink>)}</nav>
-  {tab==='cuentas'&&<Accounts/>}{tab==='planes'&&<Plans/>}{tab==='globales'&&<Defaults/>}{tab==='auditoria'&&<Audit/>}
+  {tab==='cuentas'&&<Accounts/>}{tab==='planes'&&<Plans/>}{tab==='globales'&&<><Defaults/><AgentDefaults/></>}{tab==='auditoria'&&<Audit/>}
  </div>;
 }
 
@@ -190,5 +192,20 @@ function Audit(){
  return <Card icon="clock" eyebrow="Registro" title="Auditoría de administración">
   {!entries?<InlineLoading title="Cargando auditoría"/>:entries.length?<AuditList entries={entries}/>:<p className="muted">Aún no hay cambios registrados.</p>}
   {(page>1||next)&&<div className="admin-pager"><button className="secondary" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Anterior</button><span className="small muted">Página {page}</span><button className="secondary" disabled={!next} onClick={()=>setPage(p=>p+1)}>Siguiente</button></div>}
+ </Card>;
+}
+
+// Defaults of the WhatsApp AI agent: every store uses them until it saves its own settings.
+function AgentDefaults(){
+ const [data,setData]=useState<{defaults:AgentSettings;catalog:AgentCatalog}|null>(null);const [draft,setDraft]=useState<AgentSettings|null>(null);const [busy,setBusy]=useState(false);
+ const [,setError]=useFeedbackState('error');const [,setNotice]=useFeedbackState('success');
+ useEffect(()=>{api<{defaults:AgentSettings;catalog:AgentCatalog}>('/api/admin/whatsapp-agent').then(r=>{setData(r);setDraft(r.defaults);}).catch(e=>setError(e.message));},[]);
+ if(!data||!draft)return <InlineLoading title="Cargando el agente de WhatsApp"/>;
+ const dirty=JSON.stringify(draft)!==JSON.stringify(data.defaults);
+ async function save(value:AgentSettings,message:string){setBusy(true);setError('');try{const r=await api<{defaults:AgentSettings;catalog:AgentCatalog}>('/api/admin/whatsapp-agent',{method:'PUT',body:JSON.stringify(value)});setData(r);setDraft(r.defaults);setNotice(message);}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
+ return <Card icon="chat" eyebrow="Ventas por WhatsApp" title="Agente de IA: valores predeterminados" className="admin-agent">
+  <p className="muted">Las tiendas usan estos ajustes hasta que guarden los suyos en «Agente IA». Quién puede usar el agente y cuántas conversaciones al mes se controla arriba, en Funciones y Límites, y por plan o por cuenta.</p>
+  <AgentSettingsForm value={draft} catalog={data.catalog} onChange={setDraft} idPrefix="admin-agent"/>
+  <div className="admin-actions"><button className="primary" disabled={busy||!dirty} onClick={()=>void save(draft,'Predeterminados del agente guardados.')}>{busy?'Guardando…':'Guardar predeterminados del agente'}</button>{dirty&&<button className="secondary" disabled={busy} onClick={()=>setDraft(data.defaults)}>Descartar cambios</button>}<button className="secondary" disabled={busy} onClick={()=>void save(data.catalog.built_in,'Se restauraron los valores originales de Tinvana.')}>Restaurar valores originales</button></div>
  </Card>;
 }

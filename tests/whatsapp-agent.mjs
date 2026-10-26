@@ -1,0 +1,169 @@
+import {chromium,request} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
+import {createServer} from 'node:https';
+import {createHmac,randomUUID} from 'node:crypto';
+import {execFile} from 'node:child_process';import {promisify} from 'node:util';import assert from 'node:assert/strict';
+// WhatsApp stage 3: AI agent, settings (store and superadmin defaults), permissions/limits and approved product sheets.
+// Simulated Graph API on 8446 and simulated OpenAI on 8447 (AI_OPENAI_URL). Nothing reaches Meta or any AI provider.
+const base='http://127.0.0.1:8081',f=JSON.parse(await readFile('.tools/test-fixture.json','utf8')),run=promisify(execFile);let checks=0,browser;
+const check=(name,value)=>{assert(value,name);checks++;console.log('PASS '+name);};
+const helper=async(...a)=>(await run('.tools/php/php.exe',['backend/tests/whatsapp-helper.php',...a])).stdout;
+const SECRET=process.env.WHATSAPP_APP_SECRET;assert(SECRET&&process.env.AI_OPENAI_URL,'WhatsApp/AI test environment missing');
+const PHONE='106540352242922',WABA='102290129340398',OTHER_PHONE='109876543210987',OTHER_WABA='108765432109876',TOKEN='EAAG'+'x'.repeat(60);
+const tls={key:await readFile('.tools/test-key.pem'),cert:await readFile('.tools/test-cert.pem')};
+const sends=[];let seq=0;
+const graph=createServer(tls,(req,res)=>{let raw='';req.on('data',c=>raw+=c);req.on('end',()=>{
+ const send=(s,b)=>{res.writeHead(s,{'Content-Type':'application/json'});res.end(JSON.stringify(b));};
+ if(req.method==='POST'&&req.url.endsWith('/messages')){const b=JSON.parse(raw);sends.push(b);return send(200,{messaging_product:'whatsapp',contacts:[{input:b.to,wa_id:b.to}],messages:[{id:'wamid.OUT'+(++seq)}]});}
+ send(400,{error:{message:'Unsupported',code:100}});
+});});
+// Simulated OpenAI Responses API: answers according to the last customer message.
+const ai=[];
+const openai=createServer(tls,(req,res)=>{let raw='';req.on('data',c=>raw+=c);req.on('end',()=>{
+ const p=JSON.parse(raw);const input=JSON.parse(p.input[0].content);ai.push({payload:p,input,auth:req.headers.authorization});
+ const reply=(obj,status=200)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(status===200?{status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(obj)}]}],usage:{input_tokens:120,output_tokens:30}}:{error:{message:'Simulated failure'}}));};
+ if(p.text.format.name==='whatsapp_product_sheet')return reply({summary:'Picatodo eléctrico que pica en segundos.',can_say:'- Recargable por USB\n- Pica cebolla y ajo',faq:[{q:'¿Es recargable?',a:'Sí, por USB.'}],must_not:'No prometer tiempos exactos de entrega.'});
+ const last=[...input.history].reverse().find(m=>m.from==='cliente')?.text||'';
+ const empty={name:'',city:'',department:'',address:'',neighborhood:'',reference:'',quantity:'',variant:''};
+ const pid=input.products[0]?.id||'';
+ if(/falla/i.test(last))return reply({},500);
+ if(/hablar con alguien/i.test(last))return reply({reply:'Claro, te comunico con un asesor.',intent:'asesor',product_id:'',captured:empty,action:'handoff',handoff_reason:'el cliente pidió una persona'});
+ if(/lo quiero/i.test(last))return reply({reply:'¡Perfecto, Laura! Ya tengo tus datos.',intent:'comprar',product_id:pid,captured:{...empty,name:'Laura Gómez',city:'Pereira',department:'Risaralda',quantity:'2'},action:'request_quote',handoff_reason:''});
+ if(/detalles/i.test(last))return reply({reply:'Te cuento. '+'Es un picatodo muy práctico para tu cocina y te ayuda a preparar todo más rápido. '.repeat(12),intent:'info',product_id:pid,captured:empty,action:'none',handoff_reason:''});
+ reply({reply:'¡Hola! Es un picatodo eléctrico recargable por USB. ¿Te gustaría pedirlo?',intent:'info',product_id:pid,captured:empty,action:'none',handoff_reason:''});
+});});
+await new Promise(r=>graph.listen(8446,'127.0.0.1',r));await new Promise(r=>openai.listen(8447,'127.0.0.1',r));
+async function login(email){const ctx=await request.newContext({baseURL:base});const s=await(await ctx.get('/api/auth/session')).json();await ctx.post('/api/auth/login',{headers:{'X-CSRF-Token':s.csrf},data:{email,password:f.password}});return {ctx,H:{'X-CSRF-Token':(await(await ctx.get('/api/auth/session')).json()).csrf}};}
+const envelope=(value,phone=PHONE,waba=WABA)=>JSON.stringify({object:'whatsapp_business_account',entry:[{id:waba,changes:[{field:'messages',value:{messaging_product:'whatsapp',metadata:{display_phone_number:'15551550926',phone_number_id:phone},...value}}]}]});
+let n=0;const say=(from,name,text,extra)=>hookRaw(envelope({contacts:[{profile:{name},wa_id:from}],messages:[{from,id:'wamid.IN'+(++n)+'.'+randomUUID(),timestamp:String(Math.floor(Date.now()/1000)),...(extra||{type:'text',text:{body:text}})}]}));
+let owner,other,meta;
+const hookRaw=body=>meta.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json','X-Hub-Signature-256':'sha256='+createHmac('sha256',SECRET).update(body).digest('hex')},data:body});
+const convOf=async phone=>(await(await owner.ctx.get('/api/whatsapp/conversations?q='+phone)).json()).conversations[0];
+const detail=async id=>(await(await owner.ctx.get('/api/whatsapp/conversations/'+id)).json());
+const agent=async(who=owner)=>(await who.ctx.get('/api/whatsapp/agent')).json();
+const today=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].indexOf(new Date().toLocaleDateString('en-US',{timeZone:'America/Bogota',weekday:'short'}))+1;
+try{
+ await helper('reset');
+ owner=await login(f.email);other=await login(f.otherEmail);meta=await request.newContext({baseURL:base});
+ await owner.ctx.put('/api/whatsapp/account',{headers:owner.H,data:{phone_number_id:PHONE,waba_id:WABA,token:TOKEN}});
+ await other.ctx.put('/api/whatsapp/account',{headers:other.H,data:{phone_number_id:OTHER_PHONE,waba_id:OTHER_WABA,token:TOKEN}});
+ // Without an AI connection nobody waits for the agent.
+ let v=await agent();
+ check('defaults: active, friendly tone, brief answers, Mon-Sat 8-20 and the AI answers at any hour',v.custom===false&&v.settings.enabled&&v.settings.tone==='cercano'&&v.settings.length==='breve'&&JSON.stringify(v.settings.schedule)===JSON.stringify({days:[1,2,3,4,5,6],start:'08:00',end:'20:00',off_hours:'reply'})&&Object.values(v.settings.handoff).filter(x=>x===true).length===4);
+ check('status explains that no AI is connected',v.status.unavailable.includes('Integraciones de IA')&&v.status.provider===null);
+ await say('573100000001','Sin IA','Hola');let c=await convOf('573100000001');
+ check('without an AI the chat starts with an advisor and says why',c.owner_mode==='human'&&c.handoff_reason.includes('Integraciones de IA')&&ai.length===0);
+ check('it cannot be returned to an AI that will not answer',(await owner.ctx.post(`/api/whatsapp/conversations/${c.id}/release`,{headers:owner.H,data:{version:c.version}})).status()===409);
+ // Settings
+ const custom={...v.settings,tone:'profesional',handoff:{...v.settings.handoff,custom:'Pedidos de más de 5 unidades'}};
+ check('invalid schedule refused',(await owner.ctx.put('/api/whatsapp/agent',{headers:owner.H,data:{...custom,schedule:{...custom.schedule,start:'20:00',end:'08:00'}}})).status()===422);
+ check('settings require CSRF',(await owner.ctx.put('/api/whatsapp/agent',{headers:{'X-CSRF-Token':'bad'},data:custom})).status()===419);
+ v=await(await owner.ctx.put('/api/whatsapp/agent',{headers:owner.H,data:custom})).json();
+ check('the store saves its own settings',v.custom&&v.settings.tone==='profesional'&&v.settings.handoff.custom==='Pedidos de más de 5 unidades');
+ v=await(await owner.ctx.delete('/api/whatsapp/agent',{headers:owner.H})).json();
+ check('restoring goes back to the defaults',!v.custom&&v.settings.tone==='cercano');
+ // Superadmin defaults
+ check('only a superadmin manages the defaults',(await owner.ctx.get('/api/admin/whatsapp-agent')).status()===404);
+ await helper('superadmin','on');
+ let r=await other.ctx.put('/api/admin/whatsapp-agent',{headers:other.H,data:{...v.settings,tone:'entusiasta',instructions:'Despídete con ¡Gracias!'}});
+ check('the superadmin changes the defaults',r.ok()&&(await r.json()).defaults.tone==='entusiasta');
+ check('stores without their own settings inherit the new defaults',(await agent()).settings.tone==='entusiasta');
+ const audit=await(await other.ctx.get('/api/admin/audit')).json();
+ check('the change is audited',JSON.stringify(audit).includes('whatsapp_agent_defaults_updated'));
+ await owner.ctx.put('/api/whatsapp/agent',{headers:owner.H,data:{...v.settings,tone:'profesional'}});
+ await other.ctx.put('/api/admin/whatsapp-agent',{headers:other.H,data:{...v.settings,tone:'cercano'}});
+ check('a store with its own settings keeps them when the defaults change',(await agent()).settings.tone==='profesional');
+ await owner.ctx.delete('/api/whatsapp/agent',{headers:owner.H});
+ // Product sheets
+ let list=(await(await owner.ctx.get('/api/whatsapp/sheets')).json()).products;
+ check('the product is listed without an approved sheet',list.some(p=>p.id===f.product&&p.approved_version===null));
+ check('approving without a draft is refused',(await owner.ctx.post(`/api/whatsapp/sheets/${f.product}/approve`,{headers:owner.H})).status()===409);
+ const sheet={summary:'Picatodo eléctrico 5 en 1.',can_say:'- Pica cebolla, ajo y verduras\n- Recargable por USB',price_note:'Precio de lanzamiento: $68.000',faq:[{q:'¿Cuánto dura la batería?',a:'Varias preparaciones por carga.'}],must_not:'No prometer tiempos exactos de entrega.'};
+ r=await owner.ctx.put(`/api/whatsapp/sheets/${f.product}`,{headers:owner.H,data:{content:sheet}});let sv=await r.json();
+ check('a draft is saved without being used yet',r.ok()&&sv.draft&&sv.approved===null);
+ sv=await(await owner.ctx.post(`/api/whatsapp/sheets/${f.product}/approve`,{headers:owner.H})).json();
+ check('approving creates version 1',sv.approved.version===1&&sv.draft===null);
+ await owner.ctx.put(`/api/whatsapp/sheets/${f.product}`,{headers:owner.H,data:{content:{...sheet,summary:'Picatodo eléctrico 5 en 1, recargable.'}}});
+ sv=await(await owner.ctx.post(`/api/whatsapp/sheets/${f.product}/approve`,{headers:owner.H})).json();
+ check('approving changes creates version 2',sv.approved.version===2);
+ check('another store cannot read this sheet',(await other.ctx.get(`/api/whatsapp/sheets/${f.product}`)).status()===404);
+ // Connect the (simulated) AI
+ await owner.ctx.put('/api/ai/connections/openai',{headers:owner.H,data:{key:'test-key-agent-openai-123456789'}});await owner.ctx.post('/api/ai/connections/openai/activate',{headers:owner.H});
+ v=await agent();check('with an AI connected and an approved sheet the agent is active',v.status.unavailable===null&&v.status.provider==='openai'&&v.status.sellable===1);
+ r=await owner.ctx.post(`/api/whatsapp/sheets/${f.product}/generate`,{headers:owner.H});sv=await r.json();
+ check('an AI draft is proposed but not approved',r.ok()&&sv.draft&&sv.approved.version===2&&sv.editing.faq[0].q==='¿Es recargable?');
+ // Conversations
+ const calls0=ai.length,sends0=sends.length;
+ await say('573001112233','Carlos Ruiz','Hola, ¿qué es esto?');c=await convOf('573001112233');let d=await detail(c.id);
+ const call=ai[calls0];
+ check('a new chat is answered by the agent, once',c.owner_mode==='ai'&&ai.length===calls0+1&&sends.length===sends0+1&&d.messages.at(-1).sender==='ai');
+ check('the AI request is strict, not stored, brief and uses the store key',call.payload.store===false&&call.payload.text.format.strict===true&&call.payload.max_output_tokens===400&&call.auth==='Bearer test-key-agent-openai-123456789');
+ check('the AI gets the approved sheet, the products and the recent history, not the token or phone',call.input.sheet.price_note==='Precio de lanzamiento: $68.000'&&call.input.products[0].id===f.product&&call.input.history.at(-1).text==='Hola, ¿qué es esto?'&&!JSON.stringify(call.input).includes('573001112233')&&!JSON.stringify(call.input).includes(TOKEN));
+ check('the instructions forbid inventing prices and ask for brief answers',/Nunca digas ni calcules precios/.test(call.payload.instructions)&&/1 o 2 frases/.test(call.payload.instructions));
+ check('the conversation records the product, the sheet version and the tokens',d.conversation.product?.id===f.product&&d.conversation.product.sheet_version===2&&d.conversation.ai_tokens===150);
+ const body=envelope({contacts:[{profile:{name:'Carlos Ruiz'},wa_id:'573001112233'}],messages:[{from:'573001112233',id:'wamid.DUP1',timestamp:String(Math.floor(Date.now()/1000)),type:'text',text:{body:'¿Tiene garantía?'}}]});
+ for(let i=0;i<10;i++)await hookRaw(body);
+ check('the same message delivered ten times gets one answer',ai.length===calls0+2&&sends.length===sends0+2);
+ await say('573001112233','Carlos Ruiz','Dame todos los detalles');
+ check('a long AI answer is cut to a brief message',sends.at(-1).text.body.length<=350&&sends.at(-1).text.body.startsWith('Te cuento.'));
+ await say('573005556677','Laura Gómez','Hola, lo quiero, soy Laura de Pereira');const laura=await convOf('573005556677');d=await detail(laura.id);
+ check('a customer ready to buy is answered and handed to an advisor with her data',laura.owner_mode==='human'&&laura.handoff_reason.includes('quiere comprar')&&d.conversation.captured.some(x=>x.key==='city'&&x.value==='Pereira')&&d.conversation.captured.some(x=>x.key==='name'&&x.value==='Laura Gómez'));
+ await say('573007778899','Jorge Medina','Quiero hablar con alguien');const jorge=await convOf('573007778899');
+ check('asking for a person hands the chat to an advisor with the reason',jorge.owner_mode==='human'&&jorge.handoff_reason.startsWith('La IA pidió un asesor'));
+ const s1=sends.length;await say('573009990000','Ana Torres','Esto es una falla');const ana=await convOf('573009990000');d=await detail(ana.id);
+ check('if the AI fails the customer gets the neutral message and an advisor takes over',ana.owner_mode==='human'&&ana.handoff_reason.includes('no pudo responder')&&sends.length===s1+1&&d.messages.at(-1).sender==='system'&&d.messages.at(-1).body===v.settings.messages.fallback);
+ const a1=ai.length;await say('573004443322','Diana López','',{type:'image',image:{id:'m1',mime_type:'image/jpeg'}});let diana=await convOf('573004443322');
+ check('an image is answered with the fixed message, without spending AI tokens',ai.length===a1&&sends.at(-1).text.body===v.settings.messages.unsupported&&diana.owner_mode==='ai');
+ await say('573004443322','Diana López','',{type:'audio',audio:{id:'m2',mime_type:'audio/ogg'}});diana=await convOf('573004443322');
+ check('a second file in a row goes to an advisor',diana.owner_mode==='human'&&diana.handoff_reason.includes('archivos'));
+ // Advisor took the chat
+ c=await convOf('573001112233');
+ const advisorReply=body=>owner.ctx.post(`/api/whatsapp/conversations/${c.id}/messages`,{headers:owner.H,data:{client_id:randomUUID(),body}});
+ check('an advisor cannot write while the AI owns the chat',(await advisorReply('Hola')).status()===409);
+ check('taking with a stale version is refused',(await owner.ctx.post(`/api/whatsapp/conversations/${c.id}/take`,{headers:owner.H,data:{version:c.version-1}})).status()===409);
+ r=await owner.ctx.post(`/api/whatsapp/conversations/${c.id}/take`,{headers:owner.H,data:{version:c.version}});const taken=(await r.json()).conversation;
+ check('taking the chat assigns it to the advisor',r.ok()&&taken.owner_mode==='human'&&taken.handoff_reason==='Tomada por un asesor'&&taken.version===c.version+1);
+ check('taking it twice is explained',(await owner.ctx.post(`/api/whatsapp/conversations/${c.id}/take`,{headers:owner.H,data:{version:taken.version}})).status()===409);
+ const a2=ai.length;await say('573001112233','Carlos Ruiz','¿Sigues ahí?');
+ check('when an advisor takes the chat the AI stops answering it',ai.length===a2&&(await advisorReply('Aquí estoy')).ok());
+ c=await convOf('573001112233');r=await owner.ctx.post(`/api/whatsapp/conversations/${c.id}/release`,{headers:owner.H,data:{version:c.version}});
+ check('returning the chat to an active AI is explicit and stops the advisor from writing',r.ok()&&(await r.json()).conversation.owner_mode==='ai'&&(await advisorReply('otro')).status()===409);
+ await owner.ctx.post(`/api/whatsapp/conversations/${c.id}/take`,{headers:owner.H,data:{version:(await convOf('573001112233')).version}});
+ // Off hours
+ v=await agent();await owner.ctx.put('/api/whatsapp/agent',{headers:owner.H,data:{...v.settings,schedule:{...v.settings.schedule,days:[1,2,3,4,5,6,7].filter(x=>x!==today),off_hours:'handoff'}}});
+ const a3=ai.length;await say('573002221100','Marta Ríos','Hola');const marta=await convOf('573002221100');
+ check('outside the schedule (with that option) it sends the off-hours message and hands the chat over, without AI',ai.length===a3&&sends.at(-1).text.body===v.settings.messages.off_hours&&marta.owner_mode==='human'&&marta.handoff_reason.includes('horario'));
+ await owner.ctx.delete('/api/whatsapp/agent',{headers:owner.H});
+ // Monthly limit
+ v=await agent();await helper('override',JSON.stringify({limits:{whatsapp_ai_conversations:v.status.used_this_month}}));
+ const a4=ai.length;await say('573003334455','Pedro Paz','Hola');const pedro=await convOf('573003334455');
+ check('when the monthly limit is reached new chats go to an advisor',ai.length===a4&&pedro.owner_mode==='human'&&pedro.handoff_reason.includes('límite mensual'));
+ v=await agent();check('the panel shows the usage against the limit',v.status.monthly_limit===v.status.used_this_month);
+ // Plan without the agent
+ await helper('override',JSON.stringify({features:{whatsapp_ai:false}}));
+ await say('573006667788','Sofía Gil','Hola');const sofia=await convOf('573006667788');
+ check('without the agent in the plan the chat starts with an advisor and the settings are refused',sofia.owner_mode==='human'&&sofia.handoff_reason.includes('plan')&&(await owner.ctx.get('/api/whatsapp/agent')).status()===403);
+ await helper('override','{}');
+ // Panel
+ browser=await chromium.launch({channel:'msedge',headless:true});const errors=[];
+ const ctx=await browser.newContext({storageState:await owner.ctx.storageState(),viewport:{width:1440,height:1000}});const page=await ctx.newPage();page.on('pageerror',x=>errors.push(x.message));
+ await page.goto(base+'/panel/whatsapp/agente');await page.locator('.wa-agent-settings').waitFor();await page.locator('.wa-sheet-list li').first().waitFor();
+ check('the Agente IA tab shows status, settings and sheets',await page.locator('.wa-tabs a',{hasText:'Agente IA'}).count()===1&&(await page.locator('.wa-agent-status').innerText()).includes('ChatGPT')&&await page.locator('.wa-sheet-list li').count()>=1);
+ await page.locator('.wa-choice',{hasText:'Profesional'}).click();await page.getByRole('button',{name:'Guardar ajustes'}).click();await page.locator('.wa-agent-settings .webhook-state',{hasText:'Ajustes propios'}).waitFor();
+ check('the store changes the tone from the panel',(await agent()).settings.tone==='profesional');
+ await page.getByRole('button',{name:'Editar ficha'}).first().click();await page.locator('.wa-sheet-editor').waitFor();
+ check('the sheet editor opens with the draft and the AI button',(await page.locator('.wa-sheet-editor').innerText()).includes('Proponer borrador con IA'));
+ await page.waitForTimeout(700);await page.screenshot({path:'test-results/whatsapp-agent.png',fullPage:true});
+ await page.evaluate(()=>localStorage.setItem('tinvana-theme','dark'));await page.reload();await page.locator('.wa-agent-settings').waitFor();await page.waitForTimeout(700);await page.screenshot({path:'test-results/whatsapp-agent-dark.png',fullPage:true});
+ await page.evaluate(()=>localStorage.setItem('tinvana-theme','light'));
+ await page.goto(base+'/panel/whatsapp/'+laura.id);await page.locator('.wa-context').waitFor();
+ check('the chat context shows the product, the customer data and the handoff reason',(await page.locator('.wa-context').innerText()).includes('Pereira')&&(await page.locator('.wa-banner.is-handoff').innerText()).includes('quiere comprar'));
+ await page.waitForTimeout(500);await page.screenshot({path:'test-results/whatsapp-agent-chat.png'});
+ await page.setViewportSize({width:390,height:844});await page.goto(base+'/panel/whatsapp/agente');await page.locator('.wa-agent-settings').waitFor();
+ check('the agent page fits mobile',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.waitForTimeout(500);await page.screenshot({path:'test-results/whatsapp-agent-mobile.png',fullPage:true});
+ const adminCtx=await browser.newContext({storageState:await other.ctx.storageState(),viewport:{width:1440,height:1000}});const ap=await adminCtx.newPage();
+ await ap.goto(base+'/panel/admin/globales');await ap.locator('.admin-agent').waitFor();
+ check('the superadmin sees the agent defaults in Valores globales',(await ap.locator('.admin-agent').innerText()).includes('Agente de IA'));await ap.waitForTimeout(500);await ap.screenshot({path:'test-results/whatsapp-agent-admin.png',fullPage:true});
+ check('no browser errors',errors.length===0);
+ console.log(`${checks} WhatsApp agent checks passed against a simulated Meta and a simulated AI. Nothing reached Meta or an AI provider.`);
+}finally{await helper('reset').catch(()=>{});await browser?.close();await owner?.ctx.dispose();await other?.ctx.dispose();await meta?.dispose();graph.close();openai.close();}

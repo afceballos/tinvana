@@ -11,7 +11,7 @@ type Last={body:string;type:string;sender:string;direction:'in'|'out';status:str
 type Summary={id:string;name:string|null;phone:string;owner_mode:'ai'|'human';handoff_reason:string|null;unread:number;stage:string;last_message_at:string|null;last_customer_at:string|null;window_open:boolean;window_closes_at:string|null;version:number;last:Last|null};
 type Message={id:string;direction:'in'|'out';type:string;body:string;status:string;sender:string;error:string|null;created_at:string;status_at:string|null;supported:boolean;local?:'sending'|'unconfirmed'};
 type ListView={unchanged?:boolean;stamp:string;conversations?:Summary[];counts?:{total:number;today:number;ai:number;human:number;unread:number};connected?:boolean};
-type DetailView={unchanged?:boolean;stamp:string;conversation?:Summary&{contact_since:string;has_referral:boolean};messages?:Message[]};
+type DetailView={unchanged?:boolean;stamp:string;conversation?:Summary&{contact_since:string;has_referral:boolean;product:{id:string;name:string;sheet_version:number|null}|null;captured:{key:string;label:string;value:string}[];ai_tokens:number};messages?:Message[]};
 type Filter='all'|'ai'|'human'|'unread';
 
 const FILTERS:[Filter,string][]=[['all','Todas'],['ai','IA'],['human','Asesor'],['unread','No leídas']];
@@ -33,7 +33,7 @@ function dayLabel(v:string){const d=new Date(v),now=new Date();if(day(d)===day(n
 function remaining(closes:string|null){if(!closes)return '';const ms=new Date(closes).getTime()-Date.now();if(ms<=0)return '';const h=Math.floor(ms/36e5),m=Math.floor(ms%36e5/6e4);return h?`${h} h ${m} min`:`${m} min`;}
 function preview(l:Last|null){
  if(!l)return 'Sin mensajes';const text=l.body||(MEDIA[l.type]?MEDIA[l.type]+' recibido':l.type==='reaction'?'Reacción':'Mensaje no compatible');
- return (l.direction==='out'?(l.sender==='ai'?'IA: ':'Tú: '):'')+text;
+ return (l.direction==='out'?(l.sender==='ai'?'IA: ':l.sender==='system'?'Automático: ':'Tú: '):'')+text;
 }
 // Polling must not count as activity (X-Session-Probe) nor light the global loading bar, so it uses fetch directly.
 async function poll<T>(path:string):Promise<T|null>{
@@ -137,7 +137,8 @@ function Conversation({id,onChange,onBack,onError}:{id:string;onChange:()=>void;
     <div className="wa-chat-who"><strong>{display(c)}</strong><span>{phone(c.phone)}</span></div>
     {human?<button type="button" className="secondary" disabled={busy} onClick={()=>void act('release')}>Devolver a la IA</button>:<button type="button" className="primary" disabled={busy} onClick={()=>void act('take')}>Tomar conversación</button>}
    </header>
-   {!human&&<p className="wa-banner" role="note">El agente de IA llega en la próxima etapa. Por ahora, toma la conversación para responder tú.</p>}
+   {!human&&<p className="wa-banner" role="note">El agente de IA atiende este chat. Si quieres responder tú, pulsa «Tomar conversación»: la IA dejará de escribir aquí.</p>}
+   {human&&c.handoff_reason&&c.handoff_reason!=='Tomada por un asesor'&&<p className="wa-banner is-handoff" role="note"><strong>Necesita un asesor:</strong> {c.handoff_reason}</p>}
    <div className="wa-messages" ref={scroller} onScroll={e=>{const el=e.currentTarget;stick.current=el.scrollHeight-el.scrollTop-el.clientHeight<80;}} aria-live="polite">
     {messages.map(m=>{const label=dayLabel(m.created_at);const sep=label!==lastDay;lastDay=label;
      return <div key={m.id} className="wa-msg-wrap">{sep&&<div className="wa-day"><span>{label}</span></div>}
@@ -164,8 +165,11 @@ function Conversation({id,onChange,onBack,onError}:{id:string;onChange:()=>void;
   <aside className="wa-context" aria-label="Contexto de la conversación">
    <h2>Contexto</h2>
    <section><h3>Cliente</h3><dl><div><dt>Nombre en WhatsApp</dt><dd>{c.name||'Sin nombre'}</dd></div><div><dt>Teléfono</dt><dd>{phone(c.phone)}</dd></div><div><dt>Escribió por primera vez</dt><dd>{new Date(c.contact_since).toLocaleDateString('es-CO',{timeZone:tz,day:'numeric',month:'long',year:'numeric'})}</dd></div><div><dt>Llegó desde</dt><dd>{c.has_referral?'Un anuncio o publicación':'Mensaje directo'}</dd></div></dl></section>
+   <section><h3>Producto</h3>{c.product?<p><strong>{c.product.name}</strong>{c.product.sheet_version&&<span className="small muted"> · ficha v{c.product.sheet_version}</span>}</p>:<p className="small muted">Aún sin identificar.</p>}</section>
+   {c.captured.length>0&&<section><h3>Datos que dio el cliente</h3><dl>{c.captured.map(f=><div key={f.key}><dt>{f.label}</dt><dd>{f.value}</dd></div>)}</dl></section>}
    <section><h3>Responsable</h3><p className={'wa-mode '+(human?'is-human':'is-ai')}>{human?'Asesor':'Agente IA'}</p>{c.handoff_reason&&<p className="small muted">{c.handoff_reason}</p>}<p className="small muted">{human?'La IA y los mensajes automáticos no escriben mientras atiendas este chat. Ningún temporizador lo devuelve a la IA.':'Al tomarla, la IA y los mensajes automáticos dejan de escribir en este chat.'}</p></section>
    <section><h3>Ventana de 24 horas</h3>{c.window_open?<p className="wa-window is-open"><Icon name="clock"/>Abierta · cierra en {left||'menos de un minuto'}</p>:<p className="wa-window"><Icon name="clock"/>Cerrada</p>}<p className="small muted">WhatsApp permite responder con texto libre hasta 24 horas después del último mensaje del cliente. Después solo se pueden enviar plantillas aprobadas por Meta.</p></section>
+   {c.ai_tokens>0&&<p className="small muted wa-tokens">La IA usó {c.ai_tokens.toLocaleString('es-CO')} tokens en este chat.</p>}
   </aside>
  </>;
 }

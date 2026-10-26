@@ -17,8 +17,11 @@ final class WhatsAppInbox {
  private const STATUS_RANK=['queued'=>0,'sent'=>1,'delivered'=>2,'read'=>3,'played'=>4];
  private const RETRY_MINUTES=15; // a status may arrive before its outgoing message is stored
 
- /** Processes due webhook events. Safe to run from several processes at once. */
- public static function work(int $limit=20): array {
+ /**
+  * Processes due webhook events, then lets the AI agent answer the conversations that are waiting for it.
+  * Safe to run from several processes at once (event claims and a per-conversation lock).
+  */
+ public static function work(int $limit=20,int $agentLimit=5): array {
   $out=['done'=>0,'ignored'=>0,'retry'=>0,'failed'=>0];
   for($i=0;$i<$limit;$i++){
    $db=Database::connection();$db->beginTransaction();
@@ -42,7 +45,7 @@ final class WhatsAppInbox {
     $out[$final?'failed':'retry']++;
    }
   }
-  return $out;
+  return $out+['agent'=>WhatsAppAgent::runDue($agentLimit)];
  }
 
  /** @return array{0:string,1:string} type and visible text of an incoming message */
@@ -75,13 +78,15 @@ final class WhatsAppInbox {
    $conv=Database::one('SELECT * FROM whatsapp_conversations WHERE account_id=? AND contact_id=? FOR UPDATE',[$account['id'],$contact]);
    if(!$conv){
     $id=Support::uuid();
-    Database::query("INSERT INTO whatsapp_conversations(id,user_id,account_id,contact_id,captured) VALUES(?,?,?,?,?::jsonb)",[$id,$owner,$account['id'],$contact,'{}']);
+    // Without an active agent the chat starts with an advisor, so nobody waits for an AI that will not answer.
+    [$mode,$reason]=WhatsAppAgent::initialMode($owner);
+    Database::query("INSERT INTO whatsapp_conversations(id,user_id,account_id,contact_id,captured,owner_mode,handoff_reason) VALUES(?,?,?,?,?::jsonb,?,?)",[$id,$owner,$account['id'],$contact,'{}',$mode,$reason]);
     $conv=Database::one('SELECT * FROM whatsapp_conversations WHERE id=? FOR UPDATE',[$id]);
    }
    Database::query("INSERT INTO whatsapp_messages(id,user_id,conversation_id,direction,type,body,payload,wamid,status,sender,created_at) VALUES(?,?,?,'in',?,?,?::jsonb,?,'received','customer',?)",
     [Support::uuid(),$owner,$conv['id'],$type,$body,Support::json($m),$wamid,$at]);
    $newer=fn(?string $current)=>$current===null||strtotime($current)<strtotime($at);
-   Database::query('UPDATE whatsapp_conversations SET last_customer_at=?,last_message_at=?,unread=unread+1,updated_at=now() WHERE id=?',
+   Database::query('UPDATE whatsapp_conversations SET last_customer_at=?,last_message_at=?,unread=unread+1,customer_seq=customer_seq+1,updated_at=now() WHERE id=?',
     [$newer($conv['last_customer_at'])?$at:Database::timestamp((string)$conv['last_customer_at']),$newer($conv['last_message_at'])?$at:Database::timestamp((string)$conv['last_message_at']),$conv['id']]);
    $db->commit();
   }catch(\Throwable $t){if($db->inTransaction())$db->rollBack();throw $t;}
@@ -165,7 +170,9 @@ final class WhatsAppInbox {
   if(($q['stamp']??'')===$stamp)return ['unchanged'=>true,'stamp'=>$stamp];
   $rows=array_reverse(Database::all('SELECT * FROM whatsapp_messages WHERE conversation_id=? AND user_id=? ORDER BY created_at DESC,id DESC LIMIT 200',[$c['id'],$owner]));
   $origin=$c['first_origin']?json_decode((string)$c['first_origin'],true):null;
-  return ['stamp'=>$stamp,'conversation'=>self::summary($c,null)+['contact_since'=>$c['contact_since'],'has_referral'=>is_array($origin)&&isset($origin['referral'])],'messages'=>array_map(self::messageView(...),$rows)];
+  $product=null;if($c['product_id']){$p=Database::one('SELECT mapped_data FROM selected_products WHERE id=? AND user_id=?',[$c['product_id'],$owner]);if($p){$m=json_decode((string)$p['mapped_data'],true);$product=['id'=>$c['product_id'],'name'=>is_string($m['name']??null)?$m['name']:'Producto','sheet_version'=>$c['sheet_version']!==null?(int)$c['sheet_version']:null];}}
+  $captured=json_decode((string)$c['captured'],true);$fields=[];foreach(WhatsAppAgent::CAPTURE as $k=>$label)if(is_string($captured[$k]??null)&&$captured[$k]!=='')$fields[]=['key'=>$k,'label'=>$label,'value'=>$captured[$k]];
+  return ['stamp'=>$stamp,'conversation'=>self::summary($c,null)+['contact_since'=>$c['contact_since'],'has_referral'=>is_array($origin)&&isset($origin['referral']),'product'=>$product,'captured'=>$fields,'ai_tokens'=>(int)$c['ai_tokens']],'messages'=>array_map(self::messageView(...),$rows)];
  }
  public static function markRead(string $owner,string $id): array {
   $c=self::owned($owner,$id);if((int)$c['unread']>0)Database::query('UPDATE whatsapp_conversations SET unread=0,updated_at=now() WHERE id=?',[$c['id']]);
@@ -176,6 +183,7 @@ final class WhatsAppInbox {
   if(!is_int($version))throw new HttpError(422,'Falta la versión de la conversación.');
   $c=self::owned($owner,$id);
   if($c['owner_mode']===$mode)throw new HttpError(409,$mode==='human'?'Ya tomaste esta conversación.':'La conversación ya está con la IA.');
+  if($mode==='ai'&&($why=WhatsAppAgent::unavailable($owner)))throw new HttpError(409,'No se puede devolver a la IA: '.$why.'.');
   $done=Database::query('UPDATE whatsapp_conversations SET owner_mode=?,handoff_reason=?,version=version+1,updated_at=now() WHERE id=? AND user_id=? AND version=?',
    [$mode,$mode==='human'?'Tomada por un asesor':null,$c['id'],$owner,$version])->rowCount();
   if($done!==1)throw new HttpError(409,'La conversación cambió mientras la veías. Revisa los últimos mensajes y vuelve a intentarlo.');
@@ -194,21 +202,30 @@ final class WhatsAppInbox {
   $account=Database::one('SELECT * FROM whatsapp_accounts WHERE id=? AND user_id=?',[$c['account_id'],$owner]);
   if(!$account)throw new HttpError(409,'El número de WhatsApp ya no está conectado.');
   Auth::limit('whatsapp-send:'.$owner,120,600);
-  try{Database::query("INSERT INTO whatsapp_messages(id,user_id,conversation_id,direction,type,body,status,sender,author_id) VALUES(?,?,?,'out','text',?,'queued','agent',?)",[$clientId,$owner,$c['id'],$text,$owner]);}
+  try{$message=self::sendText($account,$c,$text,'agent',$owner,$clientId);}
   catch(\PDOException){$again=Database::one('SELECT * FROM whatsapp_messages WHERE id=? AND user_id=?',[$clientId,$owner]);if($again)return ['message'=>self::messageView($again)];throw new HttpError(409,'No se pudo registrar el mensaje.');}
+  return ['message'=>self::messageView($message)];
+ }
+ /**
+  * Stores and sends one text message (advisor or AI). The row exists before the call to Meta, so a repeated request
+  * with the same id never sends twice. No automatic retry: with a timeout or a server error Meta may still have
+  * delivered it. The caller checks the sender rule and the 24-hour window first.
+  */
+ public static function sendText(array $account,array $c,string $text,string $sender,?string $author,?string $id=null,int $tokens=0): array {
+  $id??=Support::uuid();$owner=(string)$account['user_id'];
+  Database::query("INSERT INTO whatsapp_messages(id,user_id,conversation_id,direction,type,body,status,sender,author_id,tokens) VALUES(?,?,?,'out','text',?,'queued',?,?,?)",[$id,$owner,$c['id'],$text,$sender,$author,$tokens]);
   Database::query('UPDATE whatsapp_conversations SET last_message_at=now(),unread=0,updated_at=now() WHERE id=?',[$c['id']]);
   $r=WhatsAppGraph::request('POST',rawurlencode((string)$account['phone_number_id']).'/messages',WhatsAppAccount::token($account),
    ['messaging_product'=>'whatsapp','recipient_type'=>'individual','to'=>$c['phone'],'type'=>'text','text'=>['preview_url'=>false,'body'=>$text]],20);
   $wamid=$r['json']['messages'][0]['id']??null;
   if($r['status']===200&&is_string($wamid)&&$wamid!==''){
-   Database::query('UPDATE whatsapp_messages SET wamid=?,status_at=now() WHERE id=?',[mb_substr($wamid,0,255),$clientId]);
+   Database::query('UPDATE whatsapp_messages SET wamid=?,status_at=now() WHERE id=?',[mb_substr($wamid,0,255),$id]);
   }else{
-   // No automatic retry: with a timeout or a server error Meta may still have delivered it.
    $unknown=$r['errno']!==0||$r['status']>=500||$r['status']===0;
    $error=$unknown?'No se confirmó el envío. Revisa en WhatsApp si llegó antes de escribirlo de nuevo.':(is_array($r['json']['error']??null)?self::metaError($r['json']['error']):WhatsAppGraph::error($r));
-   Database::query("UPDATE whatsapp_messages SET status='failed',error=?,status_at=now() WHERE id=?",[$error,$clientId]);
+   Database::query("UPDATE whatsapp_messages SET status='failed',error=?,status_at=now() WHERE id=?",[$error,$id]);
   }
   Database::query('UPDATE whatsapp_conversations SET updated_at=now() WHERE id=?',[$c['id']]);
-  return ['message'=>self::messageView((array)Database::one('SELECT * FROM whatsapp_messages WHERE id=?',[$clientId]))];
+  return (array)Database::one('SELECT * FROM whatsapp_messages WHERE id=?',[$id]);
  }
 }

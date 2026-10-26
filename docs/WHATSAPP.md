@@ -6,11 +6,17 @@ Módulo propio de Tinvana para vender por WhatsApp con la **API oficial de Whats
 |---|---|---|
 | 1 | Datos, conexión del número (credenciales del piloto) y webhook firmado con eventos guardados y deduplicados | Implementada y probada en local |
 | 2 | Bandeja: recibir y responder a mano, estados de entrega, ventana de 24 h, tomar y devolver el chat | Implementada y probada en local |
-| 3 | Agente de IA, fichas de producto aprobadas y ajustes | Pendiente |
+| 3 | Agente de IA, fichas de producto aprobadas y ajustes | Implementada y probada en local |
 | 4 | Anuncios → oferta y códigos de oferta (incluido el botón de WhatsApp de la landing) | Pendiente |
 | 5 | Cotización, confirmación, pedido con origen WhatsApp y envío a Dropi con revisión | Pendiente |
 | 6 | Plantillas, recordatorios, avisos de estado Dropi, consentimiento y bandeja de operación | Pendiente |
 | 7 | Copia opcional a GHL, documentación y regresión completa | Pendiente |
+
+**Ampliaciones pedidas por el propietario (2026-10-26), para después de la etapa 4:**
+- **Nuevo chat**: escribir a un número que no ha escrito, solo con plantilla aprobada por Meta.
+- **Confirmación de pedidos de landings por WhatsApp**: resumen cotizado con Dropi, botones «Confirmar pedido» y «Cambiar algo»; la confirmación queda registrada con evidencia del mensaje. Por defecto el pedido queda para **revisión manual**; cada tienda puede activar «Enviar a Dropi automáticamente al confirmar».
+- **Plantillas creadas por Tinvana** y enviadas a Meta para aprobación desde el panel (confirmar antes el endpoint en la documentación oficial).
+- **Aviso visible** en el formulario de las landings: «Te enviaremos la confirmación de tu pedido por WhatsApp».
 
 Fuera de alcance: Embedded Signup (registro guiado con Facebook) y registro como proveedor tecnológico de Meta. El botón «Conectar con Meta» aparece deshabilitado como «Próximamente».
 
@@ -103,6 +109,37 @@ Meta solo envía los mensajes reales al webhook si la app está suscrita a la cu
 - `node tests/whatsapp-inbox.mjs` (simulador de Graph en 8446 que registra envíos y devuelve `wamid`): 46 comprobaciones. Incluyen: evento repetido diez veces = un mensaje, tipos no compatibles, aislamiento entre tiendas, filtros y búsqueda, sello de consulta, emisor único, versión vieja, CSRF, envío exacto a Meta, idempotencia, estados que no retroceden, fallo con motivo, error 5xx sin reintento, rechazo de Meta, estado anticipado sin bloquear la cola, ventana cerrada y reabierta, devolver a la IA, cron, permiso del plan, actualización en vivo, consultas que no renuevan la sesión y panel en claro, oscuro y móvil.
 - MariaDB 10.11.19 local: 10 comprobaciones de la bandeja (reclamo con `SKIP LOCKED`, lista, sello, búsqueda, detalle, tomar, respuesta con resultado desconocido, idempotencia y ventana cerrada).
 
+## Etapa 3: agente de IA
+
+### Cómo responde
+- Responde solo mientras el chat está con la IA (`owner_mode=ai`), con bloqueo por conversación, y vuelve a comprobarlo antes de enviar por si un asesor lo tomó. `customer_seq`/`ai_seq` hacen que conteste una sola vez los últimos mensajes del cliente, aunque lleguen varios mientras piensa. Lo ejecuta el procesamiento del webhook (hasta 5 chats) y el cron `whatsapp:work`.
+- La IA **solo conversa**. Devuelve un JSON estricto con el texto, la intención, el producto, los datos capturados (nombre, ciudad, departamento, dirección, barrio, referencia, cantidad, variante) y una acción (`none`, `ask_product`, `request_quote`, `present_summary`, `confirm`, `handoff`). El servidor valida y decide; nunca fija precio, envío, total ni disponibilidad, ni crea pedidos. Solo puede mencionar el texto aprobado de «Precio y promociones».
+- Hasta la etapa 5, un cliente listo para comprar (`request_quote`, `present_summary`, `confirm`) recibe la respuesta y el chat pasa a un asesor con sus datos.
+- Contexto enviado: la tienda, la hora, los productos con ficha aprobada, la ficha del producto, los datos capturados y los últimos 12 mensajes (sin teléfono ni tokens).
+- Respuestas «breves»: tope de 400 tokens y 350 caracteres (1 o 2 frases). «Normal»: 800 tokens y 700 caracteres. Tiempo de espera de 25 s. `AiClient::structured` generaliza el cliente; las landings conservan 6000 tokens y 90 s.
+- Pasa a un asesor (con el motivo visible en la bandeja) cuando: el plan no incluye el agente, está apagado o no hay IA conectada (los chats nuevos empiezan con un asesor); se alcanzó el límite mensual; fuera de horario con esa opción; no hay fichas aprobadas; dos archivos seguidos; la IA falla (el cliente recibe el mensaje neutral); la IA lo pide según los motivos configurados.
+- Fotos, audios y otros archivos: mensaje fijo sin gastar IA; al segundo seguido, a un asesor.
+- Tokens: se guardan por mensaje y por conversación.
+
+### Ajustes del agente
+Tono (cercano, profesional, entusiasta), instrucciones adicionales, largo (breve por defecto), motivos para pasar a un asesor (cuatro activables y otros en texto libre), horario (días, desde, hasta y qué hacer fuera de horario: «responde igual», el predeterminado, o «avisar y pasar a un asesor») y tres mensajes automáticos. Capas: valores de Tinvana ← predeterminados del superusuario (`app_settings` `whatsapp_agent_defaults`, en Administración → Valores globales, auditado) ← ajustes propios de la tienda (`whatsapp_agent_settings`; «Usar los predeterminados» los borra).
+
+### Permisos y límites (superusuario)
+- Función `whatsapp_ai` («Agente de IA en WhatsApp»), por plan o por cuenta.
+- Límite `whatsapp_ai_conversations` («Conversaciones de WhatsApp atendidas por IA al mes»), ilimitado por defecto. Cuenta las conversaciones a las que la IA respondió en el mes (hora de Colombia); una conversación ya atendida en el mes sigue atendida.
+
+### Fichas de producto (`whatsapp_product_sheets`)
+Resumen, qué puede decir, precio y promociones que puede mencionar, hasta 12 preguntas frecuentes y qué no debe prometer. Un borrador editable por producto; «Aprobar» crea una versión nueva y el agente usa la última aprobada. «Proponer borrador con IA» usa la conexión de IA de la tienda (requiere la función `ai`) solo con la descripción del producto y queda como borrador.
+
+### API
+`GET|PUT|DELETE /api/whatsapp/agent`, `GET /api/whatsapp/sheets`, `GET|PUT /api/whatsapp/sheets/{producto}`, `POST .../approve`, `POST .../generate`; superusuario: `GET|PUT /api/admin/whatsapp-agent`. El detalle de una conversación incluye el producto, la versión de la ficha, los datos capturados y los tokens.
+
+### Datos (PostgreSQL `022`; MySQL `032`–`034`)
+`whatsapp_agent_settings`, `whatsapp_product_sheets` y, en `whatsapp_conversations`, `product_id`, `sheet_version`, `customer_seq` y `ai_seq`.
+
+### Comprobaciones de la etapa 3
+- `node tests/whatsapp-agent.mjs` (Meta simulado en 8446 e IA simulada en 8447 con `AI_OPENAI_URL`): 50 comprobaciones. Cubren predeterminados, ajustes propios y su validación, CSRF, predeterminados del superusuario con auditoría, fichas y versiones, borrador con IA, aislamiento, la petición a la IA (estricta, sin almacenamiento, 400 tokens, clave de la tienda, sin teléfono ni token), una sola respuesta ante 10 entregas, recorte de respuestas largas, datos capturados, pasos a asesor (cliente listo para comprar, pide persona, falla de la IA, archivos, fuera de horario, límite mensual, plan sin agente), tomar y devolver con versión, emisor único y el panel en claro, oscuro y móvil.
+- MariaDB 10.11.19 local: 11 comprobaciones (migraciones 032–034, ajustes, fichas, uso mensual, consulta de pendientes, bloqueo con intervalos y `GREATEST`).
 ### Configuración en Meta (cuando se autorice el piloto real)
 
 1. En la app de Meta: WhatsApp → Configuración → Webhook: URL `https://<dominio>/whatsapp/webhook` y el mismo `WHATSAPP_VERIFY_TOKEN` del servidor; suscribir el campo `messages`.

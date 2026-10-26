@@ -13,7 +13,23 @@ if($op==='reset'){
  Database::query("DELETE FROM whatsapp_events WHERE user_id IN (?,?) OR user_id IS NULL",$ids);
  Database::query('DELETE FROM whatsapp_contacts WHERE user_id IN (?,?)',$ids);
  Database::query('UPDATE users SET entitlement_overrides=NULL WHERE id IN (?,?)',$ids);
- Database::query("DELETE FROM app_settings WHERE setting_key='whatsapp_signature_rejected'");
+ Database::query("UPDATE users SET role='admin' WHERE id IN (?,?) AND role='superadmin'",$ids);
+ Database::query('DELETE FROM whatsapp_agent_settings WHERE user_id IN (?,?)',$ids);
+ Database::query('DELETE FROM whatsapp_product_sheets WHERE user_id IN (?,?)',$ids);
+ Database::query('DELETE FROM ai_connections WHERE user_id IN (?,?)',$ids);
+ Database::query("DELETE FROM admin_audit WHERE actor_id IN (?,?)",$ids);
+ Database::query("DELETE FROM app_settings WHERE setting_key IN ('whatsapp_signature_rejected','whatsapp_agent_defaults')");
+ echo 'ok';exit;
+}
+if($op==='override'){
+ // Per-account features/limits for the owner, e.g. {"features":{"whatsapp_ai":false},"limits":{"whatsapp_ai_conversations":1}}.
+ $v=json_decode($argv[2]??'null',true);if(!is_array($v))throw new RuntimeException('JSON expected.');
+ Database::query('UPDATE users SET entitlement_overrides=?::jsonb WHERE id=?',[Support::json(['features'=>(object)($v['features']??[]),'limits'=>(object)($v['limits']??[])]),$fixture['owner']]);
+ echo 'ok';exit;
+}
+if($op==='superadmin'){
+ // Temporarily makes the second fixture account a superadmin for the Administración checks.
+ Database::query('UPDATE users SET role=? WHERE id=?',[($argv[2]??'')==='on'?'superadmin':'admin',$fixture['otherOwner']]);
  echo 'ok';exit;
 }
 if($op==='events'){

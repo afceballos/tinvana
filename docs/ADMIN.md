@@ -32,6 +32,7 @@ Módulo de administración de cuentas. Migración PostgreSQL `019_accounts_plans
 | `mail` | Correos de pedidos |
 | `store` | Subdominio propio |
 | `whatsapp` | Ventas por WhatsApp con IA (módulo en construcción por etapas; ver [WHATSAPP.md](WHATSAPP.md)) |
+| `whatsapp_ai` | Agente de IA en WhatsApp. Límite asociado: `whatsapp_ai_conversations` (conversaciones atendidas por IA al mes, ilimitado por defecto). Los ajustes predeterminados del agente se editan en Valores globales. |
 
 **Límites** (`Entitlements::LIMITS`; `null` significa ilimitado):
 

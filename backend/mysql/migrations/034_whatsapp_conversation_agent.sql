@@ -1,0 +1,1 @@
+ALTER TABLE whatsapp_conversations ADD COLUMN product_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NULL, ADD COLUMN sheet_version INT NULL, ADD COLUMN customer_seq INT NOT NULL DEFAULT 0, ADD COLUMN ai_seq INT NOT NULL DEFAULT 0

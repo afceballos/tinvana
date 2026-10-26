@@ -47,7 +47,7 @@ try{
  check('empty inbox before any message',(await list()).conversations.length===0);
  check('signed message accepted',(await hook(text(LAURA,'Laura Gómez','wamid.IN1','Hola, ¿tienen envío a Pereira?'))).ok());
  let l=await list();const conv=l.conversations[0];
- check('the message opens a conversation assigned to the AI with an open 24-hour window',l.conversations.length===1&&conv.name==='Laura Gómez'&&conv.phone===LAURA&&conv.owner_mode==='ai'&&conv.unread===1&&conv.window_open&&conv.last.body.startsWith('Hola'));
+ check('without an AI connected the message opens a conversation with an advisor, the reason and an open 24-hour window',l.conversations.length===1&&conv.name==='Laura Gómez'&&conv.phone===LAURA&&conv.owner_mode==='human'&&conv.handoff_reason.includes('Integraciones de IA')&&conv.unread===1&&conv.window_open&&conv.last.body.startsWith('Hola'));
  for(let i=0;i<10;i++)await hook(text(LAURA,'Laura Gómez','wamid.IN1','Hola, ¿tienen envío a Pereira?'));
  let d=await detail(conv.id);
  check('the same event delivered ten times creates one message',d.messages.length===1&&d.conversation.unread===1);
@@ -58,7 +58,7 @@ try{
  check('a button reply shows its title',btn&&btn.supported&&btn.body==='Sí, lo quiero');
  await hook(text(CARLOS,'Carlos Ruiz','wamid.IN2','Buenas'));
  l=await list();check('a second customer gets a separate conversation, newest first',l.conversations.length===2&&l.conversations[0].name==='Carlos Ruiz'&&l.counts.unread===2);
- check('filters: unread, AI and advisor',(await list(owner,'?filter=unread')).conversations.length===2&&(await list(owner,'?filter=human')).conversations.length===0&&(await list(owner,'?filter=ai')).conversations.length===2);
+ check('filters: unread, AI and advisor',(await list(owner,'?filter=unread')).conversations.length===2&&(await list(owner,'?filter=human')).conversations.length===2&&(await list(owner,'?filter=ai')).conversations.length===0);
  check('search by name or phone',(await list(owner,'?q=laura')).conversations.length===1&&(await list(owner,'?q=310444')).conversations[0].name==='Carlos Ruiz');
  // Isolation
  check('another store sees none of these chats',(await list(other)).conversations.length===0);
@@ -69,12 +69,10 @@ try{
  const stamp=l.stamp;check('polling with the same stamp answers "unchanged"',(await list(owner,'?stamp='+stamp)).unchanged===true);
  await owner.ctx.post(`/api/whatsapp/conversations/${conv.id}/read`,{headers:owner.H});
  d=await detail(conv.id);check('opening the chat marks it read and changes the stamp',d.conversation.unread===0&&!(await list(owner,'?stamp='+stamp)).unchanged);
- // One sender per conversation
- check('an advisor cannot write while the chat is with the AI',(await reply(conv.id,'Hola Laura')).status()===409&&sends.length===0);
- check('taking with a stale version is refused',(await owner.ctx.post(`/api/whatsapp/conversations/${conv.id}/take`,{headers:owner.H,data:{version:99}})).status()===409);
- let r=await owner.ctx.post(`/api/whatsapp/conversations/${conv.id}/take`,{headers:owner.H,data:{version:d.conversation.version}});const taken=await r.json();
- check('taking the chat assigns it to the advisor',r.ok()&&taken.conversation.owner_mode==='human'&&taken.conversation.handoff_reason==='Tomada por un asesor'&&taken.conversation.version===d.conversation.version+1);
- check('taking it twice is explained',(await owner.ctx.post(`/api/whatsapp/conversations/${conv.id}/take`,{headers:owner.H,data:{version:taken.conversation.version}})).status()===409);
+ // One sender per conversation (taking, stale versions and returning to an active AI are covered in whatsapp-agent.mjs)
+ check('a chat already with an advisor cannot be taken again',(await owner.ctx.post(`/api/whatsapp/conversations/${conv.id}/take`,{headers:owner.H,data:{version:d.conversation.version}})).status()===409);
+ check('it cannot be returned to the AI while no agent is available',(await owner.ctx.post(`/api/whatsapp/conversations/${conv.id}/release`,{headers:owner.H,data:{version:d.conversation.version}})).status()===409);
+ let r;
  // Sending
  check('replying requires CSRF',(await reply(conv.id,'Hola',randomUUID(),{'X-CSRF-Token':'bad'})).status()===419&&sends.length===0);
  check('an empty reply is refused',(await reply(conv.id,'   ')).status()===422);
@@ -102,9 +100,6 @@ try{
  l=await list();check('the list shows the closed window',l.conversations.find(c=>c.id===conv.id).window_open===false);
  await hook(text(LAURA,'Laura Gómez','wamid.IN3','Sí, aquí estoy'));
  check('a new customer message reopens the window, even with a status waiting for a retry in the queue',(await reply(conv.id,'¡Perfecto!')).ok()&&sends.length===5);
- // Return to the AI
- d=await detail(conv.id);r=await owner.ctx.post(`/api/whatsapp/conversations/${conv.id}/release`,{headers:owner.H,data:{version:d.conversation.version}});
- check('returning the chat to the AI is explicit and stops the advisor from writing',r.ok()&&(await r.json()).conversation.owner_mode==='ai'&&(await reply(conv.id,'otro')).status()===409);
  check('the cron fallback runs without errors',JSON.parse((await run('powershell',['-NoProfile','-Command','.tools/run-test-command.ps1 backend/bin/console.php whatsapp:work'])).stdout.trim().split('\n').pop()).failed===0);
  await helper('feature','off');check('without the WhatsApp feature the inbox is refused',(await owner.ctx.get('/api/whatsapp/conversations')).status()===403);await helper('feature','on');
  // Panel
@@ -112,11 +107,10 @@ try{
  const ctx=await browser.newContext({storageState:await owner.ctx.storageState(),viewport:{width:1440,height:1000}});const page=await ctx.newPage();
  page.on('pageerror',x=>errors.push(x.message));page.on('request',q=>{if(q.url().includes('/api/whatsapp/conversations')&&q.method()==='GET')polls.push(q.headers()['x-session-probe']);});
  await page.goto(base+'/panel/whatsapp');await page.locator('.wa-item').first().waitFor();
- check('the inbox lists both conversations with counters',await page.locator('.wa-item').count()===2&&(await page.locator('.wa-stats').innerText()).includes('Con la IA'));
+ check('the inbox lists both conversations with counters',await page.locator('.wa-item').count()===2&&(await page.locator('.wa-stats').innerText()).includes('Con un asesor'));
  await page.locator('.wa-item',{hasText:'Laura Gómez'}).click();await page.waitForURL('**/panel/whatsapp/'+conv.id);await page.locator('.wa-msg').first().waitFor();
  check('the conversation shows bubbles, the unsupported image, ticks and the 24-hour window',await page.locator('.wa-unsupported').count()===1&&await page.locator('.wa-ticks.is-read').count()===1&&/ventana de 24 horas/i.test(await page.locator('.wa-context').innerText())&&(await page.locator('.wa-window').innerText()).includes('Abierta'));
- check('while the AI owns the chat the composer explains how to answer',await page.locator('#wa-text').isDisabled()&&(await page.locator('.wa-composer').innerText()).includes('Toma la conversación'));
- await page.getByRole('button',{name:'Tomar conversación'}).click();await page.getByRole('button',{name:'Devolver a la IA'}).waitFor();
+ check('the chat explains why it needs an advisor and the composer is ready',(await page.locator('.wa-banner.is-handoff').innerText()).includes('Integraciones de IA')&&await page.locator('#wa-text').isEnabled());
  await page.locator('#wa-text').fill('Te escribo desde el panel');await page.keyboard.press('Enter');
  await page.locator('.wa-msg.is-out',{hasText:'Te escribo desde el panel'}).locator('.wa-ticks.is-queued').waitFor();
  check('the advisor writes from the panel and the message is sent once',sends.length===6&&sends[5].text.body==='Te escribo desde el panel');

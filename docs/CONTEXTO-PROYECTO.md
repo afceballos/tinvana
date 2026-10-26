@@ -89,6 +89,7 @@ Formularios -> lead + entrega pendiente + borrador de pedido (misma transacción
 | 014 | Subdominio de tienda por usuario (`users.store_subdomain`), en PostgreSQL y MySQL. |
 | 019 | Superusuario y planes: `users.status`, `plan_id`, `plan_expires_at`, `entitlement_overrides`, `admin_note`, `last_login_at` y rol `superadmin`; tablas `plans`, `app_settings` y `admin_audit` (en MySQL, 020 a 025). |
 | 020 | Ventas por WhatsApp, etapa 1: `whatsapp_accounts`, `whatsapp_events`, `whatsapp_contacts`, `whatsapp_conversations` y `whatsapp_messages` (en MySQL, archivos 026 a 030). Aplicada solo en las bases locales de prueba. |
+| 022 | Agente de WhatsApp: `whatsapp_agent_settings`, `whatsapp_product_sheets` y campos del agente en `whatsapp_conversations` (en MySQL, 032 a 034). Aplicada solo en las bases locales de prueba. |
 | 021 | WhatsApp con app de Meta propia por tienda: clave secreta cifrada y token de verificación por cuenta (en MySQL, 031). Aplicada solo en las bases locales de prueba. |
 | 018 | Logística reflejada desde Dropi: valores ampliados de `logistics_status` (en MySQL, 019). |
 | 017 | Seguimiento de Dropi: `orders.dropi_status`, `dropi_tracking` y `dropi_synced_at` (en MySQL, 018). |
@@ -716,6 +717,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado (local):** `whatsapp-connection.mjs` 52 y `whatsapp-inbox.mjs` 46.
 - **Resultado (informado por el propietario, 2026-10-26, no comprobado por el asistente):** tras desplegar y pulsar «Suscribir mi app», los mensajes escritos al número de prueba ya llegan a la bandeja de tinbana.com. Pendiente: confirmar una respuesta enviada desde la bandeja y sus estados de entrega.
 - **Mejora pedida por el propietario:** «Probar conexión» suscribe la app automáticamente; el botón queda para reintentar. Comprobado en local: `whatsapp-connection.mjs` 52 y `whatsapp-inbox.mjs` 46.
+
+### 2026-10-26 · Ventas por WhatsApp, etapa 3: agente de IA
+- **Cambio:** agente que responde con fichas aprobadas y nunca fija precios ni crea pedidos; ajustes por tienda (tono, largo breve por defecto, motivos para pasar a un asesor, horario y mensajes); predeterminados, permiso `whatsapp_ai` y límite mensual desde el superusuario; fichas versionadas con borrador por IA; contexto del chat con producto, datos capturados y tokens. Detalle en [WHATSAPP.md](WHATSAPP.md).
+- **Comprobado (local):** `whatsapp-agent.mjs` 50 (tres veces seguidas), `whatsapp-inbox.mjs` 43, `whatsapp-connection.mjs` 52, MariaDB 11 + humo anterior 11 + 4 + 11; regresión `npm test` 107, `ai-http.mjs` 39, `ai.php` 38, `run.php` 69, `mysql-dialect.php` 19, `admin` 39, `orders` 38, `order-editing` 52, `dropi-orders` 36, `dropi-shipping` 20, `dropi-tracking` 28, `order-mail` 23, `compact` 27, `legal-pages` 17, `webhook-card` 13, `dropi-integrations-ui` 10.
+- **Datos reales:** ninguno. Ninguna llamada a Meta ni a proveedores de IA (IA simulada).
+- **Límites y siguiente paso:** cotización, confirmación y pedido llegan en la etapa 5; hasta entonces el cliente listo para comprar pasa a un asesor. Etapa 4: anuncios y códigos de oferta.
 
 ### Plantilla para la próxima actualización
 

@@ -109,3 +109,6 @@
  .wa-chat-head .wa-mode{display:none}
  .wa-msg{max-width:88%}
 }
+.wa-banner.is-handoff{background:#fff4e5;color:#9a3412}
+:root[data-theme=dark] .wa-banner.is-handoff{background:#2a1d10;color:#fdba74}
+.wa-tokens{margin-top:auto!important}

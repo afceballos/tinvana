@@ -21,12 +21,14 @@ final class Entitlements {
   'mail'=>'Correos de pedidos',
   'store'=>'Tienda con subdominio propio',
   'whatsapp'=>'Ventas por WhatsApp con IA',
+  'whatsapp_ai'=>'Agente de IA en WhatsApp',
  ];
  public const LIMITS=[
   'landings'=>'Landings creadas',
   'published_landings'=>'Landings publicadas a la vez',
   'products'=>'Productos seleccionados',
   'integrations'=>'Integraciones Dropi',
+  'whatsapp_ai_conversations'=>'Conversaciones de WhatsApp atendidas por IA al mes',
  ];
  private static array $cache=[];
 
@@ -75,7 +77,13 @@ final class Entitlements {
  public static function usage(string $owner): array {
   $n=fn(string $sql)=>(int)(Database::one($sql,[$owner])['total']??0);
   return ['landings'=>$n('SELECT count(*) AS total FROM landing_pages WHERE user_id=?'),'published_landings'=>$n("SELECT count(*) AS total FROM landing_pages WHERE user_id=? AND status='published'"),
-   'products'=>$n('SELECT count(*) AS total FROM selected_products WHERE user_id=?'),'integrations'=>$n('SELECT count(*) AS total FROM integrations WHERE user_id=?')];
+   'products'=>$n('SELECT count(*) AS total FROM selected_products WHERE user_id=?'),'integrations'=>$n('SELECT count(*) AS total FROM integrations WHERE user_id=?'),
+   'whatsapp_ai_conversations'=>self::aiConversationsThisMonth($owner)];
+ }
+ /** Conversations the WhatsApp agent answered during the current calendar month (Colombia time). */
+ public static function aiConversationsThisMonth(string $owner): int {
+  $since=(new \DateTimeImmutable('first day of this month midnight',new \DateTimeZone('America/Bogota')))->format(\DateTimeInterface::ATOM);
+  return (int)(Database::one("SELECT count(DISTINCT conversation_id) AS total FROM whatsapp_messages WHERE user_id=? AND sender='ai' AND created_at>=?",[$owner,Database::timestamp($since)])['total']??0);
  }
  /** Refuses one more unit of $limit when the account already reached it. */
  public static function ensureRoom(string $owner,string $limit): void {
