@@ -5,6 +5,7 @@ export function getPendingRequests(){return pendingRequests;}
 export function subscribeRequests(listener:()=>void){requestListeners.add(listener);return()=>{requestListeners.delete(listener);};}
 function pendingChange(delta:number){pendingRequests+=delta;requestListeners.forEach(listener=>listener());}
 export function setCsrf(value:string){csrf=value;}
+export function getCsrf(){return csrf;}
 // Read once by the login screen to explain why the user was sent there.
 export function markSessionExpired(){try{sessionStorage.setItem('tinvana-session-expired','1');}catch{}}
 export function takeSessionExpired(){try{const v=sessionStorage.getItem('tinvana-session-expired')==='1';sessionStorage.removeItem('tinvana-session-expired');return v;}catch{return false;}}

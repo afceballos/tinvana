@@ -80,7 +80,7 @@ try{
  const otherBody=delivery({phone:OTHER_PHONE,...textMessage('wamid.OWNAPP1','Hola tienda 2')},OTHER_WABA);
  check('a delivery with an unknown signature is refused',(await meta.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json','X-Hub-Signature-256':signOther(otherBody+'x')},data:otherBody})).status()===401);
  r=await meta.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json','X-Hub-Signature-256':signOther(otherBody)},data:otherBody});e=await events();
- check('a message signed by the store\'s own app reaches only that store',r.status()===200&&e.some(x=>x.dedupe_key==='msg:wamid.OWNAPP1'&&x.user_id===f.otherOwner&&x.status==='pending'&&x.payload.message.text.body==='Hola tienda 2'));
+ check('a message signed by the store\'s own app reaches only that store',r.status()===200&&e.some(x=>x.dedupe_key==='msg:wamid.OWNAPP1'&&x.user_id===f.otherOwner&&['pending','done'].includes(x.status)&&x.payload.message.text.body==='Hola tienda 2'));
  const injected=delivery(textMessage('wamid.INJECT1','falso'));
  r=await meta.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json','X-Hub-Signature-256':signOther(injected)},data:injected});
  check('a store\'s app cannot sign for another store\'s number',r.status()===401&&!(await events()).some(x=>x.dedupe_key==='msg:wamid.INJECT1'));
@@ -95,8 +95,9 @@ try{
  // Panel
  browser=await chromium.launch({channel:'msedge',headless:true});const errors=[];
  const ctx=await browser.newContext({storageState:await owner.ctx.storageState(),viewport:{width:1440,height:1000}});const page=await ctx.newPage();page.on('pageerror',x=>errors.push(x.message));
- await page.goto(base+'/panel/whatsapp');await page.waitForURL('**/panel/whatsapp/conexion');await page.locator('.wa-account').waitFor();
- check('menu shows Ventas WhatsApp and opens the connection',await page.locator('.app-sidebar nav a',{hasText:'Ventas WhatsApp'}).count()===1&&(await page.locator('.wa-account').innerText()).includes('+57 300 555 0142'));
+ await page.goto(base+'/panel/whatsapp');await page.locator('.wa-tabs').waitFor();
+ await page.locator('.wa-tabs a',{hasText:'Conexión'}).click();await page.waitForURL('**/panel/whatsapp/conexion');await page.locator('.wa-account').waitFor();
+ check('menu shows Ventas WhatsApp and the Conexión tab opens the connection',await page.locator('.app-sidebar nav a',{hasText:'Ventas WhatsApp'}).count()===1&&(await page.locator('.wa-account').innerText()).includes('+57 300 555 0142'));
  await page.reload();await page.locator('.wa-account').waitFor();check('reloading the module page works',true);
  await page.locator('.wa-soon').scrollIntoViewIfNeeded();await page.waitForTimeout(800);const soon=await page.locator('.wa-soon').evaluate(el=>{const r=el.getBoundingClientRect(),c=getComputedStyle(el);return {h:r.height,op:c.opacity,vis:c.visibility,anim:c.animationName,cls:el.className};});check('Meta signup card visible, button coming soon and disabled',soon.h>80&&+soon.op>0.9&&await page.getByRole('button',{name:/Conectar con Meta/}).isDisabled());
  await page.evaluate(()=>scrollTo(0,0));await page.waitForTimeout(400);await page.screenshot({path:'test-results/whatsapp-connection.png',fullPage:true});

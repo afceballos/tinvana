@@ -5,7 +5,7 @@ Módulo propio de Tinvana para vender por WhatsApp con la **API oficial de Whats
 | Etapa | Contenido | Estado |
 |---|---|---|
 | 1 | Datos, conexión del número (credenciales del piloto) y webhook firmado con eventos guardados y deduplicados | Implementada y probada en local |
-| 2 | Bandeja: recibir y responder a mano, estados de entrega, ventana de 24 h, tomar y devolver el chat | Pendiente |
+| 2 | Bandeja: recibir y responder a mano, estados de entrega, ventana de 24 h, tomar y devolver el chat | Implementada y probada en local |
 | 3 | Agente de IA, fichas de producto aprobadas y ajustes | Pendiente |
 | 4 | Anuncios → oferta y códigos de oferta (incluido el botón de WhatsApp de la landing) | Pendiente |
 | 5 | Cotización, confirmación, pedido con origen WhatsApp y envío a Dropi con revisión | Pendiente |
@@ -64,6 +64,36 @@ Los números dentro de la app de la plataforma no necesitan nada de esto.
 ### Panel
 
 Menú «Ventas WhatsApp» → `/panel/whatsapp/conexion` (con el mismo sistema de tarjetas que Integraciones Dropi y Conexión GHL): estado del número, identificadores, calidad, prueba de conexión, reemplazo de credenciales, eliminación con confirmación, URL del webhook con botón para copiar y estado de la configuración del servidor. El permiso «Ventas por WhatsApp con IA» se activa o desactiva por plan o por cuenta en Administración.
+
+## Etapa 2: bandeja
+
+### Procesamiento (`WhatsAppInbox`)
+
+- El webhook guarda y responde; después (`fastcgi_finish_request`/`litespeed_finish_request`) procesa hasta 20 eventos. El cron `whatsapp:work [50]` es el respaldo, cada minuto.
+- Reclamo seguro entre procesos (`FOR UPDATE SKIP LOCKED`, también en MariaDB). Un evento en `processing` más de 3 minutos se vuelve a tomar.
+- Mensaje entrante → contacto (`user_id`,`phone`), conversación (número + contacto) y mensaje con `wamid` único: repetirlo no crea nada. La hora es la de Meta. Actualiza la ventana (`last_customer_at`) y los no leídos.
+- Tipos: texto, botón de plantilla e interactivos (`button_reply`/`list_reply`) muestran su texto; reacciones, su emoji. Imagen, audio, video, documento, sticker, ubicación y contactos se guardan como referencia y se ven como «Archivo recibido (no compatible todavía)», con el pie de foto si lo hay.
+- El primer anuncio o publicación (`referral`) se guarda en el contacto para la etapa de anuncios y no se sobrescribe.
+- Estados `sent → delivered → read/played`: solo avanzan. `failed` guarda una explicación en español del código de Meta (por ejemplo 131047, ventana de 24 h), sin el texto del mensaje. Si un estado llega antes que su mensaje, espera 30 segundos y reintenta durante 15 minutos sin bloquear a los demás eventos.
+- Errores de procesamiento: se reintentan hasta 5 veces y quedan `failed` con el tipo de error, nunca con datos personales.
+
+### Responder, tomar y devolver
+
+- Un solo emisor por conversación: el asesor solo puede escribir tras **Tomar conversación**; **Devolver a la IA** es explícito y ningún temporizador lo hace. Ambas acciones exigen la versión vista (si cambió, 409 y se recarga).
+- Antes de cada envío el servidor comprueba la ventana de 24 h desde el último mensaje del cliente; cerrada → 409 y no se envía texto libre (las plantillas llegan en la etapa 6).
+- Envío: `POST /{phone_number_id}/messages` con `type:"text"` (máximo 4096 caracteres). Cada envío lleva un `client_id`: repetir la solicitud nunca envía dos veces. Con error 5xx o sin respuesta, el mensaje queda «No se confirmó el envío», **sin reintento automático**; el panel ofrece reintentar con el mismo id.
+- API: `GET /api/whatsapp/conversations?filter=all|ai|human|unread&q=&stamp=`, `GET /api/whatsapp/conversations/{id}?stamp=`, `POST .../{id}/read`, `POST .../{id}/take|release {version}`, `POST .../{id}/messages {client_id, body}`.
+
+### Panel
+
+- `/panel/whatsapp` (bandeja) y `/panel/whatsapp/{id}` (conversación): contadores, lista con búsqueda y filtros (Todas, IA, Asesor, No leídas), burbujas con día, emisor y estados (reloj, ✓, ✓✓, ✓✓ azul, «!» con motivo) y contexto (cliente, origen, responsable con motivo, ventana con cuenta regresiva). En móvil se ve la lista o el chat, con botón para volver.
+- Actualización por consulta periódica cada 4 s con la pestaña visible y 20 s en segundo plano; el servidor responde «sin cambios» si el sello no cambió. Esas consultas envían `X-Session-Probe: 1`, no renuevan la sesión ni encienden la barra de carga.
+- El agente de IA llega en la etapa 3: mientras tanto, los chats nuevos quedan asignados a la IA y el panel indica que hay que tomarlos para responder.
+
+### Comprobaciones de la etapa 2
+
+- `node tests/whatsapp-inbox.mjs` (simulador de Graph en 8446 que registra envíos y devuelve `wamid`): 46 comprobaciones. Incluyen: evento repetido diez veces = un mensaje, tipos no compatibles, aislamiento entre tiendas, filtros y búsqueda, sello de consulta, emisor único, versión vieja, CSRF, envío exacto a Meta, idempotencia, estados que no retroceden, fallo con motivo, error 5xx sin reintento, rechazo de Meta, estado anticipado sin bloquear la cola, ventana cerrada y reabierta, devolver a la IA, cron, permiso del plan, actualización en vivo, consultas que no renuevan la sesión y panel en claro, oscuro y móvil.
+- MariaDB 10.11.19 local: 10 comprobaciones de la bandeja (reclamo con `SKIP LOCKED`, lista, sello, búsqueda, detalle, tomar, respuesta con resultado desconocido, idempotencia y ventana cerrada).
 
 ### Configuración en Meta (cuando se autorice el piloto real)
 

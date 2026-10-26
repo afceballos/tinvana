@@ -20,6 +20,11 @@ if($op==='events'){
  foreach($rows as &$r)$r['payload']=json_decode((string)$r['payload'],true);
  echo Support::json($rows);exit;
 }
+if($op==='age-window'){
+ // Moves the owner's conversations 25 hours into the past, so the 24-hour window is closed.
+ Database::query("UPDATE whatsapp_conversations SET last_customer_at=now()-interval '25 hours' WHERE user_id=?",[$fixture['owner']]);
+ echo 'ok';exit;
+}
 if($op==='feature'){
  $on=($argv[2]??'')==='on';
  Database::query('UPDATE users SET entitlement_overrides=?::jsonb WHERE id=?',[$on?null:Support::json(['features'=>['whatsapp'=>false],'limits'=>new stdClass()]),$fixture['owner']]);

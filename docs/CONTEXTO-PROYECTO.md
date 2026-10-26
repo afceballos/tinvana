@@ -696,6 +696,13 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Datos reales:** el propietario conectó el número de prueba de Meta en producción, verificó el webhook y escribió un mensaje de prueba (informado por él; el asistente solo comprobó que `/privacidad` responde 200 y que el webhook rechaza un token falso con 403).
 - **Siguiente paso:** etapa 2 (bandeja).
 
+### 2026-10-26 · Ventas por WhatsApp, etapa 2: bandeja
+- **Cambio:** bandeja en `/panel/whatsapp` (lista con filtros y búsqueda, conversación, contexto), procesamiento de eventos a contactos, conversaciones y mensajes, respuesta manual del asesor, estados de entrega, ventana de 24 h, tomar y devolver la conversación y comando `whatsapp:work`. Detalle en [WHATSAPP.md](WHATSAPP.md).
+- **Comprobado (local):** `whatsapp-inbox.mjs` 46 y `whatsapp-connection.mjs` 38 contra simulador de Meta; MariaDB 10.11.19 local 10 (bandeja); regresión `run.php` 69, `mysql-dialect.php` 19, `ai.php` 38, `orders` 38, `order-editing` 52, `dropi-orders` 36, `dropi-shipping` 20, `dropi-tracking` 28, `order-mail` 23, `admin` 39, `compact` 27, `legal-pages` 17. `modern.mjs` (espera `.ts-preset`) y `ai-ui.mjs` (8083) fallan igual sobre la versión ya publicada `30ff7ca`, así que no los causa esta etapa; quedan pendientes de revisar.
+- **Incidente:** durante la prueba de humo en MariaDB, una URL de simulador mal escrita (`https://127.0.0.1:9/`, puerto de un dígito, que el filtro rechaza) hizo que una respuesta de prueba saliera a `graph.facebook.com` con un token falso. Meta la rechazó por token inválido (código 190); no se envió ningún mensaje. El script ahora exige el simulador local antes de correr.
+- **Datos reales:** ninguno. No se desplegó.
+- **Límites y siguiente paso:** el cron `whatsapp:work` debe añadirse en cPanel. Etapa 3: agente de IA con fichas aprobadas y ajustes.
+
 ### Plantilla para la próxima actualización
 
 ```text
