@@ -42,6 +42,17 @@ Fuera de alcance: Embedded Signup (registro guiado con Facebook) y registro como
   - responde `200 EVENT_RECEIVED` y luego libera la conexión (`fastcgi_finish_request`/`litespeed_finish_request`) antes de procesar. El procesamiento llega en la etapa 2; hasta entonces los eventos quedan `pending`.
 - API del panel (requiere el permiso `whatsapp` del plan; CSRF en escrituras; límites por usuario): `GET|PUT|DELETE /api/whatsapp/account`, `POST /api/whatsapp/account/test`.
 
+### Números en la app de Meta de otra persona (021 / MySQL 031)
+
+Cada tienda puede conectar un número que esté en **su propia app de Meta**:
+
+- En Conexión pega, además de sus credenciales, la **clave secreta de su app** (opcional; cifrada y nunca devuelta).
+- Tinvana le genera un **token de verificación propio** (`tv…`), que solo ve esa cuenta, para configurar el webhook de su app con la misma URL `/whatsapp/webhook`.
+- Al recibir una entrega, la firma se valida con la clave de la plataforma o con la de las cuentas nombradas en la entrega. La app de la plataforma puede hablar por cualquier número conectado; la app de una tienda, solo por el número de esa tienda. Si una entrega mezcla números, se guardan solo los del firmante; si ninguno es suyo, se responde 401.
+- «Dejar de usar mi propia app» borra la clave y desactiva su token de verificación.
+
+Los números dentro de la app de la plataforma no necesitan nada de esto.
+
 ### Variables de entorno (sin valores en el repositorio)
 
 | Variable | Uso |
@@ -61,6 +72,7 @@ Menú «Ventas WhatsApp» → `/panel/whatsapp/conexion` (con el mismo sistema d
 
 ### Comprobaciones
 
-- `node tests/whatsapp-connection.mjs` (servidor de pruebas con las variables de WhatsApp de prueba y un simulador HTTPS de Graph en 8446): 28 comprobaciones. Cubre CSRF, validación, token nunca devuelto, prueba solo de lectura, token rechazado, aislamiento entre usuarios, número duplicado, permiso del plan, verificación del webhook, firma ausente o inválida, guardado, 10 entregas repetidas = 1 evento, estados deduplicados, números ajenos ignorados sin contenido, límite de 3 MB, panel en escritorio, modo oscuro y móvil. No contacta a Meta.
+- `node tests/whatsapp-connection.mjs` (servidor de pruebas con las variables de WhatsApp de prueba y un simulador HTTPS de Graph en 8446): 38 comprobaciones, incluidas las de app propia (clave nunca devuelta, token por cuenta, firma de la app propia, intento de inyectar mensajes en otro número y entrega mixta). Cubre CSRF, validación, token nunca devuelto, prueba solo de lectura, token rechazado, aislamiento entre usuarios, número duplicado, permiso del plan, verificación del webhook, firma ausente o inválida, guardado, 10 entregas repetidas = 1 evento, estados deduplicados, números ajenos ignorados sin contenido, límite de 3 MB, panel en escritorio, modo oscuro y móvil. No contacta a Meta.
 - Prueba de humo MySQL en MariaDB 10.11.19 local aislada (127.0.0.1:33307): `schema.sql` + migraciones hasta 030 aplicadas e idempotentes; guardar y cifrar, número duplicado, firma, guardado, deduplicación, JSON con unicode, número ajeno y eliminación (11 comprobaciones).
-- **No comprobado:** conexión con Meta real, recepción real de mensajes y despliegue en producción.
+- MariaDB local: migración 031 aplicada y 4 comprobaciones de app propia.
+- **Comprobado por el propietario el 2026-10-26 (no por el asistente):** número de prueba de Meta conectado en producción (Probar conexión correcta), webhook verificado en Meta con la app de la plataforma y mensaje de prueba escrito al número. La recepción en Tinvana no puede verse hasta la etapa 2.

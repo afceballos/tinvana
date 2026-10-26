@@ -89,6 +89,7 @@ Formularios -> lead + entrega pendiente + borrador de pedido (misma transacción
 | 014 | Subdominio de tienda por usuario (`users.store_subdomain`), en PostgreSQL y MySQL. |
 | 019 | Superusuario y planes: `users.status`, `plan_id`, `plan_expires_at`, `entitlement_overrides`, `admin_note`, `last_login_at` y rol `superadmin`; tablas `plans`, `app_settings` y `admin_audit` (en MySQL, 020 a 025). |
 | 020 | Ventas por WhatsApp, etapa 1: `whatsapp_accounts`, `whatsapp_events`, `whatsapp_contacts`, `whatsapp_conversations` y `whatsapp_messages` (en MySQL, archivos 026 a 030). Aplicada solo en las bases locales de prueba. |
+| 021 | WhatsApp con app de Meta propia por tienda: clave secreta cifrada y token de verificación por cuenta (en MySQL, 031). Aplicada solo en las bases locales de prueba. |
 | 018 | Logística reflejada desde Dropi: valores ampliados de `logistics_status` (en MySQL, 019). |
 | 017 | Seguimiento de Dropi: `orders.dropi_status`, `dropi_tracking` y `dropi_synced_at` (en MySQL, 018). |
 | 016 | Correos de pedidos: tabla `order_mail` y `users.mail_settings` (en MySQL, archivos 016 y 017). |
@@ -688,6 +689,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** páginas públicas `/privacidad` y `/terminos` generadas en el servidor (sin sesión ni JavaScript), con el estilo de Tinvana, modo oscuro y móvil; enlaces en inicio de sesión y registro, y aviso de aceptación al registrarse. Datos del responsable desde `LEGAL_*` del `.env`. Detalle en [LEGAL.md](LEGAL.md).
 - **Comprobado (local):** `legal-pages.mjs` 17, `npm test` 107, `account-access` 42 y `whatsapp-connection` 28.
 - **Límites y siguiente paso:** el texto es una base redactada para Colombia (Ley 1581 de 2012, Ley 1480 de 2011) y debe revisarlo un abogado. En producción falta definir `LEGAL_NAME`, `LEGAL_ID`, `LEGAL_ADDRESS` y `LEGAL_EMAIL`.
+
+### 2026-10-26 · WhatsApp: números en la app de Meta de cada tienda
+- **Cambio:** cada tienda puede conectar un número de su propia app de Meta (clave secreta cifrada y token de verificación propio); el webhook acepta la firma de la plataforma o la de la cuenta nombrada, nunca la de una tienda para el número de otra. Detalle en [WHATSAPP.md](WHATSAPP.md).
+- **Comprobado (local):** `whatsapp-connection.mjs` 38, `legal-pages.mjs` 17, MariaDB 10.11.19 (migración 031, humo 11 + 4).
+- **Datos reales:** el propietario conectó el número de prueba de Meta en producción, verificó el webhook y escribió un mensaje de prueba (informado por él; el asistente solo comprobó que `/privacidad` responde 200 y que el webhook rechaza un token falso con 403).
+- **Siguiente paso:** etapa 2 (bandeja).
 
 ### Plantilla para la próxima actualización
 

@@ -1,0 +1,1 @@
+ALTER TABLE whatsapp_accounts ADD COLUMN app_secret_ciphertext TEXT NULL, ADD COLUMN verify_token_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL, ADD COLUMN verify_token_ciphertext TEXT NULL, ADD UNIQUE KEY whatsapp_accounts_verify_uq (verify_token_hash)

@@ -69,6 +69,28 @@ try{
  const otherWaba=delivery(textMessage('wamid.OTHERWABA'),'555555555555555');await meta.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json','X-Hub-Signature-256':sign(otherWaba)},data:otherWaba});
  e=await events();const ignored=e.filter(x=>x.status==='ignored');
  check('events of another number or WhatsApp account are ignored without keeping their content',ignored.length===2&&ignored.every(x=>x.user_id===null&&Object.keys(x.payload).length===0));
+ // A second store with its number in its own Meta app (own app secret and own verify token).
+ const OTHER_PHONE='109876543210987',OTHER_WABA='108765432109876',OTHER_SECRET='otherStoreAppSecret0123456789ab';
+ const signOther=b=>'sha256='+createHmac('sha256',OTHER_SECRET).update(b).digest('hex');
+ check('the app secret must look like the one Meta shows',(await other.ctx.put('/api/whatsapp/account',{headers:other.H,data:{phone_number_id:OTHER_PHONE,waba_id:OTHER_WABA,token:TOKEN,app_secret:'bad secret!'}})).status()===422);
+ r=await other.ctx.put('/api/whatsapp/account',{headers:other.H,data:{phone_number_id:OTHER_PHONE,waba_id:OTHER_WABA,token:TOKEN,app_secret:OTHER_SECRET}});const ownText=await r.text();const own=JSON.parse(ownText).account;
+ check('own app secret saved encrypted, never returned, with a verify token for that account',r.status()===200&&own.own_app&&/^tv[a-f0-9]{40}$/.test(own.verify_token)&&!ownText.includes(OTHER_SECRET));
+ check('the owner does not see the other store\'s verify token',!(await(await owner.ctx.get('/api/whatsapp/account')).text()).includes(own.verify_token));
+ r=await meta.get(q('subscribe',own.verify_token,'777'));check('Meta can verify the store\'s own app with its token',r.status()===200&&await r.text()==='777');
+ const otherBody=delivery({phone:OTHER_PHONE,...textMessage('wamid.OWNAPP1','Hola tienda 2')},OTHER_WABA);
+ check('a delivery with an unknown signature is refused',(await meta.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json','X-Hub-Signature-256':signOther(otherBody+'x')},data:otherBody})).status()===401);
+ r=await meta.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json','X-Hub-Signature-256':signOther(otherBody)},data:otherBody});e=await events();
+ check('a message signed by the store\'s own app reaches only that store',r.status()===200&&e.some(x=>x.dedupe_key==='msg:wamid.OWNAPP1'&&x.user_id===f.otherOwner&&x.status==='pending'&&x.payload.message.text.body==='Hola tienda 2'));
+ const injected=delivery(textMessage('wamid.INJECT1','falso'));
+ r=await meta.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json','X-Hub-Signature-256':signOther(injected)},data:injected});
+ check('a store\'s app cannot sign for another store\'s number',r.status()===401&&!(await events()).some(x=>x.dedupe_key==='msg:wamid.INJECT1'));
+ const mixed=JSON.stringify({object:'whatsapp_business_account',entry:[JSON.parse(delivery({phone:OTHER_PHONE,...textMessage('wamid.MIXOWN')},OTHER_WABA)).entry[0],JSON.parse(delivery(textMessage('wamid.INJECT2','falso'))).entry[0]]});
+ r=await meta.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json','X-Hub-Signature-256':signOther(mixed)},data:mixed});e=await events();
+ check('in a mixed delivery only the signer\'s own number is accepted',r.status()===200&&e.some(x=>x.dedupe_key==='msg:wamid.MIXOWN'&&x.user_id===f.otherOwner)&&!e.some(x=>x.dedupe_key==='msg:wamid.INJECT2'));
+ const browserCheck=async()=>{const b=await chromium.launch({channel:'msedge',headless:true});try{const pg=await(await b.newContext({storageState:await other.ctx.storageState(),viewport:{width:1440,height:1000}})).newPage();await pg.goto(base+'/panel/whatsapp/conexion');await pg.locator('.wa-own-app').waitFor();const text=await pg.locator('.wa-own-app').innerText();await pg.waitForTimeout(900);await pg.screenshot({path:'test-results/whatsapp-own-app.png',fullPage:true});return text.includes(own.verify_token)&&!text.includes(OTHER_SECRET);}finally{await b.close();}};
+ check('the store sees the webhook card of its own app with its token',await browserCheck());
+ await other.ctx.put('/api/whatsapp/account',{headers:other.H,data:{phone_number_id:OTHER_PHONE,waba_id:OTHER_WABA,own_app:false}});
+ check('dropping the own app disables its verify token',(await meta.get(q('subscribe',own.verify_token))).status()===403&&(await(await other.ctx.get('/api/whatsapp/account')).json()).account.own_app===false);
  const huge='x'.repeat(3145729);check('payloads over 3 MB refused',(await meta.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json','X-Hub-Signature-256':sign(huge)},data:huge})).status()===413);
  // Panel
  browser=await chromium.launch({channel:'msedge',headless:true});const errors=[];

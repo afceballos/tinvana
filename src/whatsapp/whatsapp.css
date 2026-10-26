@@ -21,3 +21,6 @@
 :root[data-theme=dark] .wa-checks li.is-ok{color:var(--ink)}
 @media (max-width:640px){.wa-facts{grid-template-columns:1fr}.webhook-url{flex-wrap:wrap}.wa-copy{margin-left:0}}
 :root[data-theme=dark] .wa-account button.danger{color:#fda29b;border-color:#7a2e26}
+.wa-check{display:flex!important;flex-direction:row!important;align-items:center;gap:10px;font-weight:500}
+.wa-check input{width:18px;height:18px;min-height:0;flex:none}
+.wa-token{overflow-wrap:anywhere}
