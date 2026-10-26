@@ -28,7 +28,7 @@ final class WhatsAppGraph {
   $headers=['Accept: application/json','Authorization: Bearer '.$token];if($body!==null)$headers[]='Content-Type: application/json';
   curl_setopt_array($c,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CUSTOMREQUEST=>$method,CURLOPT_CONNECTTIMEOUT=>6,CURLOPT_TIMEOUT=>$timeout,
    CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_HTTPHEADER=>$headers]);
-  if($body!==null)curl_setopt($c,CURLOPT_POSTFIELDS,Support::json($body));
+  if($body!==null)curl_setopt($c,CURLOPT_POSTFIELDS,$body===[]?'{}':Support::json($body));
   if(Support::env('HTTP_CA_BUNDLE')!=='')curl_setopt($c,CURLOPT_CAINFO,Support::env('HTTP_CA_BUNDLE'));
   $res=curl_exec($c);$status=(int)curl_getinfo($c,CURLINFO_RESPONSE_CODE);$errno=curl_errno($c);curl_close($c);
   $json=is_string($res)?json_decode($res,true):null;
@@ -45,6 +45,22 @@ final class WhatsAppGraph {
   return 'Meta respondió con un error (HTTP '.$r['status'].($code?', código '.$code:'').').';
  }
 
+ /**
+  * Apps subscribed to webhooks of a WhatsApp Business Account (official: GET /{WABA_ID}/subscribed_apps, read-only).
+  * Without a subscription Meta does not send real messages to the callback, although the dashboard test does arrive.
+  * @return list<string> app names
+  */
+ public static function subscribedApps(string $wabaId,string $token): array {
+  $r=self::request('GET',rawurlencode($wabaId).'/subscribed_apps',$token);
+  if($r['status']!==200||!is_array($r['json']['data']??null))throw new HttpError(502,self::error($r));
+  $names=[];foreach($r['json']['data'] as $row){$app=is_array($row['whatsapp_business_api_data']??null)?$row['whatsapp_business_api_data']:[];$names[]=mb_substr(is_string($app['name']??null)?$app['name']:(is_scalar($app['id']??null)?(string)$app['id']:'App'),0,120);}
+  return $names;
+ }
+ /** Subscribes the token's app to the account's webhooks (official: POST /{WABA_ID}/subscribed_apps). Only on request. */
+ public static function subscribe(string $wabaId,string $token): void {
+  $r=self::request('POST',rawurlencode($wabaId).'/subscribed_apps',$token,[]);
+  if($r['status']!==200||($r['json']['success']??false)!==true)throw new HttpError(502,self::error($r));
+ }
  /** Read-only: the number's verified name, display number and quality. Sends nothing. */
  public static function phone(string $phoneNumberId,string $token): array {
   $r=self::request('GET',rawurlencode($phoneNumberId).'?fields=verified_name,display_phone_number,quality_rating',$token);

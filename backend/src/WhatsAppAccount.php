@@ -84,7 +84,18 @@ final class WhatsAppAccount {
   catch(HttpError $e){Database::query("UPDATE whatsapp_accounts SET status='error',last_error=?,last_tested_at=now(),updated_at=now() WHERE id=?",[$e->getMessage(),$a['id']]);throw $e;}
   Database::query("UPDATE whatsapp_accounts SET status='connected',display_phone=?,verified_name=?,quality_rating=?,last_error=NULL,last_tested_at=now(),updated_at=now() WHERE id=?",
    [$info['display_phone'],$info['verified_name'],$info['quality_rating'],$a['id']]);
-  return self::view($owner)+['message'=>'Meta respondió correctamente: '.$info['display_phone'].($info['verified_name']!==''?' · '.$info['verified_name']:'').'.'];
+  return self::view($owner)+['subscription'=>self::subscription($a),'message'=>'Meta respondió correctamente: '.$info['display_phone'].($info['verified_name']!==''?' · '.$info['verified_name']:'').'.'];
+ }
+ /** Read-only check of the apps subscribed to the account's webhooks; an error here does not fail the connection test. */
+ private static function subscription(array $a): array {
+  try{$apps=WhatsAppGraph::subscribedApps((string)$a['waba_id'],self::token($a));return ['checked'=>true,'apps'=>$apps,'error'=>null];}
+  catch(HttpError $e){return ['checked'=>false,'apps'=>[],'error'=>$e->getMessage()];}
+ }
+ /** Subscribes the app of the stored token to the account's webhooks, then reads the list back. Only on explicit request. */
+ public static function subscribe(string $owner): array {
+  $a=self::ofUser($owner);if(!$a)throw new HttpError(404,'Primero guarda las credenciales del número.');
+  WhatsAppGraph::subscribe((string)$a['waba_id'],self::token($a));
+  return self::view($owner)+['subscription'=>self::subscription($a),'message'=>'Listo: tu app quedó suscrita a los mensajes de esta cuenta de WhatsApp.'];
  }
  /** Removes the number and, through the foreign keys, its conversations and messages. */
  public static function remove(string $owner): array {

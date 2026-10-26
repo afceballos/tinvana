@@ -27,3 +27,6 @@
 .wa-diagnosis{display:grid;gap:10px;padding-top:12px;border-top:1px solid var(--line)}
 .wa-diagnosis h3{margin:0;font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
 .wa-diagnosis p{margin:0}
+.wa-sub-ok{display:flex;align-items:center;gap:6px;font-weight:700;color:#15803d}
+.wa-sub-ok .icon{width:16px;height:16px}
+:root[data-theme=dark] .wa-sub-ok{color:#4ade80}

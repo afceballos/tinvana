@@ -7,6 +7,7 @@ import {WhatsAppTabs} from './WhatsAppTabs';
 
 type Account={id:string;phone_number_id:string;waba_id:string;display_phone:string|null;verified_name:string|null;quality_rating:string|null;status:'pending'|'connected'|'error';last_error:string|null;last_tested_at:string|null;source:string;token_configured:boolean;own_app:boolean;verify_token:string|null};
 type Platform={webhook_url:string;verify_token_configured:boolean;app_secret_configured:boolean;graph_version:string};
+type Subscription={checked:boolean;apps:string[];error:string|null};
 type Diagnostics={last_event_at:string|null;pending:number;failed:number;last_failure:string|null;signature_rejected_at:string|null};
 type View={account:Account|null;platform:Platform;diagnostics:Diagnostics|null};
 const when=(v:string|null)=>v?new Date(v).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}):'Nunca';
@@ -15,7 +16,7 @@ const states:Record<Account['status'],[string,string]>={connected:['on','Conecta
 
 // Same card system as «Integraciones Dropi» and «Conexión GHL» (webhook-current, webhook-head, webhook-state).
 export function WhatsAppConnection(){
- const [view,setView]=useState<View|null>(null);const [busy,setBusy]=useState(false);const [editing,setEditing]=useState(false);const [confirmDelete,setConfirmDelete]=useState(false);
+ const [view,setView]=useState<View|null>(null);const [sub,setSub]=useState<Subscription|null>(null);const [busy,setBusy]=useState(false);const [editing,setEditing]=useState(false);const [confirmDelete,setConfirmDelete]=useState(false);
  const [,setError]=useFeedbackState('error');const [,setNotice]=useFeedbackState('success');
  useEffect(()=>{api<View>('/api/whatsapp/account').then(setView).catch(e=>setError((e as Error).message));},[]);
  const copy=(text:string,label:string)=>{void navigator.clipboard?.writeText(text).then(()=>setNotice(label+' copiado.'),()=>setError('No se pudo copiar. Selecciónalo y cópialo a mano.'));};
@@ -36,8 +37,16 @@ export function WhatsAppConnection(){
    <div className="webhook-url"><Icon name="lock"/><code>Token de acceso permanente · cifrado</code></div>
    {a.status==='error'&&a.last_error&&<p className="store-warning" role="note">{a.last_error}</p>}
    {view.diagnostics&&<Diagnosis d={view.diagnostics} ownApp={a.own_app}/>}
+   <div className="wa-diagnosis wa-subscription">
+    <h3>Suscripción de la app a esta cuenta</h3>
+    {sub===null?<p className="small muted">Pulsa «Probar conexión» para revisar si tu app de Meta está suscrita a los mensajes de esta cuenta de WhatsApp. Sin esa suscripción, Meta no envía a Tinvana los mensajes reales (la prueba del panel de Meta sí llega).</p>
+     :!sub.checked?<p className="store-warning" role="note">No se pudo revisar la suscripción: {sub.error}</p>
+     :sub.apps.length?<p className="wa-sub-ok"><Icon name="check"/>Suscrita: {sub.apps.join(', ')}</p>
+     :<><p className="store-warning" role="alert">Ninguna app está suscrita a esta cuenta de WhatsApp, por eso los mensajes de tus clientes no llegan a Tinvana.</p>
+      <div className="row"><button type="button" className="primary" disabled={busy} onClick={()=>void run(async()=>{const r=await post<View&{message:string;subscription:Subscription}>('/api/whatsapp/account/subscribe');setView(r);setSub(r.subscription);setNotice(r.message);})}>{busy?'Suscribiendo…':'Suscribir mi app'}</button></div></>}
+   </div>
    {a.status==='pending'&&<p className="small muted">Prueba la conexión para confirmar que Meta reconoce el número y el token.</p>}
-   {!editing&&<div className="row"><button className="primary" disabled={busy} onClick={()=>void run(async()=>{const r=await post<View&{message:string}>('/api/whatsapp/account/test');setView(r);setNotice(r.message);})}>{busy?'Probando…':'Probar conexión'}</button><button className="secondary" disabled={busy} onClick={()=>setEditing(true)}>Reemplazar credenciales</button><button className="secondary danger" disabled={busy} onClick={()=>setConfirmDelete(true)}>Eliminar número</button></div>}
+   {!editing&&<div className="row"><button className="primary" disabled={busy} onClick={()=>void run(async()=>{const r=await post<View&{message:string;subscription:Subscription}>('/api/whatsapp/account/test');setView(r);setSub(r.subscription);setNotice(r.message);})}>{busy?'Probando…':'Probar conexión'}</button><button className="secondary" disabled={busy} onClick={()=>setEditing(true)}>Reemplazar credenciales</button><button className="secondary danger" disabled={busy} onClick={()=>setConfirmDelete(true)}>Eliminar número</button></div>}
    {confirmDelete&&<div className="wa-confirm" role="alertdialog" aria-labelledby="wa-delete-title"><strong id="wa-delete-title">¿Eliminar este número de Tinvana?</strong><p className="small">Se borran también sus conversaciones y mensajes guardados en Tinvana. En Meta el número sigue existiendo.</p><div className="row"><button className="primary danger-fill" disabled={busy} onClick={()=>void run(async()=>{const r=await api<View>('/api/whatsapp/account',{method:'DELETE'});setView(r);setConfirmDelete(false);setNotice('Número eliminado de Tinvana.');})}>Sí, eliminar</button><button className="secondary" disabled={busy} onClick={()=>setConfirmDelete(false)}>Cancelar</button></div></div>}
   </section>}
   {showForm&&<form className="panel narrow editor-form wa-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void run(async()=>{const r=await api<View>('/api/whatsapp/account',{method:'PUT',body:JSON.stringify({phone_number_id:f.get('phone_number_id'),waba_id:f.get('waba_id'),token:f.get('token'),app_secret:f.get('app_secret'),...(f.get('drop_own_app')?{own_app:false}:{})})});setView(r);setEditing(false);setNotice('Credenciales guardadas. Prueba la conexión para verificarlas.');});}}>

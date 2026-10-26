@@ -12,12 +12,14 @@ const helper=async(...a)=>(await run('.tools/php/php.exe',['backend/tests/whatsa
 const events=async()=>JSON.parse(await helper('events'));
 const SECRET=process.env.WHATSAPP_APP_SECRET,VERIFY=process.env.WHATSAPP_VERIFY_TOKEN;assert(SECRET&&VERIFY,'WhatsApp test environment missing');
 const PHONE='106540352242922',WABA='102290129340398',TOKEN='EAAG'+'x'.repeat(60);
-const graphCalls=[];
+const graphCalls=[];let subscribed=false;
 const graph=createServer({key:await readFile('.tools/test-key.pem'),cert:await readFile('.tools/test-cert.pem')},(req,res)=>{
  graphCalls.push(req.method+' '+req.url);const auth=req.headers.authorization||'';
  const send=(s,b)=>{res.writeHead(s,{'Content-Type':'application/json'});res.end(JSON.stringify(b));};
  if(auth!=='Bearer '+TOKEN)return send(401,{error:{message:'Invalid OAuth access token.',type:'OAuthException',code:190}});
  if(req.method==='GET'&&req.url.startsWith('/'+PHONE+'?'))return send(200,{verified_name:'Tienda Andrés',display_phone_number:'+57 300 555 0142',quality_rating:'GREEN',id:PHONE});
+ // Official shapes: GET → {data:[{whatsapp_business_api_data:{id,link,name}}]}, POST → {success:true}.
+ if(req.url==='/'+WABA+'/subscribed_apps'){if(req.method==='POST'){subscribed=true;return send(200,{success:true});}return send(200,{data:subscribed?[{whatsapp_business_api_data:{id:'1234567890',link:'https://example.test/app',name:'Tinbana WP'}}]:[]});}
  send(400,{error:{message:'Unsupported get request.',type:'GraphMethodException',code:100}});
 });
 await new Promise(r=>graph.listen(8446,'127.0.0.1',r));
@@ -39,7 +41,13 @@ try{
  check('credentials saved pending a test, token never returned',r.status()===200&&JSON.parse(saved).account.status==='pending'&&!saved.includes(TOKEN)&&!saved.includes('ciphertext'));
  r=await owner.ctx.post('/api/whatsapp/account/test',{headers:owner.H});v=await r.json();
  check('read-only test reads the number from Meta and marks it connected',r.status()===200&&v.account.status==='connected'&&v.account.display_phone==='+57 300 555 0142'&&v.account.quality_rating==='GREEN'&&v.message.includes('Tienda Andrés'));
- check('the test only reads the number (no message sent)',graphCalls.length===1&&graphCalls[0].startsWith('GET /'+PHONE+'?fields='));
+ check('the test only reads: the number and the subscribed apps (no message sent, nothing subscribed)',graphCalls.length===2&&graphCalls.every(c=>c.startsWith('GET '))&&graphCalls[0].startsWith('GET /'+PHONE+'?fields=')&&graphCalls[1]==='GET /'+WABA+'/subscribed_apps'&&!subscribed);
+ check('the test reports that no app is subscribed to the account',v.subscription.checked&&v.subscription.apps.length===0);
+ check('subscribing requires CSRF',(await owner.ctx.post('/api/whatsapp/account/subscribe',{headers:{'X-CSRF-Token':'bad'}})).status()===419&&!subscribed);
+ r=await owner.ctx.post('/api/whatsapp/account/subscribe',{headers:owner.H});const subView=await r.json();
+ check('subscribing posts to subscribed_apps and reads the list back',r.ok()&&subscribed&&graphCalls.includes('POST /'+WABA+'/subscribed_apps')&&subView.subscription.apps[0]==='Tinbana WP');
+ check('another store cannot subscribe without its own number',(await other.ctx.post('/api/whatsapp/account/subscribe',{headers:other.H})).status()===404);
+ subscribed=false;
  check('another user does not see this number',(await(await other.ctx.get('/api/whatsapp/account')).json()).account===null);
  check('the same number cannot be connected to a second store',(await other.ctx.put('/api/whatsapp/account',{headers:other.H,data:{phone_number_id:PHONE,waba_id:WABA,token:TOKEN}})).status()===409);
  await owner.ctx.put('/api/whatsapp/account',{headers:owner.H,data:{phone_number_id:PHONE,waba_id:WABA,token:'EAAG'+'y'.repeat(60)}});
@@ -104,9 +112,15 @@ try{
  await page.locator('.wa-tabs a',{hasText:'Conexión'}).click();await page.waitForURL('**/panel/whatsapp/conexion');await page.locator('.wa-account').waitFor();
  check('menu shows Ventas WhatsApp and the Conexión tab opens the connection',await page.locator('.app-sidebar nav a',{hasText:'Ventas WhatsApp'}).count()===1&&(await page.locator('.wa-account').innerText()).includes('+57 300 555 0142'));
  await page.reload();await page.locator('.wa-account').waitFor();check('reloading the module page works',true);
- check('the connection card shows the message diagnosis',/último mensaje o estado recibido/i.test(await page.locator('.wa-diagnosis').innerText())&&await page.locator('.wa-diagnosis [role=alert]').count()===0);
+ check('the connection card shows the message diagnosis',/último mensaje o estado recibido/i.test(await page.locator('.wa-diagnosis').first().innerText())&&await page.locator('.wa-diagnosis').first().locator('[role=alert]').count()===0);
+ await page.getByRole('button',{name:'Probar conexión'}).click();await page.getByRole('button',{name:'Suscribir mi app'}).waitFor();
+ check('after testing, an unsubscribed account is explained with a button to subscribe',(await page.locator('.wa-subscription').innerText()).includes('Ninguna app está suscrita'));
+ await page.getByRole('button',{name:'Suscribir mi app'}).click();await page.locator('.wa-sub-ok').waitFor();
+ check('the button subscribes the app and shows it',subscribed&&(await page.locator('.wa-sub-ok').innerText()).includes('Tinbana WP'));
  await page.locator('.wa-soon').scrollIntoViewIfNeeded();await page.waitForTimeout(800);const soon=await page.locator('.wa-soon').evaluate(el=>{const r=el.getBoundingClientRect(),c=getComputedStyle(el);return {h:r.height,op:c.opacity,vis:c.visibility,anim:c.animationName,cls:el.className};});check('Meta signup card visible, button coming soon and disabled',soon.h>80&&+soon.op>0.9&&await page.getByRole('button',{name:/Conectar con Meta/}).isDisabled());
  await page.evaluate(()=>scrollTo(0,0));await page.waitForTimeout(400);await page.screenshot({path:'test-results/whatsapp-connection.png',fullPage:true});
+ const pad=await page.locator('.wa-account').evaluate(el=>{const card=el.getBoundingClientRect(),head=el.querySelector('.webhook-head').getBoundingClientRect();return {gap:Math.round(head.left-card.left),scrollLeft:el.scrollLeft};});
+ check('focusing buttons never scrolls the card sideways (the halo is clipped)',pad.scrollLeft===0&&pad.gap>=20);
  await page.getByRole('button',{name:'Eliminar número'}).click();check('deleting asks for confirmation and explains what is removed',(await page.locator('.wa-confirm').innerText()).includes('conversaciones'));
  await page.getByRole('button',{name:'Cancelar'}).click();
  await page.evaluate(()=>{localStorage.setItem('tinvana-theme','dark');});await page.reload();await page.locator('.wa-account').waitFor();await page.waitForTimeout(300);await page.screenshot({path:'test-results/whatsapp-connection-dark.png',fullPage:true});

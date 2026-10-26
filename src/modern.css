@@ -185,6 +185,8 @@ dialog[open]::backdrop{animation:backdrop-in .35s ease-out}
 .panel.webhook-current{position:relative;display:grid;gap:16px;padding:22px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(160deg,color-mix(in srgb,var(--brand-accent) 9%,var(--surface)),var(--surface) 62%);box-shadow:0 18px 40px -28px color-mix(in srgb,var(--brand-accent) 60%,transparent);overflow:hidden}
 .webhook-current::before{content:"";position:absolute;top:-90px;right:-70px;width:240px;height:240px;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--brand-accent) 20%,transparent),transparent);pointer-events:none}
 .webhook-current>*{position:relative}
+/* clip, not hidden: the decorative halo must not make the card scrollable when focus moves inside it */
+.panel.webhook-current{overflow:hidden;overflow:clip}
 .webhook-current p{margin:0}
 .webhook-head{display:flex;align-items:center;gap:14px}
 .webhook-head h3{margin:2px 0 0}

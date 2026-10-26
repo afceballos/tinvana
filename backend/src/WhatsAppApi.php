@@ -12,6 +12,7 @@ final class WhatsAppApi {
    if($method==='DELETE')return WhatsAppAccount::remove($owner);
   }
   if($path==='/api/whatsapp/account/test'&&$method==='POST'){Auth::limit('whatsapp-test:'.$owner,10,600);return WhatsAppAccount::test($owner);}
+  if($path==='/api/whatsapp/account/subscribe'&&$method==='POST'){Auth::limit('whatsapp-subscribe:'.$owner,10,600);return WhatsAppAccount::subscribe($owner);}
   if($path==='/api/whatsapp/conversations'&&$method==='GET')return WhatsAppInbox::list($owner,$_GET);
   if(preg_match('~^/api/whatsapp/conversations/([a-f0-9-]{36})(?:/(read|take|release|messages))?$~D',$path,$m)){
    $id=$m[1];$action=$m[2]??'';

@@ -94,6 +94,10 @@ Menú «Ventas WhatsApp» → `/panel/whatsapp/conexion` (con el mismo sistema d
 
 La tarjeta del número muestra el último mensaje o estado recibido de Meta, cuántos eventos esperan proceso y cuántos fallaron (con el tipo de error). Si una entrega **firmada** de Meta no pasa la validación, se anota la hora en `app_settings` (`whatsapp_signature_rejected`, como mucho una vez por minuto y sin contenido; las solicitudes sin firma no cuentan) y la tarjeta avisa que se revise `WHATSAPP_APP_SECRET` o la clave de la app propia. Sin eventos ni rechazos, indica revisar la suscripción del webhook al campo `messages`.
 
+### Suscripción de la app a la cuenta (documentación oficial, 2026-10-26)
+
+Meta solo envía los mensajes reales al webhook si la app está suscrita a la cuenta de WhatsApp: `GET /{WABA_ID}/subscribed_apps` lista las apps (`data[].whatsapp_business_api_data.{id,link,name}`) y `POST /{WABA_ID}/subscribed_apps` suscribe la app del token (`{"success":true}`). La prueba del panel de Meta llega aunque no exista esa suscripción. «Probar conexión» revisa la lista (solo lectura) y, si está vacía, muestra «Suscribir mi app», que hace el `POST` solo al pulsarlo (`POST /api/whatsapp/account/subscribe`). La guía de webhooks de Meta indica además que algunos webhooks no se envían con la app en modo **Dev**; si con la app suscrita no llegan mensajes, hay que publicarla (modo **Live**).
+
 ### Comprobaciones de la etapa 2
 
 - `node tests/whatsapp-inbox.mjs` (simulador de Graph en 8446 que registra envíos y devuelve `wamid`): 46 comprobaciones. Incluyen: evento repetido diez veces = un mensaje, tipos no compatibles, aislamiento entre tiendas, filtros y búsqueda, sello de consulta, emisor único, versión vieja, CSRF, envío exacto a Meta, idempotencia, estados que no retroceden, fallo con motivo, error 5xx sin reintento, rechazo de Meta, estado anticipado sin bloquear la cola, ventana cerrada y reabierta, devolver a la IA, cron, permiso del plan, actualización en vivo, consultas que no renuevan la sesión y panel en claro, oscuro y móvil.

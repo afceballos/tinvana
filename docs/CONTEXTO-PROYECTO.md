@@ -708,6 +708,7 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** diagnóstico en Conexión (último evento recibido, pendientes, fallidos y aviso de firma inválida). Detalle en [WHATSAPP.md](WHATSAPP.md).
 - **Comprobado (local):** `whatsapp-connection.mjs` 42 y `whatsapp-inbox.mjs` 46.
 - **Siguiente paso:** desplegar, volver a escribir al número de prueba y leer el diagnóstico.
+- **Resultado informado por el propietario:** «Ninguno todavía», sin aviso de firma; la prueba del panel de Meta sí llega. Según la documentación oficial, falta suscribir la app a la cuenta (`/{WABA_ID}/subscribed_apps`) o la app está en modo Dev. Se añadió la revisión y el botón «Suscribir mi app» en Conexión; además, las tarjetas `webhook-current` pasan a `overflow:clip` porque el halo decorativo permitía desplazarlas de lado al enfocar un botón. Comprobado en local: `whatsapp-connection.mjs` 49, `whatsapp-inbox.mjs` 46, `webhook-card` 13, `dropi-integrations-ui` 10, `admin` 39.
 
 ### Plantilla para la próxima actualización
 
