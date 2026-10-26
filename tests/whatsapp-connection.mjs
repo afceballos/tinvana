@@ -12,14 +12,14 @@ const helper=async(...a)=>(await run('.tools/php/php.exe',['backend/tests/whatsa
 const events=async()=>JSON.parse(await helper('events'));
 const SECRET=process.env.WHATSAPP_APP_SECRET,VERIFY=process.env.WHATSAPP_VERIFY_TOKEN;assert(SECRET&&VERIFY,'WhatsApp test environment missing');
 const PHONE='106540352242922',WABA='102290129340398',TOKEN='EAAG'+'x'.repeat(60);
-const graphCalls=[];let subscribed=false;
+const graphCalls=[];let subscribed=false,devx=false;
 const graph=createServer({key:await readFile('.tools/test-key.pem'),cert:await readFile('.tools/test-cert.pem')},(req,res)=>{
  graphCalls.push(req.method+' '+req.url);const auth=req.headers.authorization||'';
  const send=(s,b)=>{res.writeHead(s,{'Content-Type':'application/json'});res.end(JSON.stringify(b));};
  if(auth!=='Bearer '+TOKEN)return send(401,{error:{message:'Invalid OAuth access token.',type:'OAuthException',code:190}});
  if(req.method==='GET'&&req.url.startsWith('/'+PHONE+'?'))return send(200,{verified_name:'Tienda Andrés',display_phone_number:'+57 300 555 0142',quality_rating:'GREEN',id:PHONE});
  // Official shapes: GET → {data:[{whatsapp_business_api_data:{id,link,name}}]}, POST → {success:true}.
- if(req.url==='/'+WABA+'/subscribed_apps'){if(req.method==='POST'){subscribed=true;return send(200,{success:true});}return send(200,{data:subscribed?[{whatsapp_business_api_data:{id:'1234567890',link:'https://example.test/app',name:'Tinbana WP'}}]:[]});}
+ if(req.url==='/'+WABA+'/subscribed_apps'){if(req.method==='POST'){subscribed=true;return send(200,{success:true});}return send(200,{data:[...(devx?[{whatsapp_business_api_data:{id:'999',link:'https://example.test/devx',name:'WA DevX Webhook Events 1P App'}}]:[]),...(subscribed?[{whatsapp_business_api_data:{id:'1234567890',link:'https://example.test/app',name:'Tinbana WP'}}]:[])]});}
  send(400,{error:{message:'Unsupported get request.',type:'GraphMethodException',code:100}});
 });
 await new Promise(r=>graph.listen(8446,'127.0.0.1',r));
@@ -119,7 +119,10 @@ try{
  check('the connection card shows the message diagnosis and the account-id mismatch with the id to use',/último mensaje o estado recibido/i.test(diagText)&&(await page.locator('.wa-diagnosis').first().locator('[role=alert]').innerText()).includes('555555555555555'));
  await page.getByRole('button',{name:'Probar conexión'}).click();await page.getByRole('button',{name:'Suscribir mi app'}).waitFor();
  check('after testing, an unsubscribed account is explained with a button to subscribe',(await page.locator('.wa-subscription').innerText()).includes('Ninguna app está suscrita'));
- await page.getByRole('button',{name:'Suscribir mi app'}).click();await page.locator('.wa-sub-ok').waitFor();
+ // Real case seen in production: only Meta's internal test app («WA DevX Webhook Events 1P App») is subscribed.
+ devx=true;await page.getByRole('button',{name:'Probar conexión'}).click();await page.locator('.wa-subscription',{hasText:'app interna de Meta'}).waitFor();
+ check('when only Meta\'s internal test app is subscribed, it is explained and the subscribe button is still offered',await page.getByRole('button',{name:'Suscribir mi app'}).isVisible());
+ await page.getByRole('button',{name:'Suscribir mi app'}).click();await page.locator('.wa-sub-ok',{hasText:'Tinbana WP'}).waitFor();
  check('the button subscribes the app and shows it',subscribed&&(await page.locator('.wa-sub-ok').innerText()).includes('Tinbana WP'));
  await page.locator('.wa-soon').scrollIntoViewIfNeeded();await page.waitForTimeout(800);const soon=await page.locator('.wa-soon').evaluate(el=>{const r=el.getBoundingClientRect(),c=getComputedStyle(el);return {h:r.height,op:c.opacity,vis:c.visibility,anim:c.animationName,cls:el.className};});check('Meta signup card visible, button coming soon and disabled',soon.h>80&&+soon.op>0.9&&await page.getByRole('button',{name:/Conectar con Meta/}).isDisabled());
  await page.evaluate(()=>scrollTo(0,0));await page.waitForTimeout(400);await page.screenshot({path:'test-results/whatsapp-connection.png',fullPage:true});

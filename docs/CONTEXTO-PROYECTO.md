@@ -710,6 +710,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Siguiente paso:** desplegar, volver a escribir al número de prueba y leer el diagnóstico.
 - **Resultado informado por el propietario:** «Ninguno todavía», sin aviso de firma; la prueba del panel de Meta sí llega. Según la documentación oficial, falta suscribir la app a la cuenta (`/{WABA_ID}/subscribed_apps`) o la app está en modo Dev. Se añadió la revisión y el botón «Suscribir mi app» en Conexión; además, las tarjetas `webhook-current` pasan a `overflow:clip` porque el halo decorativo permitía desplazarlas de lado al enfocar un botón. Comprobado en local: `whatsapp-connection.mjs` 49, `whatsapp-inbox.mjs` 46, `webhook-card` 13, `dropi-integrations-ui` 10, `admin` 39.
 
+### 2026-10-26 · WhatsApp: la cuenta estaba suscrita a la app de pruebas de Meta
+- **Hallazgo (informado por el propietario):** con la app publicada, la revisión de suscripción mostraba «WA DevX Webhook Events 1P App», la app interna de Meta para las pruebas del panel, y no la app de la plataforma; por eso la prueba llegaba y los mensajes reales no.
+- **Cambio:** Conexión lista las apps suscritas, advierte si solo está la app interna de Meta y ofrece siempre «Suscribir mi app». La prueba reproduce ese caso.
+- **Comprobado (local):** `whatsapp-connection.mjs` 52 y `whatsapp-inbox.mjs` 46.
+- **Siguiente paso:** desplegar, pulsar «Suscribir mi app» en producción y escribir al número de prueba.
+
 ### Plantilla para la próxima actualización
 
 ```text

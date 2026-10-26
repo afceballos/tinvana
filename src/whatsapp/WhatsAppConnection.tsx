@@ -41,9 +41,12 @@ export function WhatsAppConnection(){
     <h3>Suscripción de la app a esta cuenta</h3>
     {sub===null?<p className="small muted">Pulsa «Probar conexión» para revisar si tu app de Meta está suscrita a los mensajes de esta cuenta de WhatsApp. Sin esa suscripción, Meta no envía a Tinvana los mensajes reales (la prueba del panel de Meta sí llega).</p>
      :!sub.checked?<p className="store-warning" role="note">No se pudo revisar la suscripción: {sub.error}</p>
-     :sub.apps.length?<p className="wa-sub-ok"><Icon name="check"/>Suscrita: {sub.apps.join(', ')}</p>
-     :<><p className="store-warning" role="alert">Ninguna app está suscrita a esta cuenta de WhatsApp, por eso los mensajes de tus clientes no llegan a Tinvana.</p>
-      <div className="row"><button type="button" className="primary" disabled={busy} onClick={()=>void run(async()=>{const r=await post<View&{message:string;subscription:Subscription}>('/api/whatsapp/account/subscribe');setView(r);setSub(r.subscription);setNotice(r.message);})}>{busy?'Suscribiendo…':'Suscribir mi app'}</button></div></>}
+     :<>
+      {sub.apps.length?<p className="wa-sub-ok"><Icon name="check"/>Apps suscritas: {sub.apps.join(', ')}</p>:<p className="store-warning" role="alert">Ninguna app está suscrita a esta cuenta de WhatsApp, por eso los mensajes de tus clientes no llegan a Tinvana.</p>}
+      {sub.apps.some(n=>/WA DevX|Webhook Events 1P/i.test(n))&&<p className="store-warning" role="alert">«{sub.apps.find(n=>/WA DevX|Webhook Events 1P/i.test(n))}» es una app interna de Meta para las pruebas del panel, no la tuya. Pulsa «Suscribir mi app» para que los mensajes reales lleguen a Tinvana.</p>}
+      {sub.apps.length>0&&<p className="small muted">Debe aparecer el nombre de tu app de Meta (la del token que pegaste). Si no aparece, pulsa «Suscribir mi app».</p>}
+      <div className="row"><button type="button" className={sub.apps.length?'secondary':'primary'} disabled={busy} onClick={()=>void run(async()=>{const r=await post<View&{message:string;subscription:Subscription}>('/api/whatsapp/account/subscribe');setView(r);setSub(r.subscription);setNotice(r.message);})}>{busy?'Suscribiendo…':'Suscribir mi app'}</button></div>
+     </>}
    </div>
    {a.status==='pending'&&<p className="small muted">Prueba la conexión para confirmar que Meta reconoce el número y el token.</p>}
    {!editing&&<div className="row"><button className="primary" disabled={busy} onClick={()=>void run(async()=>{const r=await post<View&{message:string;subscription:Subscription}>('/api/whatsapp/account/test');setView(r);setSub(r.subscription);setNotice(r.message);})}>{busy?'Probando…':'Probar conexión'}</button><button className="secondary" disabled={busy} onClick={()=>setEditing(true)}>Reemplazar credenciales</button><button className="secondary danger" disabled={busy} onClick={()=>setConfirmDelete(true)}>Eliminar número</button></div>}
