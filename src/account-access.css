@@ -4,3 +4,6 @@
 /* Shown once on the login after an idle session ended. */
 .auth-expired{margin:0 0 14px;padding:10px 14px;border:1px solid #ffe0cd;border-radius:12px;background:#fff4ec;color:#7a3a10;font-size:14px;line-height:1.5}
 :root[data-theme=dark] .auth-expired{background:#2a1a10;border-color:#4a2c18;color:#ffd2b3}
+.auth-legal{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 10px;margin-top:22px;font-size:13px;color:var(--muted)}
+.auth-legal a{color:var(--muted);text-decoration:none}.auth-legal a:hover,.auth-legal a:focus-visible{color:var(--brand-accent);text-decoration:underline}
+.auth-consent{margin:14px 0 0;line-height:1.6}.auth-consent a{color:var(--brand-accent)}

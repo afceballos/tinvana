@@ -88,6 +88,7 @@ Formularios -> lead + entrega pendiente + borrador de pedido (misma transacción
 | 013 | Subdominio por landing (`landing_pages.subdomain`, `published_subdomain`); sustituido por 014, columnas sin uso. |
 | 014 | Subdominio de tienda por usuario (`users.store_subdomain`), en PostgreSQL y MySQL. |
 | 019 | Superusuario y planes: `users.status`, `plan_id`, `plan_expires_at`, `entitlement_overrides`, `admin_note`, `last_login_at` y rol `superadmin`; tablas `plans`, `app_settings` y `admin_audit` (en MySQL, 020 a 025). |
+| 020 | Ventas por WhatsApp, etapa 1: `whatsapp_accounts`, `whatsapp_events`, `whatsapp_contacts`, `whatsapp_conversations` y `whatsapp_messages` (en MySQL, archivos 026 a 030). Aplicada solo en las bases locales de prueba. |
 | 018 | Logística reflejada desde Dropi: valores ampliados de `logistics_status` (en MySQL, 019). |
 | 017 | Seguimiento de Dropi: `orders.dropi_status`, `dropi_tracking` y `dropi_synced_at` (en MySQL, 018). |
 | 016 | Correos de pedidos: tabla `order_mail` y `users.mail_settings` (en MySQL, archivos 016 y 017). |
@@ -244,7 +245,8 @@ Referencia histórica: <https://es.scribd.com/document/683043719/Documentacion-d
 - [ ] Subcuenta de pruebas, acceso administrativo autorizado y permisos API necesarios.
 - [ ] Decidir conexión piloto con token privado o instalación multiempresa por OAuth.
 - [ ] Vincular contacto, sesión, oportunidad y pedido exactos; dos compras de un teléfono no deben mezclarse.
-- [ ] WhatsApp oficial conectado y validación de capacidades/cargos de la cuenta.
+- [x] Módulo propio «Ventas por WhatsApp» (API oficial de Meta, sin GHL ni n8n), etapa 1: conexión del número y webhook firmado con eventos deduplicados. Implementado y probado en local contra un simulador de Meta; detalle en [WHATSAPP.md](WHATSAPP.md).
+- [ ] WhatsApp oficial conectado y validación de capacidades/cargos de la cuenta (pendiente: credenciales del piloto y autorización expresa).
 - [ ] Probar GHL → backend → GHL, incluyendo resultado asíncrono sin mensajes duplicados.
 - [ ] Asesor IA con fichas aprobadas, captura guiada, cotización y confirmación vinculada a versión.
 - [ ] Reconocimiento de anuncio y oferta con metadatos reales; pedir aclaración ante ambigüedad.
@@ -343,6 +345,8 @@ Estado al cerrar las pruebas de pedidos: fixtures eliminados y servicios de prue
 | Ofertas y variantes | [PRODUCT-OFFERS.md](PRODUCT-OFFERS.md) |
 | Preparación de órdenes Dropi | [DROPI-ORDERS.md](DROPI-ORDERS.md) |
 | Superusuario, planes y permisos | [ADMIN.md](ADMIN.md) |
+| Ventas por WhatsApp | [WHATSAPP.md](WHATSAPP.md) |
+| Privacidad y términos públicos | [LEGAL.md](LEGAL.md) |
 | Consultas, dirección y GHL | [LEAD-FORM.md](LEAD-FORM.md), [GHL.md](GHL.md) |
 | Constructor y encabezado | [BUILDER.md](BUILDER.md), [LANDING-HEADER.md](LANDING-HEADER.md) |
 | Productos relacionados | [PRODUCT-LIST.md](PRODUCT-LIST.md) |
@@ -673,6 +677,17 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado (local):** `owner-edit.mjs` 12, `landing-design.mjs` 40 y `store-router` 20.
 - **Subdominios de tienda:** la landing consulta al dominio principal si quien la ve es el dueño (CORS solo para subdominios de tienda, sin ampliar la cookie de sesión). Comprobado con `owner-edit-store.mjs` 6.
 - **Corrección:** se resolvió una condición de carrera por la que, tras confirmar una compra, la página podía quedar sin scroll.
+
+### 2026-10-26 · Ventas por WhatsApp, etapa 1
+- **Cambio:** conexión del número de WhatsApp Business por credenciales del piloto (token cifrado, prueba solo de lectura) y webhook público `/whatsapp/webhook` con verificación, firma HMAC, límite de 3 MB y eventos guardados una sola vez. Nuevo permiso de plan `whatsapp`, menú «Ventas WhatsApp» y pantalla de Conexión. Detalle en [WHATSAPP.md](WHATSAPP.md).
+- **Comprobado (local):** `whatsapp-connection.mjs` 28 contra simulador de Meta; humo MySQL 11 en MariaDB 10.11.19 local (esquema + migraciones hasta 030, idempotentes); regresión `npm test` 107, `run.php` 69, `admin` 39, `orders` 38, `order-dates` 13, `dropi-orders` 36, `dropi-confirmed` 8, `dropi-shipping` 20, `dropi-integrations-ui` 10, `webhook-card` 13, `owner-edit` 12, `lead-success` 12, `store-router` 20, `errors-session` 15 (con `SESSION_LIFETIME=8`) y `account-access` 42 (router 8084).
+- **Datos reales:** ninguno. No se contactó a Meta, no se desplegó ni se aplicó la migración en producción.
+- **Límites y siguiente paso:** los eventos quedan `pending` hasta la etapa 2 (bandeja, respuestas manuales, estados y ventana de 24 h). Para el piloto real faltan las variables `WHATSAPP_*` en el servidor y la autorización expresa del propietario.
+
+### 2026-10-26 · Política de privacidad y términos públicos
+- **Cambio:** páginas públicas `/privacidad` y `/terminos` generadas en el servidor (sin sesión ni JavaScript), con el estilo de Tinvana, modo oscuro y móvil; enlaces en inicio de sesión y registro, y aviso de aceptación al registrarse. Datos del responsable desde `LEGAL_*` del `.env`. Detalle en [LEGAL.md](LEGAL.md).
+- **Comprobado (local):** `legal-pages.mjs` 17, `npm test` 107, `account-access` 42 y `whatsapp-connection` 28.
+- **Límites y siguiente paso:** el texto es una base redactada para Colombia (Ley 1581 de 2012, Ley 1480 de 2011) y debe revisarlo un abogado. En producción falta definir `LEGAL_NAME`, `LEGAL_ID`, `LEGAL_ADDRESS` y `LEGAL_EMAIL`.
 
 ### Plantilla para la próxima actualización
 

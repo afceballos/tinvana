@@ -3,7 +3,7 @@ import type {User} from './types';
 import {Icon} from './ui';
 
 export const AuthContext=createContext<{user:User|null;setUser:(u:User|null)=>void}>({user:null,setUser:()=>{}});
-export const featureLabels:Record<string,string>={catalog:'Explorar y seleccionar productos de Dropi',landings:'Crear y editar landings',publish:'Publicar landings',ai:'Generar landings con IA',orders:'Gestionar pedidos',dropi_orders:'Enviar pedidos a Dropi y seguimiento',dropi_shipping:'Calcular envío con Dropi en landings',ghl:'Conexión GHL (webhooks)',mail:'Correos de pedidos',store:'Tienda con subdominio propio'};
+export const featureLabels:Record<string,string>={catalog:'Explorar y seleccionar productos de Dropi',landings:'Crear y editar landings',publish:'Publicar landings',ai:'Generar landings con IA',orders:'Gestionar pedidos',dropi_orders:'Enviar pedidos a Dropi y seguimiento',dropi_shipping:'Calcular envío con Dropi en landings',ghl:'Conexión GHL (webhooks)',mail:'Correos de pedidos',store:'Tienda con subdominio propio',whatsapp:'Ventas por WhatsApp con IA'};
 
 // The server enforces every feature; this only hides what it would refuse. Unknown access (older session) means allowed.
 export function allowed(user:User|null,feature:string){return user?.role==='superadmin'||user?.access?.features[feature]!==false;}

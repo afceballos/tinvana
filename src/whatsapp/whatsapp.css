@@ -1,0 +1,23 @@
+/* Ventas por WhatsApp: reuses the panel card system (webhook-current, webhook-head, webhook-state, webhook-url). */
+.wa-tabs{display:flex;flex-wrap:wrap;gap:6px;padding:4px;margin:0 0 18px;border:1px solid var(--line);border-radius:14px;background:var(--surface);width:fit-content;max-width:100%}
+.wa-tabs a{padding:8px 14px;border-radius:10px;font-weight:600;font-size:14px;color:var(--muted);text-decoration:none;white-space:nowrap}
+.wa-tabs a.active{background:var(--brand-accent);color:#fff}
+.wa-logo{background:#25d366!important;color:#fff!important}
+.wa-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 20px;margin:0}
+.wa-facts dt{font-size:12px;color:var(--muted)}.wa-facts dd{margin:2px 0 0;font-weight:600;overflow-wrap:anywhere}
+.wa-facts code{font-size:13px}
+.wa-copy{margin-left:auto;flex:none;min-height:36px;padding:6px 12px;font-size:13px}
+.wa-checks{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.wa-checks li{display:flex;align-items:center;gap:8px;font-size:14px;color:#9a3412}
+.wa-checks li.is-ok{color:var(--ink)}
+.wa-checks .icon{width:18px;height:18px;flex:none}
+.wa-checks li.is-ok .icon{color:#16a34a}
+.wa-confirm{display:grid;gap:8px;padding:14px 16px;border:1px solid #f5c2b8;border-radius:14px;background:#fff4f1}
+.wa-confirm p{margin:0}
+.danger-fill{background:#b42318!important;color:#fff!important}
+.wa-soon button[disabled]{opacity:.55;cursor:not-allowed}
+:root[data-theme=dark] .wa-confirm{background:#2a1714;border-color:#5a2a22}
+:root[data-theme=dark] .wa-checks li{color:#fdba74}
+:root[data-theme=dark] .wa-checks li.is-ok{color:var(--ink)}
+@media (max-width:640px){.wa-facts{grid-template-columns:1fr}.webhook-url{flex-wrap:wrap}.wa-copy{margin-left:0}}
+:root[data-theme=dark] .wa-account button.danger{color:#fda29b;border-color:#7a2e26}

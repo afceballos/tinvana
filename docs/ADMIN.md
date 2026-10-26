@@ -31,6 +31,7 @@ Módulo de administración de cuentas. Migración PostgreSQL `019_accounts_plans
 | `ghl` | Webhooks |
 | `mail` | Correos de pedidos |
 | `store` | Subdominio propio |
+| `whatsapp` | Ventas por WhatsApp con IA (módulo en construcción por etapas; ver [WHATSAPP.md](WHATSAPP.md)) |
 
 **Límites** (`Entitlements::LIMITS`; `null` significa ilimitado):
 

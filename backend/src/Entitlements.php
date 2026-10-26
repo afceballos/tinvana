@@ -20,6 +20,7 @@ final class Entitlements {
   'ghl'=>'Conexión GHL (webhooks)',
   'mail'=>'Correos de pedidos',
   'store'=>'Tienda con subdominio propio',
+  'whatsapp'=>'Ventas por WhatsApp con IA',
  ];
  public const LIMITS=[
   'landings'=>'Landings creadas',

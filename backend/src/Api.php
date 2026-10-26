@@ -18,6 +18,7 @@ final class Api {
   }
   $u=Auth::user();$owner=$u['id'];
   if(str_starts_with($path,'/api/admin/'))return Admin::handle($u,$path,$method);
+  if(str_starts_with($path,'/api/whatsapp/'))return WhatsAppApi::handle($owner,$path,$method);
   if($path==='/api/access'&&$method==='GET')return Entitlements::view($owner);
   // Plan features, enforced for the whole module here; the panel only hides what this would refuse. [pattern, feature, writes only]
   foreach([['~^/api/orders/[^/]+/dropi~','dropi_orders',false],['~^/api/orders~','orders',false],['~^/api/landings/[^/]+/ai$~','ai',false],['~^/api/ai/~','ai',true],

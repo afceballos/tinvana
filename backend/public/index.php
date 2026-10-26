@@ -33,6 +33,23 @@ try {
  if($path==='/sitemap.xml'){
   header('Content-Type: application/xml; charset=utf-8');$rows=Database::all("SELECT COALESCE(l.published_slug,l.slug) AS slug,u.store_subdomain,l.published_at AS updated_at FROM landing_pages l JOIN users u ON u.id=l.user_id WHERE l.status='published' AND u.status='active'");echo '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';foreach($rows as $r)echo '<url><loc>'.Support::escape(Store::landingUrl((string)$r['slug'],$r['store_subdomain']??null)).'</loc><lastmod>'.gmdate('c',strtotime($r['updated_at'])).'</lastmod></url>';echo '</urlset>';exit;
  }
+ // Meta WhatsApp webhook: public, no session. Verify (GET) or store signed events and acknowledge before processing (POST).
+ if($path==='/whatsapp/webhook'){
+  header('Content-Type: text/plain; charset=utf-8');header('Cache-Control: no-store');
+  if($method==='GET'){$r=App\WhatsAppWebhook::verify($_GET);http_response_code($r['status']);echo $r['body'];exit;}
+  if($method!=='POST')throw new HttpError(405,'Método no permitido.');
+  $raw=(string)file_get_contents('php://input',false,null,0,App\WhatsAppWebhook::MAX_BYTES+1);
+  $r=App\WhatsAppWebhook::receive($raw,(string)($_SERVER['HTTP_X_HUB_SIGNATURE_256']??''));
+  http_response_code($r['status']);echo $r['status']===200?'EVENT_RECEIVED':'';
+  if($r['status']===200&&$r['stored']>0){
+   // Hand the response back to Meta first; the worker (and the whatsapp:work cron as a fallback) processes afterwards.
+   if(function_exists('fastcgi_finish_request'))fastcgi_finish_request();elseif(function_exists('litespeed_finish_request'))litespeed_finish_request();
+   if(class_exists('App\WhatsAppInbox'))App\WhatsAppInbox::work(20);
+  }
+  exit;
+ }
+ // Public legal pages (privacy policy and terms), server-rendered without session.
+ if($path==='/privacidad'||$path==='/terminos'){if(!in_array($method,['GET','HEAD'],true))throw new HttpError(405,'Use GET.');header('Content-Type: text/html; charset=utf-8');header('Cache-Control: public, max-age=3600');echo $path==='/privacidad'?App\LegalPages::privacy():App\LegalPages::terms();exit;}
  if($path==='/datos-geograficos'){if($method!=='GET')throw new HttpError(405,'Use GET.');header('Content-Type: text/html; charset=utf-8');echo App\GeographyAttribution::html();exit;}
  if(in_array($path,['/geography-data/world.zip','/geography-data/colombia.json'],true)){if($method!=='GET')throw new HttpError(405,'Use GET.');$world=$path==='/geography-data/world.zip';$file=$root.'/resources/geo/'.($world?'world/world.zip':'colombia.json');header('Content-Type: '.($world?'application/zip':'application/json; charset=utf-8'));header('Cache-Control: public, max-age=86400');header('Content-Disposition: attachment; filename="'.($world?'zenzales-world-geography.zip':'zenzales-colombia-divipola.json').'"');readfile($file);exit;}
  if(preg_match('~^/api/geography/(countries|states|cities)$~',$path,$geo)){if($method!=='GET')throw new HttpError(405,'Use GET.');header('Content-Type: application/json; charset=utf-8');header('Cache-Control: public, max-age=3600');echo Support::json(App\Geography::listing($geo[1],$_GET));exit;}
@@ -86,7 +103,7 @@ try {
   if(!$authorized){$expires=(string)($_GET['expires']??'');$signature=(string)($_GET['signature']??'');$key=base64_decode(Support::env('TOKEN_ENCRYPTION_KEY'),true);if(!$key||!ctype_digit($expires)||(int)$expires<time()||(int)$expires>time()+900||!hash_equals(hash_hmac('sha256',$m[1].':'.$expires,$key),$signature))throw new HttpError(404,'Vista previa no disponible o enlace vencido.');$r=Database::one('SELECT * FROM landing_pages WHERE id=?',[$m[1]]);}
   if(empty($r))throw new HttpError(404,'Vista previa no encontrada.');header('X-Robots-Tag: noindex, nofollow');header('Referrer-Policy: no-referrer');echo Landing::render($r,true);exit;
  }
- if(!preg_match('~^/(?:login|registro|verificar-correo|reenviar-verificacion|recuperar-contrasena|restablecer-contrasena|panel(?:/(?:catalogo|integraciones|webhooks|ia|perfil|seguridad|productos(?:/[a-f0-9-]+/ofertas)?|archivos|plantilla|leads|correos|pedidos(?:/[a-f0-9-]+)?|admin(?:/(?:planes|globales|auditoria|cuentas/[a-f0-9-]+))?|landings/[a-f0-9-]+))?)?/?$~',$path))throw new HttpError(404,'Página no encontrada.');
+ if(!preg_match('~^/(?:login|registro|verificar-correo|reenviar-verificacion|recuperar-contrasena|restablecer-contrasena|panel(?:/(?:catalogo|integraciones|webhooks|ia|perfil|seguridad|productos(?:/[a-f0-9-]+/ofertas)?|archivos|plantilla|leads|correos|whatsapp(?:/(?:conexion|anuncios|agente|seguimientos|operacion|[a-f0-9-]+))?|pedidos(?:/[a-f0-9-]+)?|admin(?:/(?:planes|globales|auditoria|cuentas/[a-f0-9-]+))?|landings/[a-f0-9-]+))?)?/?$~',$path))throw new HttpError(404,'Página no encontrada.');
  $file=__DIR__.'/app/index.html';if(!is_file($file))throw new HttpError(503,'Compila el frontend con npm run build.');readfile($file);
 }catch(HttpError $e){http_response_code($e->status);if($api||str_contains($_SERVER['CONTENT_TYPE']??'','application/json')){header('Content-Type: application/json; charset=utf-8');echo json_encode(['error'=>$e->getMessage()]+$e->details,JSON_UNESCAPED_UNICODE);}else tinvanaErrorPage($e->status,$e->getMessage());
 }catch(\PDOException $e){
