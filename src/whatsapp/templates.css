@@ -1,0 +1,44 @@
+/* Plantillas de WhatsApp y diálogo de envío. Mismo sistema de tarjetas del módulo. */
+.tpl-list-card,.tpl-list-card+.panel{max-width:none}
+.tpl-list-card .webhook-head .secondary{margin-left:auto;min-height:38px;padding:6px 12px;font-size:14px;display:inline-flex;gap:6px;align-items:center}
+.tpl-list-card .webhook-head .secondary .icon{width:16px;height:16px}
+.tpl-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.tpl-list li{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.tpl-list-main{display:grid;gap:6px;flex:1;min-width:0}
+.tpl-list-top{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.tpl-list-top strong{font-family:ui-monospace,monospace;font-size:14px}
+.tpl-body{margin:0;white-space:pre-wrap;font-size:14px;color:var(--ink);overflow-wrap:anywhere}
+.tpl-list .secondary{flex:none;min-height:34px;padding:4px 10px;font-size:13px}
+.tpl-chips{display:flex;flex-wrap:wrap;gap:6px}
+.tpl-chips span{padding:2px 10px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:#1d4ed8;background:#eef4ff}
+.tpl-chips.is-buttons button{min-height:30px;padding:2px 10px;border:1px dashed color-mix(in srgb,var(--brand-accent) 50%,var(--line));border-radius:999px;background:transparent;color:#c2410c;font-family:ui-monospace,monospace;font-size:12px;cursor:pointer}
+.wa-tag.is-bad{background:#fee4e2;color:#b42318}
+.tpl-presets{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.tpl-preset{display:grid;gap:8px;align-content:start;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+.tpl-preset .secondary{justify-self:start}
+.tpl-editor{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(240px,.8fr);gap:24px;align-items:start}
+.tpl-editor fieldset{border:0;margin:0;padding:0;display:grid;gap:8px}
+.tpl-editor legend{font-weight:700;margin-bottom:6px;padding:0}
+.tpl-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.tpl-btn-row{display:flex;gap:8px}.tpl-btn-row input{flex:1}
+.tpl-preview{display:grid;gap:4px;padding:16px;border-radius:16px;background:#efe7dd;max-width:360px}
+.tpl-bubble{padding:10px 12px;border-radius:12px;border-top-left-radius:4px;background:#fff;box-shadow:0 1px 1px rgba(0,0,0,.08);display:grid;gap:6px;color:#1e1e1e}
+.tpl-bubble p{margin:0;white-space:pre-wrap;font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.tpl-bubble mark{background:#fff1e5;color:#c2410c;border-radius:4px;padding:0 2px}
+.tpl-bubble small{color:#75665c;font-size:12px}
+.tpl-btn{padding:9px;border-radius:12px;background:#fff;text-align:center;color:#0b8fd9;font-size:14px;font-weight:600;box-shadow:0 1px 1px rgba(0,0,0,.08)}
+.tpl-dialog{width:min(560px,calc(100vw - 24px));max-height:calc(100dvh - 32px);padding:0;border:1px solid var(--line);border-radius:22px;background:var(--surface);color:var(--ink)}
+.tpl-dialog::backdrop{background:rgba(20,16,12,.45)}
+.tpl-dialog form{display:grid;gap:12px;padding:20px}
+.tpl-dialog label{display:grid;gap:6px}
+.tpl-dialog-head{display:flex;justify-content:space-between;align-items:center}
+.tpl-dialog-head h2{margin:0;font-size:20px}
+.tpl-close{border:0;background:none;font-size:26px;line-height:1;cursor:pointer;color:var(--muted);min-height:0;padding:4px}
+.tpl-dialog .tpl-preview{max-width:none}
+:root[data-theme=dark] .tpl-preview{background:#1c2a24}
+:root[data-theme=dark] .tpl-bubble,:root[data-theme=dark] .tpl-btn{background:#202c33;color:#e9edef}
+:root[data-theme=dark] .tpl-bubble small{color:#8696a0}
+:root[data-theme=dark] .tpl-bubble mark{background:#3a2a1a;color:#fdba74}
+:root[data-theme=dark] .tpl-chips span{background:#1e2a44;color:#93b4ff}
+:root[data-theme=dark] .wa-tag.is-bad{background:#3a1512;color:#fda29b}
+@media (max-width:860px){.tpl-editor,.tpl-two{grid-template-columns:1fr}}

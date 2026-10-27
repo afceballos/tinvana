@@ -89,6 +89,8 @@ Formularios -> lead + entrega pendiente + borrador de pedido (misma transacción
 | 014 | Subdominio de tienda por usuario (`users.store_subdomain`), en PostgreSQL y MySQL. |
 | 019 | Superusuario y planes: `users.status`, `plan_id`, `plan_expires_at`, `entitlement_overrides`, `admin_note`, `last_login_at` y rol `superadmin`; tablas `plans`, `app_settings` y `admin_audit` (en MySQL, 020 a 025). |
 | 020 | Ventas por WhatsApp, etapa 1: `whatsapp_accounts`, `whatsapp_events`, `whatsapp_contacts`, `whatsapp_conversations` y `whatsapp_messages` (en MySQL, archivos 026 a 030). Aplicada solo en las bases locales de prueba. |
+| 026 | Último enfoque de IA por landing: `landing_pages.ai_brief` (en MySQL, 042). Aplicada solo en las bases locales de prueba. |
+| 025 | Plantillas de WhatsApp: `whatsapp_templates` (en MySQL, 041). Aplicada solo en las bases locales de prueba. |
 | 024 | Notificaciones de la tienda: `notifications` y `notification_settings` (en MySQL, 039 y 040). Aplicada solo en las bases locales de prueba. |
 | 023 | Anuncios y ofertas de WhatsApp: `whatsapp_offers`, `whatsapp_ads`, `whatsapp_entries` y campos de origen en `whatsapp_conversations` (en MySQL, 035 a 038). Aplicada solo en las bases locales de prueba. |
 | 022 | Agente de WhatsApp: `whatsapp_agent_settings`, `whatsapp_product_sheets` y campos del agente en `whatsapp_conversations` (en MySQL, 032 a 034). Aplicada solo en las bases locales de prueba. |
@@ -625,7 +627,7 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
   - Detalle en [ADMIN.md](ADMIN.md).
 - **Corrección encontrada:** `/panel/correos` faltaba en la lista de rutas del panel que sirve PHP, así que al recargar daba 404. Corregido junto con las rutas de administración.
 - **Comprobado (local):** `admin.mjs` 39 y la regresión de pedidos, Dropi, correos, perfil, tienda, constructor, IA e interfaz.
-- **Pendiente:** aplicar en producción (deploy y `migrate:auto`, migraciones 020 a 025) y asignar el superusuario con `superadmin:grant`. La pasarela de pago y la página pública de planes son el siguiente paso.
+- **Pendiente:** aplicar en producción (deploy y `migrate:auto`, migraciones 020 a 026 en PostgreSQL; en MySQL 026 a 042) y asignar el superusuario con `superadmin:grant`. La pasarela de pago y la página pública de planes son el siguiente paso.
 
 ### 2026-10-24 · Filtro de pedidos por fecha
 - **Cambio:** filtro por rango de fechas de creación en la lista de pedidos, en días de Colombia, con atajos y el rango en la URL. Detalle en [ORDERS.md](ORDERS.md).
@@ -736,6 +738,24 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** mensaje personalizable que recibe el cliente (solo ese) cuando la IA pasa el chat a un asesor; notificaciones de la tienda por campanita, sonido, navegador y correo, con ajustes de eventos, canales y correo. Detalle en [WHATSAPP.md](WHATSAPP.md).
 - **Comprobado (local):** `whatsapp-notify.mjs` 27, `whatsapp-agent.mjs` 50, `whatsapp-ads.mjs` 30, `whatsapp-inbox.mjs` 43, `whatsapp-connection.mjs` 52, `errors-session.mjs` 15 (la campanita no renueva la sesión), `admin` 39, `orders` 38, `order-mail` 23, `landing-design` 40, `compact` 27; MariaDB 5 + 11 + 6.
 - **Datos reales:** ninguno; no se envió ningún correo.
+
+### 2026-10-27 · WhatsApp: plantillas, nuevo chat y plantilla con la ventana cerrada
+- **Cambio:** pestaña Plantillas (dos sugeridas: confirmación de pedido y saludo; editor con variables `{{nombre}}`, ejemplos, pie, hasta 3 botones y vista previa); se envían a Meta para aprobación, «Actualizar estados» trae su estado e importa las creadas en Meta, y se pueden eliminar. «Nuevo chat» en la Bandeja y «Enviar plantilla» en un chat con la ventana de 24 h cerrada, con plantilla aprobada y confirmación del permiso del cliente. Los mensajes recibidos al instante se ordenan por llegada. Migración PostgreSQL 025 / MySQL 041. Detalle en [WHATSAPP.md](WHATSAPP.md).
+- **Comprobado (local, Meta simulado):** `whatsapp-templates.mjs` 32, `whatsapp-inbox.mjs` 43, `whatsapp-agent.mjs` 50, `whatsapp-ads.mjs` 30, `whatsapp-notify.mjs` 27, `whatsapp-connection.mjs` 52, `orders` 38, `admin` 39; MariaDB 10.11.19 local: migración 041 y 3 + 11 + 11 comprobaciones.
+- **Datos reales:** ninguno. No se creó ninguna plantilla en Meta ni se envió ningún mensaje. La forma exacta de la respuesta de Meta al crear una plantilla no está en la documentación; por eso Tinvana siempre puede leer el estado con «Actualizar estados».
+- **Siguiente paso:** confirmación de pedidos de landings por WhatsApp (usa la plantilla `confirmacion_pedido`) y luego la etapa 5.
+
+### 2026-10-27 · Enfoque de la página sin límite de 500 caracteres
+- **Cambio:** el campo «Enfoque de la página» del generador con IA ya no tiene el límite de 500 caracteres en el panel y es más alto. El servidor conserva solo un tope de seguridad de 60 000 bytes (unos 20 000 caracteres) para evitar textos desmedidos que consuman tokens (`AiLanding.php`, `AiGenerator.tsx`).
+- **Comprobado (local):** compilación y `backend/tests/ai.php` 38. No se hizo ninguna solicitud a OpenAI.
+- **Datos reales:** ninguno.
+
+### 2026-10-27 · IA de landings: más datos de Dropi, enfoque obligatorio y contenido sin fuente
+- **Reporte del usuario:** al volver a generar una landing apareció «La IA no aportó fuentes para su contenido».
+- **Causa (por el código; la respuesta de la IA no se guarda, así que no se pudo ver la del caso):** un solo párrafo o elemento sin fuente hacía fallar toda la propuesta, y a la IA solo llegaban el nombre, la descripción (cortada a 60 frases) y las características; el enfoque no contaba como fuente.
+- **Cambio:** las fuentes incluyen categorías, atributos y variantes de Dropi (sin precios, costos, stock, SKU ni proveedor) y hasta 150 frases; el enfoque es obligatorio, entra como «Indicación del vendedor» y se guarda por landing para reutilizarlo al regenerar; el contenido sin fuente se quita con una nota en lugar de fallar todo. Migración PostgreSQL 026 / MySQL 042. Detalle en [AI-LANDINGS.md](AI-LANDINGS.md).
+- **Comprobado (local):** `backend/tests/ai.php` 45, `ai-http.mjs` 41, `ai-ui.mjs` (ejecutada después de `ai-http` sobre los mismos datos, porque necesita la clave de IA que esa prueba deja guardada), `owner-edit` 12, `landing-design` 40, `admin` 39; MariaDB 10.11.19 local: migración 042 y guardado/lectura del enfoque. Ninguna solicitud a OpenAI ni a Claude.
+- **Datos reales:** ninguno. Pendiente que el propietario lo pruebe con su producto real tras el despliegue.
 
 ### Plantilla para la próxima actualización
 

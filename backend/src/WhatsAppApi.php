@@ -27,13 +27,18 @@ final class WhatsAppApi {
    if($method==='PUT'){Auth::limit('whatsapp-offers:'.$owner,60,600);return WhatsAppOffers::saveOffer($owner,$m[1],Api::body());}
    if($method==='DELETE')return WhatsAppOffers::archiveOffer($owner,$m[1]);
   }
+  if($path==='/api/whatsapp/templates'){if($method==='GET')return WhatsAppTemplates::list($owner);if($method==='POST')return WhatsAppTemplates::create($owner,Api::body());}
+  if($path==='/api/whatsapp/templates/sync'&&$method==='POST'){Auth::limit('whatsapp-template-sync:'.$owner,30,600);return WhatsAppTemplates::sync($owner);}
+  if(preg_match('~^/api/whatsapp/templates/([a-f0-9-]{36})$~D',$path,$m)&&$method==='DELETE')return WhatsAppTemplates::delete($owner,$m[1]);
+  if($path==='/api/whatsapp/chats'&&$method==='POST')return WhatsAppInbox::sendTemplate($owner,Api::body());
   if($path==='/api/whatsapp/conversations'&&$method==='GET')return WhatsAppInbox::list($owner,$_GET);
-  if(preg_match('~^/api/whatsapp/conversations/([a-f0-9-]{36})(?:/(read|take|release|messages))?$~D',$path,$m)){
+  if(preg_match('~^/api/whatsapp/conversations/([a-f0-9-]{36})(?:/(read|take|release|messages|template))?$~D',$path,$m)){
    $id=$m[1];$action=$m[2]??'';
    if($action===''&&$method==='GET')return WhatsAppInbox::detail($owner,$id,$_GET);
    if($action==='read'&&$method==='POST')return WhatsAppInbox::markRead($owner,$id);
    if(($action==='take'||$action==='release')&&$method==='POST')return WhatsAppInbox::assign($owner,$id,$action==='take'?'human':'ai',Api::body()['version']??null);
    if($action==='messages'&&$method==='POST')return WhatsAppInbox::reply($owner,$id,Api::body());
+   if($action==='template'&&$method==='POST')return WhatsAppInbox::sendTemplate($owner,Api::body(),$id);
   }
   throw new HttpError(404,'Ruta no encontrada.');
  }

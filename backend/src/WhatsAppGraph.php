@@ -23,7 +23,7 @@ final class WhatsAppGraph {
  /** @return array{status:int,json:?array,errno:int} */
  public static function request(string $method,string $path,string $token,?array $body=null,int $timeout=15): array {
   if($token===''||preg_match('/[\r\n]/',$token))throw new HttpError(422,'Token de WhatsApp inválido.');
-  if(!preg_match('~^[A-Za-z0-9_/?=&.,-]+$~D',$path))throw new \InvalidArgumentException('Ruta de Graph inválida.');
+  if(!preg_match('~^[A-Za-z0-9_/?=&.,%-]+$~D',$path))throw new \InvalidArgumentException('Ruta de Graph inválida.');
   $c=curl_init(self::base().$path);
   $headers=['Accept: application/json','Authorization: Bearer '.$token];if($body!==null)$headers[]='Content-Type: application/json';
   curl_setopt_array($c,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CUSTOMREQUEST=>$method,CURLOPT_CONNECTTIMEOUT=>6,CURLOPT_TIMEOUT=>$timeout,

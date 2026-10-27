@@ -118,3 +118,7 @@
 .wa-certainty.is-baja{background:color-mix(in srgb,var(--muted) 14%,transparent);color:var(--muted)}
 .wa-mono{display:block;font-family:ui-monospace,monospace;font-weight:400;font-size:12px;color:var(--muted)}
 .wa-context .wa-code{font-size:11px;padding:1px 6px}
+.wa-new-chat{margin-left:auto;min-height:34px;padding:4px 12px;font-size:13px;display:inline-flex;gap:6px;align-items:center}
+.wa-new-chat .icon{width:15px;height:15px}
+.wa-col-head .wa-live{margin-left:0}
+.wa-send-template{min-height:32px;padding:3px 10px;font-size:13px;margin-left:6px}

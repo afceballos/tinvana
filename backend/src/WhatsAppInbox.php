@@ -70,7 +70,10 @@ final class WhatsAppInbox {
   $phoneId=(string)($p['metadata']['phone_number_id']??'');$account=$phoneId!==''?WhatsAppAccount::byPhoneNumberId($phoneId):null;
   if(!$account||$account['user_id']!==$owner||!preg_match('/^[0-9]{6,20}$/D',$from)||$wamid==='')return 'ignored';
   $name=null;foreach(is_array($p['contacts']??null)?$p['contacts']:[] as $c)if(is_array($c)&&($c['wa_id']??null)===$from&&is_string($c['profile']['name']??null))$name=mb_substr(trim($c['profile']['name']),0,200)?:null;
-  [$type,$body]=self::content($m);$at=self::instant($m['timestamp']??null);$referral=is_array($m['referral']??null)?$m['referral']:null;
+  [$type,$body]=self::content($m);$at=self::instant($m['timestamp']??null);
+  // Meta gives whole seconds: a message received right away is ordered by arrival (so it never shows before our reply
+  // sent in the same second); a delayed redelivery keeps its original time. The 24-hour window always uses Meta's time.
+  $shown=abs(time()-strtotime($at))<120?(string)Database::timestamp(gmdate('Y-m-d\TH:i:s').sprintf('.%06d',(int)(fmod(microtime(true),1)*1e6)).'Z'):$at;$referral=is_array($m['referral']??null)?$m['referral']:null;
   $db=Database::connection();$db->beginTransaction();
   try{
    if(Database::one('SELECT id FROM whatsapp_messages WHERE wamid=?',[$wamid])){$db->commit();return 'done';}
@@ -85,7 +88,7 @@ final class WhatsAppInbox {
     if($mode==='human')Notifications::notify($owner,'new_chat',WhatsAppAgent::who(['profile_name'=>$name,'phone'=>$from]).' escribió por WhatsApp',(string)$reason,'/panel/whatsapp/'.$id,$id);
    }
    Database::query("INSERT INTO whatsapp_messages(id,user_id,conversation_id,direction,type,body,payload,wamid,status,sender,created_at) VALUES(?,?,?,'in',?,?,?::jsonb,?,'received','customer',?)",
-    [Support::uuid(),$owner,$conv['id'],$type,$body,Support::json($m),$wamid,$at]);
+    [Support::uuid(),$owner,$conv['id'],$type,$body,Support::json($m),$wamid,$shown]);
    // Ad or offer code of this entry (stage 4); every entry is recorded separately.
    WhatsAppOffers::resolveEntry($owner,$conv,$body,$referral,$at);
    $newer=fn(?string $current)=>$current===null||strtotime($current)<strtotime($at);
@@ -222,11 +225,43 @@ final class WhatsAppInbox {
   * delivered it. The caller checks the sender rule and the 24-hour window first.
   */
  public static function sendText(array $account,array $c,string $text,string $sender,?string $author,?string $id=null,int $tokens=0): array {
+  return self::sendGraph($account,$c,['messaging_product'=>'whatsapp','recipient_type'=>'individual','to'=>$c['phone'],'type'=>'text','text'=>['preview_url'=>false,'body'=>$text]],'text',$text,$sender,$author,$id,$tokens);
+ }
+ /**
+  * Writes first (new chat) or after the 24-hour window with an approved template. The store confirms that the customer
+  * gave permission to be contacted by WhatsApp. A new chat starts with the advisor.
+  */
+ public static function sendTemplate(string $owner,array $b,?string $conversationId=null): array {
+  if(($b['consent']??false)!==true)throw new HttpError(422,'Confirma que el cliente te dio permiso para escribirle por WhatsApp.');
+  $t=WhatsAppTemplates::approved($owner,is_string($b['template_id']??null)?$b['template_id']:'');
+  $account=WhatsAppAccount::ofUser($owner);if(!$account||$account['id']!==$t['account_id'])throw new HttpError(409,'La plantilla no pertenece al número conectado.');
+  $values=is_array($b['values']??null)?$b['values']:[];
+  if($conversationId)$c=self::owned($owner,$conversationId);
+  else{
+   $phone=preg_replace('/\D/','',is_string($b['phone']??null)?$b['phone']:'');if(strlen($phone)===10&&$phone[0]==='3')$phone='57'.$phone;
+   if(!preg_match('/^[1-9][0-9]{7,14}$/D',$phone))throw new HttpError(422,'Escribe el número con indicativo, por ejemplo +57 300 123 4567.');
+   $name=is_string($b['name']??null)&&trim($b['name'])!==''?mb_substr(trim($b['name']),0,200):null;
+   WhatsAppTemplates::build($t,$values,$phone);
+   $db=Database::connection();$db->beginTransaction();
+   try{
+    $contact=self::contact($owner,$phone,$name,null,(string)Database::timestamp(gmdate('Y-m-d\TH:i:s\Z')));
+    $conv=Database::one('SELECT id FROM whatsapp_conversations WHERE account_id=? AND contact_id=?',[$account['id'],$contact]);
+    if(!$conv){$id=Support::uuid();Database::query("INSERT INTO whatsapp_conversations(id,user_id,account_id,contact_id,captured,owner_mode,handoff_reason) VALUES(?,?,?,?,?::jsonb,'human','Chat iniciado por la tienda')",[$id,$owner,$account['id'],$contact,'{}']);$conv=['id'=>$id];}
+    $db->commit();
+   }catch(\Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
+   $c=self::owned($owner,(string)$conv['id']);
+  }
+  Auth::limit('whatsapp-template-send:'.$owner,60,3600);
+  $msg=WhatsAppTemplates::build($t,$values,(string)$c['phone']);
+  $sent=self::sendGraph($account,$c,$msg['graph'],'template',$msg['text'],'template',$owner,null,0,['template'=>$t['name'],'language'=>$t['language']]);
+  return ['conversation_id'=>$c['id'],'message'=>self::messageView($sent)];
+ }
+ /** Same as sendText for any Graph message body (templates): stored first, sent once, never retried blindly. */
+ public static function sendGraph(array $account,array $c,array $graph,string $type,string $text,string $sender,?string $author,?string $id=null,int $tokens=0,?array $payload=null): array {
   $id??=Support::uuid();$owner=(string)$account['user_id'];
-  Database::query("INSERT INTO whatsapp_messages(id,user_id,conversation_id,direction,type,body,status,sender,author_id,tokens) VALUES(?,?,?,'out','text',?,'queued',?,?,?)",[$id,$owner,$c['id'],$text,$sender,$author,$tokens]);
+  Database::query("INSERT INTO whatsapp_messages(id,user_id,conversation_id,direction,type,body,payload,status,sender,author_id,tokens) VALUES(?,?,?,'out',?,?,?::jsonb,'queued',?,?,?)",[$id,$owner,$c['id'],$type,$text,$payload?Support::json($payload):null,$sender,$author,$tokens]);
   Database::query('UPDATE whatsapp_conversations SET last_message_at=now(),unread=0,updated_at=now() WHERE id=?',[$c['id']]);
-  $r=WhatsAppGraph::request('POST',rawurlencode((string)$account['phone_number_id']).'/messages',WhatsAppAccount::token($account),
-   ['messaging_product'=>'whatsapp','recipient_type'=>'individual','to'=>$c['phone'],'type'=>'text','text'=>['preview_url'=>false,'body'=>$text]],20);
+  $r=WhatsAppGraph::request('POST',rawurlencode((string)$account['phone_number_id']).'/messages',WhatsAppAccount::token($account),$graph,20);
   $wamid=$r['json']['messages'][0]['id']??null;
   if($r['status']===200&&is_string($wamid)&&$wamid!==''){
    Database::query('UPDATE whatsapp_messages SET wamid=?,status_at=now() WHERE id=?',[mb_substr($wamid,0,255),$id]);

@@ -13,9 +13,9 @@ Módulo propio de Tinvana para vender por WhatsApp con la **API oficial de Whats
 | 7 | Copia opcional a GHL, documentación y regresión completa | Pendiente |
 
 **Ampliaciones pedidas por el propietario (2026-10-26), para después de la etapa 4:**
-- **Nuevo chat**: escribir a un número que no ha escrito, solo con plantilla aprobada por Meta.
+- **Nuevo chat**: escribir a un número que no ha escrito, solo con plantilla aprobada por Meta. **Implementado (2026-10-27).**
 - **Confirmación de pedidos de landings por WhatsApp**: resumen cotizado con Dropi, botones «Confirmar pedido» y «Cambiar algo»; la confirmación queda registrada con evidencia del mensaje. Por defecto el pedido queda para **revisión manual**; cada tienda puede activar «Enviar a Dropi automáticamente al confirmar».
-- **Plantillas creadas por Tinvana** y enviadas a Meta para aprobación desde el panel (confirmar antes el endpoint en la documentación oficial).
+- **Plantillas creadas por Tinvana** y enviadas a Meta para aprobación desde el panel. **Implementado (2026-10-27).**
 - **Aviso visible** en el formulario de las landings: «Te enviaremos la confirmación de tu pedido por WhatsApp».
 
 Fuera de alcance: Embedded Signup (registro guiado con Facebook) y registro como proveedor tecnológico de Meta. El botón «Conectar con Meta» aparece deshabilitado como «Próximamente».
@@ -26,7 +26,7 @@ Fuera de alcance: Embedded Signup (registro guiado con Facebook) y registro como
 - Prueba de conexión (solo lectura): `GET /{phone_number_id}?fields=verified_name,display_phone_number,quality_rating` con `Authorization: Bearer`.
 - Verificación del webhook: `GET` con `hub.mode=subscribe`, `hub.verify_token` y `hub.challenge`; se responde 200 con el `challenge` solo si el token coincide.
 - Entregas: `POST` firmado con `X-Hub-Signature-256: sha256=<HMAC-SHA256 del cuerpo crudo con el secreto de la app>`. Meta reintenta hasta 7 días y puede repetir eventos; cargas de hasta 3 MB.
-- Lo que no esté en la documentación oficial no se programa por suposición (por ejemplo, el listado de plantillas se confirmará en la etapa 6).
+- Lo que no esté en la documentación oficial no se programa por suposición.
 
 ## Etapa 1
 
@@ -172,6 +172,24 @@ Pestaña **Anuncios** (`/panel/whatsapp/anuncios`): tabla de anuncios (sin asign
 - La campanita consulta cada 20 s (60 s en segundo plano) con `X-Session-Probe`, así que no renueva la sesión; `errors-session.mjs` lo confirma.
 - API: `GET /api/notifications?stamp=`, `POST /api/notifications/read {ids|all}`, `GET|PUT /api/notifications/settings`.
 - Comprobado (local): `whatsapp-notify.mjs` 27 (mensaje predeterminado y personalizado, aviso apagado, avisos de cada evento, ajustes y validación, correo según canal y dirección, lista y marcado, aislamiento, campanita, sonido y notificación del navegador simulados, página de ajustes, móvil); MariaDB 5.
+## Plantillas y nuevo chat (2026-10-27)
+
+Documentación oficial consultada el 2026-10-27:
+- Crear: `POST /{WABA_ID}/message_templates` con `name` (minúsculas y guion bajo), `language`, `category` (`utility` o `marketing`) y `components`. Cuerpo hasta 1024 caracteres con variables posicionales `{{1}}` y un ejemplo por variable en `example.body_text`; pie hasta 60; botones `QUICK_REPLY` hasta 25 caracteres.
+- Listar: `GET /{WABA_ID}/message_templates?fields=name,language,status,category,id,components&limit=100` con paginación por cursor `after`.
+- Eliminar: `DELETE /{WABA_ID}/message_templates?hsm_id=…&name=…`.
+- Enviar: `POST /{PHONE_NUMBER_ID}/messages` con `type: template`, `template.name`, `template.language.code` y `components` (parámetros del cuerpo y `payload` de los botones de respuesta rápida). Al tocar un botón llega un mensaje `button` con `payload`, `text` y `context.id` del mensaje de la plantilla.
+- La forma exacta de la respuesta al crear no está documentada: Tinvana guarda `id` y `status` si vienen y, en cualquier caso, el estado real se lee con «Actualizar estados».
+
+Funcionamiento (`WhatsAppTemplates`, tabla `whatsapp_templates`; PostgreSQL `025`, MySQL `041`):
+- Pestaña **Plantillas** (`/panel/whatsapp/plantillas`): dos sugeridas (`confirmacion_pedido`, utilidad, con «Confirmar pedido» y «Cambiar algo»; `saludo_nuevo_chat`, marketing), editor propio con variables legibles (`{{nombre}}`, `{{producto}}`…), que se convierten a `{{1}}`, `{{2}}` al enviarlas a Meta, ejemplos obligatorios, pie, hasta 3 botones y vista previa. Idiomas en español (`es_CO` por defecto).
+- «Actualizar estados» trae aprobadas, en revisión, rechazadas o pausadas; importa las creadas directamente en Meta (sus variables quedan como `{{var1}}`, `{{var2}}`) y marca como «Eliminada en Meta» las que ya no existen.
+- **Nuevo chat** (Bandeja) y **Enviar plantilla** (chat con la ventana de 24 h cerrada): solo con plantilla aprobada, todas las variables completas y la casilla «Este cliente me dio permiso para escribirle por WhatsApp». Los números colombianos de 10 dígitos que empiezan por 3 reciben el indicativo 57. El chat nuevo empieza con el asesor (motivo «Chat iniciado por la tienda»). El mensaje se guarda antes de enviarlo y no se reintenta solo; si Meta no responde, queda fallido con el aviso de revisar en WhatsApp.
+- Límites: 20 creaciones por hora, 30 sincronizaciones cada 10 min y 60 envíos de plantilla por hora por tienda.
+- API: `GET|POST /api/whatsapp/templates`, `POST /api/whatsapp/templates/sync`, `DELETE /api/whatsapp/templates/{id}`, `POST /api/whatsapp/chats`, `POST /api/whatsapp/conversations/{id}/template`.
+- Meta cobra las conversaciones iniciadas con plantilla; el panel lo indica.
+- Comprobado (local, Meta simulado): `whatsapp-templates.mjs` 32 (validaciones y CSRF, formato enviado a Meta, rechazo explicado, aprobación y plantillas externas, consentimiento, plantilla pendiente, variables, número colombiano, chat con asesor, ventana cerrada hasta que el cliente toca un botón, plantilla tras 24 h, aislamiento entre tiendas, eliminación por `hsm_id` y nombre, panel y móvil); MariaDB 3. No se creó nada en Meta.
+
 ### Configuración en Meta (cuando se autorice el piloto real)
 
 1. En la app de Meta: WhatsApp → Configuración → Webhook: URL `https://<dominio>/whatsapp/webhook` y el mismo `WHATSAPP_VERIFY_TOKEN` del servidor; suscribir el campo `messages`.

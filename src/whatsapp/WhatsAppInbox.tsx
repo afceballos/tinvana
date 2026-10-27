@@ -6,6 +6,7 @@ import {InlineLoading} from '../Loading';
 import {Icon} from '../ui';
 import {WhatsAppTabs} from './WhatsAppTabs';
 import './inbox.css';
+import {TemplateSendDialog} from './WhatsAppTemplates';
 
 type Last={body:string;type:string;sender:string;direction:'in'|'out';status:string};
 type Summary={id:string;name:string|null;phone:string;owner_mode:'ai'|'human';handoff_reason:string|null;unread:number;stage:string;last_message_at:string|null;last_customer_at:string|null;window_open:boolean;window_closes_at:string|null;version:number;last:Last|null};
@@ -57,7 +58,7 @@ function usePolling(task:()=>Promise<void>,deps:unknown[]){
 export function WhatsAppInbox(){
  const {id}=useParams();const navigate=useNavigate();
  const [filter,setFilter]=useState<Filter>('all');const [query,setQuery]=useState('');const [search,setSearch]=useState('');
- const [list,setList]=useState<ListView|null>(null);const stamp=useRef('');const [nudge,setNudge]=useState(0);
+ const [newChat,setNewChat]=useState(false);const [list,setList]=useState<ListView|null>(null);const stamp=useRef('');const [nudge,setNudge]=useState(0);
  const [,setError]=useFeedbackState('error');
  useEffect(()=>{const t=setTimeout(()=>setSearch(query.trim()),300);return()=>clearTimeout(t);},[query]);
  useEffect(()=>{stamp.current='';},[filter,search]);
@@ -77,7 +78,8 @@ export function WhatsAppInbox(){
   </div>
   <div className={'wa-inbox'+(id?' has-chat':'')}>
    <aside className="wa-list" aria-label="Conversaciones">
-    <div className="wa-col-head"><h2>Conversaciones</h2><span className="wa-live" title="Se actualiza sola cada pocos segundos">En vivo</span></div>
+    <div className="wa-col-head"><h2>Conversaciones</h2><span className="wa-live" title="Se actualiza sola cada pocos segundos">En vivo</span><button type="button" className="primary wa-new-chat" onClick={()=>setNewChat(true)}><Icon name="chat"/>Nuevo chat</button></div>
+    {newChat&&<TemplateSendDialog onClose={()=>setNewChat(false)} onSent={cid=>{setNewChat(false);refreshList();navigate('/panel/whatsapp/'+cid);}}/>}
     <label className="wa-search"><Icon name="search"/><span className="sr-only">Buscar por nombre o teléfono</span><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar nombre o teléfono"/></label>
     <div className="wa-filters" role="group" aria-label="Filtrar conversaciones">{FILTERS.map(([k,label])=><button key={k} type="button" className={filter===k?'is-active':''} aria-pressed={filter===k} onClick={()=>setFilter(k)}>{label}</button>)}</div>
     <ul className="wa-items">
@@ -98,7 +100,7 @@ export function WhatsAppInbox(){
 
 function Conversation({id,onChange,onBack,onError}:{id:string;onChange:()=>void;onBack:()=>void;onError:(m:string)=>void}){
  const [view,setView]=useState<DetailView|null>(null);const [missing,setMissing]=useState(false);const stamp=useRef('');
- const [pending,setPending]=useState<Message[]>([]);const [text,setText]=useState('');const [busy,setBusy]=useState(false);
+ const [templateOpen,setTemplateOpen]=useState(false);const [pending,setPending]=useState<Message[]>([]);const [text,setText]=useState('');const [busy,setBusy]=useState(false);
  const scroller=useRef<HTMLDivElement>(null);const stick=useRef(true);const [,setNotice]=useFeedbackState('success');const [,tick]=useState(0);
  const load=useCallback(async()=>{
   try{const r=await poll<DetailView>(`/api/whatsapp/conversations/${id}?stamp=${stamp.current}`);if(!r||r.unchanged)return;stamp.current=r.stamp;setView(r);
@@ -153,7 +155,8 @@ function Conversation({id,onChange,onBack,onError}:{id:string;onChange:()=>void;
     {!messages.length&&<p className="wa-empty">Sin mensajes todavía.</p>}
    </div>
    <form className="wa-composer" onSubmit={e=>{e.preventDefault();submit();}}>
-    {blocked&&<p className="wa-composer-note">{blocked}</p>}
+    {blocked&&<p className="wa-composer-note">{blocked}{human&&!c.window_open&&<> <button type="button" className="secondary wa-send-template" onClick={()=>setTemplateOpen(true)}>Enviar plantilla</button></>}</p>}
+    {templateOpen&&<TemplateSendDialog conversationId={id} phone={c.phone} name={c.name} onClose={()=>setTemplateOpen(false)} onSent={()=>{setTemplateOpen(false);stamp.current='';void load();onChange();}}/>}
     <div className="wa-composer-row">
      <label className="sr-only" htmlFor="wa-text">Mensaje</label>
      <textarea id="wa-text" rows={1} value={text} maxLength={4096} disabled={!!blocked} placeholder={blocked?'':'Escribe un mensaje'} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();submit();}}}/>

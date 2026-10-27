@@ -37,7 +37,7 @@ final class Landing {
   $content=self::content(['title'=>$m['name'],'description'=>$m['description'],'publicPrice'=>null,'images'=>array_slice($images,0,30),'features'=>[],'seoTitle'=>$m['name'],'seoDescription'=>'','visual'=>$visual]);
   return Database::one('INSERT INTO landing_pages(id,user_id,selected_product_id,slug,product_snapshot,content) VALUES(?,?,?,?,?::jsonb,?::jsonb) RETURNING *',[Support::uuid(),$owner,$p['id'],$slug,$p['mapped_data'],Support::json($content)]);
  }
- public static function decode(array $r): array {foreach(['content','product_snapshot','published_content','published_product_snapshot'] as $key)if(isset($r[$key])&&is_string($r[$key]))$r[$key]=json_decode($r[$key],true);if(isset($r['content']))$r['content']=self::content(Media::rebase($r['content']));return $r;}
+ public static function decode(array $r): array {unset($r['ai_brief']);foreach(['content','product_snapshot','published_content','published_product_snapshot'] as $key)if(isset($r[$key])&&is_string($r[$key]))$r[$key]=json_decode($r[$key],true);if(isset($r['content']))$r['content']=self::content(Media::rebase($r['content']));return $r;}
  public static function published(array $r):array {if(!empty($r['published_content']))$r['content']=$r['published_content'];if(!empty($r['published_product_snapshot']))$r['product_snapshot']=$r['published_product_snapshot'];if(!empty($r['published_slug']))$r['slug']=$r['published_slug'];return self::decode($r);}
  public static function checkSlug(string $slug,string $id):void {if(Database::one('SELECT id FROM landing_pages WHERE id<>? AND (slug=? OR published_slug=?)',[$id,$slug,$slug]))throw new HttpError(409,'Esta dirección ya pertenece a otra landing.');}
  public static function publish(array $r):void {

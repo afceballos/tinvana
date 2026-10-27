@@ -63,6 +63,7 @@ final class Api {
    if($method==='GET'){$row=Database::one('SELECT settings FROM template_settings WHERE user_id=?',[$owner]);$settings=$row?json_decode($row['settings'],true):[];return ['preferences'=>AiLanding::preferences($settings['ai']??[])];}
    if($method==='PUT'){$preferences=AiLanding::preferences(self::body());Database::query('INSERT INTO template_settings(user_id,settings) VALUES(?,?::jsonb) ON CONFLICT(user_id) DO UPDATE SET settings=template_settings.settings||excluded.settings,updated_at=now()',[$owner,Support::json(['ai'=>$preferences])]);return ['preferences'=>$preferences];}
   }
+  if(preg_match('~^/api/landings/([^/]+)/ai$~',$path,$m)&&$method==='GET'){$row=self::owned('landing_pages',$m[1],$owner);return ['brief'=>AiLanding::brief($row)];}
   if(preg_match('~^/api/landings/([^/]+)/ai$~',$path,$m)&&$method==='POST'){$row=self::owned('landing_pages',$m[1],$owner);return ['proposal'=>AiLanding::generate($row,self::body())];}
   if($path==='/api/webhook-settings'){
    if($method==='GET')return ['settings'=>Webhooks::view($owner)];

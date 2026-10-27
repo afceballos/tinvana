@@ -16,9 +16,11 @@ const status=await owner.request('/api/ai/status');check('status exposes readine
 check('AI preferences need CSRF',(await owner.request('/api/ai/preferences','PUT',{tone:'claro'},{'X-CSRF-Token':'bad'})).status===419);
 await owner.request('/api/ai/preferences','PUT',{tone:'cercano',focus:'Enfoque guardado',audience:'Público guardado'});check('preferences persist by user',(await owner.request('/api/ai/preferences')).data.preferences.focus==='Enfoque guardado'&&(await other.request('/api/ai/preferences')).data.preferences.focus==='');
 check('cross-account generation refused',(await other.request(endpoint+'/ai','POST',{})).status===404);
-const original=(await owner.request(endpoint)).data.landing;const body={mode:'landing',content:original.content,preferences:{tone:'claro'}};
+const original=(await owner.request(endpoint)).data.landing;const body={mode:'landing',content:original.content,preferences:{tone:'claro',focus:'Destaca lo práctico.'}};
+check('generation requires the page focus',(await owner.request(endpoint+'/ai','POST',{...body,preferences:{tone:'claro',focus:''}})).status===422);
 check('generation needs CSRF',(await owner.request(endpoint+'/ai','POST',body,{'X-CSRF-Token':'bad'})).status===419);
 const generated=await owner.request(endpoint+'/ai','POST',body);check('PHP generation maps provider output to existing blocks',generated.status===200&&generated.data.proposal.content.blocks[0].type==='hero');
+check('the focus is saved on the landing for the next regeneration',(await owner.request(endpoint+'/ai')).data.brief.focus==='Destaca lo práctico.');
 check('generation never saves or publishes automatically',JSON.stringify((await owner.request(endpoint)).data.landing)===JSON.stringify(original));
 check('generation preserves manual price and visual settings',generated.data.proposal.content.publicPrice===original.content.publicPrice&&JSON.stringify(generated.data.proposal.content.visual)===JSON.stringify(original.content.visual));
 check('token usage reported without key',generated.data.proposal.usage.outputTokens===120&&!generated.text.includes('test-only-key'));
@@ -40,7 +42,7 @@ check('stale provider cannot silently change billing',(await owner.request(endpo
 const refused=await owner.request('/api/ai/connections/anthropic/test','POST',{}, {'X-AI-Test-Mode':'401'});check('Claude provider rejection redacted',refused.status===502&&refused.data.upstream_status===401&&!refused.text.includes('test-key-')&&refused.data.error.includes('Claude'));
 await other.request('/api/ai/connections/openai','PUT',{key:'test-key-other-openai-123456789'});check('credentials not shared with other user',(await other.request('/api/ai/connections')).data.connections[1].configured===false);
 const otherProduct=(await other.request('/api/products')).data.products[0];const otherLanding=(await other.request('/api/products/'+otherProduct.id+'/landing','POST',{})).data.landing;
-check('other account generation uses its own key',(await other.request('/api/landings/'+otherLanding.id+'/ai','POST',{mode:'landing',preferences:{tone:'claro'}},{'X-AI-Test-Expect-Account':'other'})).status===200);
+check('other account generation uses its own key',(await other.request('/api/landings/'+otherLanding.id+'/ai','POST',{mode:'landing',preferences:{tone:'claro',focus:'Enfoque de otra tienda.'}},{'X-AI-Test-Expect-Account':'other'})).status===200);
 check('deleting key requires CSRF',(await owner.request('/api/ai/connections/anthropic','DELETE',undefined,{'X-CSRF-Token':'bad'})).status===419);
 await owner.request('/api/ai/connections/anthropic','DELETE');check('deleting active key disables generation without fallback',!(await owner.request('/api/ai/status')).data.status.configured&&(await owner.request(endpoint+'/ai','POST',body)).status===422);
 check('other account remains configured after deletion',(await other.request('/api/ai/status')).data.status.configured);
