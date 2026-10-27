@@ -20,6 +20,9 @@ final class Api {
   if(str_starts_with($path,'/api/admin/'))return Admin::handle($u,$path,$method);
   if(str_starts_with($path,'/api/whatsapp/'))return WhatsAppApi::handle($owner,$path,$method);
   if($path==='/api/access'&&$method==='GET')return Entitlements::view($owner);
+  if($path==='/api/notifications'&&$method==='GET')return Notifications::feed($owner,$_GET);
+  if($path==='/api/notifications/read'&&$method==='POST')return Notifications::markRead($owner,self::body());
+  if($path==='/api/notifications/settings'){if($method==='GET')return Notifications::view($owner);if($method==='PUT'){Auth::limit('notification-settings:'.$owner,30,600);return Notifications::save($owner,self::body());}}
   // Plan features, enforced for the whole module here; the panel only hides what this would refuse. [pattern, feature, writes only]
   foreach([['~^/api/orders/[^/]+/dropi~','dropi_orders',false],['~^/api/orders~','orders',false],['~^/api/landings/[^/]+/ai$~','ai',false],['~^/api/ai/~','ai',true],
    ['~^/api/integrations/[^/]+/(products|categories)$~','catalog',false],['~^/api/webhook-settings$~','ghl',true],['~^/api/mail-settings~','mail',true],['~^/api/profile/store$~','store',false],

@@ -89,6 +89,7 @@ Formularios -> lead + entrega pendiente + borrador de pedido (misma transacción
 | 014 | Subdominio de tienda por usuario (`users.store_subdomain`), en PostgreSQL y MySQL. |
 | 019 | Superusuario y planes: `users.status`, `plan_id`, `plan_expires_at`, `entitlement_overrides`, `admin_note`, `last_login_at` y rol `superadmin`; tablas `plans`, `app_settings` y `admin_audit` (en MySQL, 020 a 025). |
 | 020 | Ventas por WhatsApp, etapa 1: `whatsapp_accounts`, `whatsapp_events`, `whatsapp_contacts`, `whatsapp_conversations` y `whatsapp_messages` (en MySQL, archivos 026 a 030). Aplicada solo en las bases locales de prueba. |
+| 024 | Notificaciones de la tienda: `notifications` y `notification_settings` (en MySQL, 039 y 040). Aplicada solo en las bases locales de prueba. |
 | 023 | Anuncios y ofertas de WhatsApp: `whatsapp_offers`, `whatsapp_ads`, `whatsapp_entries` y campos de origen en `whatsapp_conversations` (en MySQL, 035 a 038). Aplicada solo en las bases locales de prueba. |
 | 022 | Agente de WhatsApp: `whatsapp_agent_settings`, `whatsapp_product_sheets` y campos del agente en `whatsapp_conversations` (en MySQL, 032 a 034). Aplicada solo en las bases locales de prueba. |
 | 021 | WhatsApp con app de Meta propia por tienda: clave secreta cifrada y token de verificación por cuenta (en MySQL, 031). Aplicada solo en las bases locales de prueba. |
@@ -249,11 +250,11 @@ Referencia histórica: <https://es.scribd.com/document/683043719/Documentacion-d
 - [ ] Decidir conexión piloto con token privado o instalación multiempresa por OAuth.
 - [ ] Vincular contacto, sesión, oportunidad y pedido exactos; dos compras de un teléfono no deben mezclarse.
 - [x] Módulo propio «Ventas por WhatsApp» (API oficial de Meta, sin GHL ni n8n), etapa 1: conexión del número y webhook firmado con eventos deduplicados. Implementado y probado en local contra un simulador de Meta; detalle en [WHATSAPP.md](WHATSAPP.md).
-- [ ] WhatsApp oficial conectado y validación de capacidades/cargos de la cuenta (pendiente: credenciales del piloto y autorización expresa).
+- [x] WhatsApp oficial conectado con el número de prueba de Meta: conexión, webhook, suscripción de la app y mensajes entrantes en la bandeja (confirmado por el propietario el 2026-10-26). Pendiente: número real, cargos de la cuenta y una respuesta enviada desde la bandeja.
 - [ ] Probar GHL → backend → GHL, incluyendo resultado asíncrono sin mensajes duplicados.
-- [ ] Asesor IA con fichas aprobadas, captura guiada, cotización y confirmación vinculada a versión.
-- [ ] Reconocimiento de anuncio y oferta con metadatos reales; pedir aclaración ante ambigüedad.
-- [ ] Intervención humana: pausar bot y seguimientos; reanudación explícita.
+- [ ] Asesor IA con fichas aprobadas, captura guiada, cotización y confirmación vinculada a versión. Hecho y probado en local: fichas versionadas, captura guiada y paso a asesor (etapa 3). Falta: cotización y confirmación (etapa 5) y prueba con IA real.
+- [ ] Reconocimiento de anuncio y oferta con metadatos reales; pedir aclaración ante ambigüedad. Hecho y probado en local con la estructura oficial del `referral` (etapa 4). Falta: probarlo con un anuncio real.
+- [x] Intervención humana: tomar el chat pausa al agente y solo una acción explícita lo devuelve (etapas 2 y 3, probado en local). Los seguimientos se integran a esta regla en la etapa 6.
 - [ ] Plantillas aprobadas y verificación de ventanas/consentimiento antes de cada envío.
 - [ ] Recuperación de compras incompletas identificables y parada al comprar/rechazar/revocar permiso.
 - [ ] Sincronizar resultados y estados logísticos reales con la oportunidad correcta.
@@ -730,6 +731,11 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado (local):** `whatsapp-ads.mjs` 30, `whatsapp-agent.mjs` 50, `whatsapp-inbox.mjs` 43, `whatsapp-connection.mjs` 52; MariaDB 6 + 11 + 11 + 11; regresión `landing-design` 40, `owner-edit` 12, `store-router` 20, `lead-success` 12, `product-list`, `dropi-shipping` 20, `orders` 38, `order-editing` 52, `dropi-orders` 36, `admin` 39, `legal-pages` 17, `blocks.php` 101, `run.php` 69, `mysql-dialect.php` 19, `ai.php` 38.
 - **Datos reales:** ninguno.
 - **Siguiente paso:** las ampliaciones pedidas (nuevo chat con plantilla, confirmación de pedidos de landings por WhatsApp y plantillas creadas desde Tinvana) y luego la etapa 5.
+
+### 2026-10-26 · Aviso al cliente al pasar a un asesor y notificaciones
+- **Cambio:** mensaje personalizable que recibe el cliente (solo ese) cuando la IA pasa el chat a un asesor; notificaciones de la tienda por campanita, sonido, navegador y correo, con ajustes de eventos, canales y correo. Detalle en [WHATSAPP.md](WHATSAPP.md).
+- **Comprobado (local):** `whatsapp-notify.mjs` 27, `whatsapp-agent.mjs` 50, `whatsapp-ads.mjs` 30, `whatsapp-inbox.mjs` 43, `whatsapp-connection.mjs` 52, `errors-session.mjs` 15 (la campanita no renueva la sesión), `admin` 39, `orders` 38, `order-mail` 23, `landing-design` 40, `compact` 27; MariaDB 5 + 11 + 6.
+- **Datos reales:** ninguno; no se envió ningún correo.
 
 ### Plantilla para la próxima actualización
 

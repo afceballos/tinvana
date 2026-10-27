@@ -1,8 +1,8 @@
 // Agent settings form, shared by each store («Agente IA») and the superadmin defaults («Valores globales»).
-export type AgentSettings={enabled:boolean;tone:string;instructions:string;length:string;
+export type AgentSettings={enabled:boolean;handoff_notice:boolean;tone:string;instructions:string;length:string;
  handoff:{customer_asks:boolean;complaint:boolean;unknown:boolean;no_sheet:boolean;custom:string};
  schedule:{days:number[];start:string;end:string;off_hours:'reply'|'handoff'};
- messages:{off_hours:string;fallback:string;unsupported:string}};
+ messages:{off_hours:string;fallback:string;unsupported:string;handoff:string}};
 export type AgentCatalog={tones:Record<string,string>;lengths:Record<string,string>;built_in:AgentSettings};
 
 const DAYS:[number,string][]=[[1,'Lun'],[2,'Mar'],[3,'Mié'],[4,'Jue'],[5,'Vie'],[6,'Sáb'],[7,'Dom']];
@@ -20,6 +20,8 @@ export function AgentSettingsForm({value,catalog,onChange,idPrefix='agent'}:{val
   <label>Instrucciones adicionales <span className="muted">(opcional)</span><textarea rows={2} maxLength={600} value={value.instructions} onChange={e=>set({instructions:e.target.value})} placeholder="Ej. Despedirse siempre con «¡Gracias por comprar en Tienda X!»"/></label>
   <fieldset><legend>Pasar a un asesor cuando…</legend>
    <div className="wa-checklist">{MOTIVES.map(([k,label])=><label key={k} className="wa-check"><input type="checkbox" checked={value.handoff[k] as boolean} onChange={e=>set({handoff:{...value.handoff,[k]:e.target.checked}})}/>{label}</label>)}</div>
+   <label className="wa-check"><input type="checkbox" checked={value.handoff_notice} onChange={e=>set({handoff_notice:e.target.checked})}/>Avisar al cliente que lo pasas a un asesor</label>
+   {value.handoff_notice&&<label>Mensaje al pasar a un asesor<textarea rows={2} maxLength={300} value={value.messages.handoff} onChange={e=>set({messages:{...value.messages,handoff:e.target.value}})}/><span className="small muted">Es lo único que recibe el cliente en ese momento; la IA no escribe nada más. A ti te llega un aviso en Tinvana.</span></label>}
    <label>Otros motivos <span className="muted">(opcional)</span><textarea rows={2} maxLength={400} value={value.handoff.custom} onChange={e=>set({handoff:{...value.handoff,custom:e.target.value}})} placeholder="Ej. Pedidos de más de 5 unidades o clientes de otros países"/></label>
   </fieldset>
   <fieldset><legend>Horario de atención</legend>

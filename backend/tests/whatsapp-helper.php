@@ -14,6 +14,8 @@ if($op==='reset'){
  Database::query('DELETE FROM whatsapp_contacts WHERE user_id IN (?,?)',$ids);
  Database::query('UPDATE users SET entitlement_overrides=NULL WHERE id IN (?,?)',$ids);
  Database::query("UPDATE users SET role='admin' WHERE id IN (?,?) AND role='superadmin'",$ids);
+ Database::query('DELETE FROM notifications WHERE user_id IN (?,?)',$ids);
+ Database::query('DELETE FROM notification_settings WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_ads WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_offers WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM selected_products WHERE user_id IN (?,?) AND dropi_id=900002',$ids);
@@ -39,6 +41,10 @@ if($op==='add-product'){
 if($op==='landing-text'){
  // Prefilled WhatsApp text of the fixture landing (its product's landing offer, with the verified code).
  echo App\WhatsAppOffers::landingMessage((array)Database::one('SELECT * FROM landing_pages WHERE id=?',[$fixture['landing']]))??'';exit;
+}
+if($op==='notifications'){
+ // The owner's notifications with their email queue state (for the notification tests).
+ echo Support::json(Database::all('SELECT kind,title,body,link,read_at,email_status,email_to FROM notifications WHERE user_id=? ORDER BY created_at,id',[$fixture['owner']]));exit;
 }
 if($op==='superadmin'){
  // Temporarily makes the second fixture account a superadmin for the Administración checks.

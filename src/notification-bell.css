@@ -1,0 +1,31 @@
+/* Campanita de notificaciones: mismo tamaño y borde que el botón de tema del encabezado. */
+.notify{position:relative}
+.notify-toggle{position:relative;width:44px;height:44px;border-radius:14px;border:1px solid var(--stroke,var(--line));background:var(--surface);color:var(--ink);display:grid;place-items:center;cursor:pointer;padding:0}
+.notify-toggle .icon{width:20px;height:20px}
+.notify-toggle.has-unread .icon{color:var(--brand-accent);animation:notify-ring 1.2s ease 1}
+.notify-count{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--brand-accent);color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center;border:2px solid var(--surface)}
+.notify-panel{position:absolute;right:0;top:calc(100% + 10px);width:min(380px,calc(100vw - 32px));max-height:min(520px,70vh);display:flex;flex-direction:column;border:1px solid var(--line);border-radius:18px;background:var(--surface);box-shadow:0 24px 60px rgba(30,30,30,.18);z-index:60;overflow:hidden}
+.notify-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+.notify-head .link{border:0;background:none;color:var(--brand-accent);font-weight:600;font-size:13px;cursor:pointer;padding:0;min-height:0}
+.notify-panel ul{list-style:none;margin:0;padding:0;overflow:auto;flex:1}
+.notify-panel li>button{display:flex;gap:10px;align-items:flex-start;width:100%;padding:12px 16px;border:0;border-bottom:1px solid var(--line);background:transparent;color:inherit;text-align:left;cursor:pointer;font:inherit;min-height:0}
+.notify-panel li>button:hover{background:color-mix(in srgb,var(--brand-accent) 6%,transparent)}
+.notify-dot{width:8px;height:8px;margin-top:7px;border-radius:50%;flex:none;background:transparent}
+.notify-panel li.is-unread .notify-dot{background:var(--brand-accent)}
+.notify-text{display:grid;gap:2px;flex:1;min-width:0}
+.notify-text strong{font-size:14px}
+.notify-text small{font-size:13px;color:var(--muted);line-height:1.4}
+.notify-panel li:not(.is-unread) .notify-text strong{font-weight:600;color:var(--muted)}
+.notify-panel time{flex:none;font-size:12px;color:var(--muted)}
+.notify-empty{padding:28px 16px;text-align:center;color:var(--muted);font-size:14px}
+.notify-settings{display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1px solid var(--line);color:var(--ink);text-decoration:none;font-size:14px;font-weight:600}
+.notify-settings .icon{width:16px;height:16px}
+@keyframes notify-ring{0%,100%{transform:rotate(0)}20%{transform:rotate(14deg)}40%{transform:rotate(-12deg)}60%{transform:rotate(8deg)}80%{transform:rotate(-4deg)}}
+@media (prefers-reduced-motion:reduce){.notify-toggle.has-unread .icon{animation:none}}
+@media (max-width:640px){.notify-panel{position:fixed;left:16px;right:16px;top:72px;width:auto}}
+.notify-options{display:grid;gap:10px}
+.notify-options .wa-check,.panel .wa-check{display:flex!important;flex-direction:row!important;align-items:center;gap:10px;font-weight:500}
+.notify-options input{width:18px;height:18px;min-height:0;flex:none}
+.notify-permission{display:grid;gap:8px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.notify-permission p{margin:0}
+.notify-permission .secondary{justify-self:start}

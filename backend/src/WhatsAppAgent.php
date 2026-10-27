@@ -41,9 +41,16 @@ final class WhatsAppAgent {
  private static function monthStart(): string {
   return (string)Database::timestamp((new \DateTimeImmutable('first day of this month midnight',new \DateTimeZone('America/Bogota')))->format(\DateTimeInterface::ATOM));
  }
- private static function handoff(string $id,string $reason): void {
-  Database::query("UPDATE whatsapp_conversations SET owner_mode='human',handoff_reason=?,version=version+1,updated_at=now() WHERE id=? AND owner_mode='ai'",[mb_substr($reason,0,200),$id]);
+ /**
+  * Hands the chat to an advisor. With $account/$s and the «notify the customer» setting on, the customer gets the store's
+  * custom handoff message first (and nothing written by the AI). The store gets a notification of kind $kind.
+  */
+ private static function handoff(array $c,string $reason,string $kind='handoff',?array $account=null,?array $s=null): void {
+  if($account&&$s&&$s['handoff_notice'])self::system($account,$c,$s['messages']['handoff']);
+  $done=Database::query("UPDATE whatsapp_conversations SET owner_mode='human',handoff_reason=?,version=version+1,updated_at=now() WHERE id=? AND owner_mode='ai'",[mb_substr($reason,0,200),$c['id']])->rowCount();
+  if($done===1)Notifications::notify((string)$c['user_id'],$kind,self::who($c).' necesita un asesor',$reason,'/panel/whatsapp/'.$c['id'],(string)$c['id']);
  }
+ public static function who(array $c): string {$n=trim((string)($c['profile_name']??''));return $n!==''?$n:'+'.($c['phone']??'');}
  /** Sends an automatic (non-AI) text if the chat is still the agent's. */
  private static function system(array $account,array $c,string $text): void {
   $mode=Database::one('SELECT owner_mode FROM whatsapp_conversations WHERE id=?',[$c['id']])['owner_mode']??'';
@@ -65,26 +72,26 @@ final class WhatsAppAgent {
   try{
    $account=$c?Database::one('SELECT * FROM whatsapp_accounts WHERE id=? AND user_id=?',[$c['account_id'],$owner]):null;
    if(!$c||!$account||!WhatsAppInbox::windowOpen($c['last_customer_at']))return true;
-   if($why=self::unavailable($owner)){self::handoff($id,$why);return true;}
    $s=WhatsAppAgentSettings::forUser($owner)['settings'];
+   if($why=self::unavailable($owner)){self::handoff($c,$why,'handoff',$account,$s);return true;}
    $max=Entitlements::of($owner)['limits']['whatsapp_ai_conversations']??null;
    if($max!==null&&!Database::one("SELECT id FROM whatsapp_messages WHERE conversation_id=? AND sender='ai' AND created_at>=?",[$id,self::monthStart()])&&Entitlements::aiConversationsThisMonth($owner)>=$max){
-    self::handoff($id,'Se alcanzó el límite mensual de conversaciones con IA');return true;
+    self::handoff($c,'Se alcanzó el límite mensual de conversaciones con IA','limit',$account,$s);return true;
    }
-   if(!WhatsAppAgentSettings::inHours($s)&&$s['schedule']['off_hours']==='handoff'){self::system($account,$c,$s['messages']['off_hours']);self::handoff($id,'Mensaje fuera del horario de atención');return true;}
+   if(!WhatsAppAgentSettings::inHours($s)&&$s['schedule']['off_hours']==='handoff'){self::system($account,$c,$s['messages']['off_hours']);self::handoff($c,'Mensaje fuera del horario de atención','off_hours');return true;}
    $history=array_reverse(Database::all('SELECT direction,type,body,sender FROM whatsapp_messages WHERE conversation_id=? ORDER BY created_at DESC,id DESC LIMIT '.self::HISTORY,[$id]));
    $last=null;foreach(array_reverse($history) as $m)if($m['direction']==='in'){$last=$m;break;}
    if($last&&!in_array($last['type'],['text','button','interactive'],true)){
     $prev=Database::one("SELECT body FROM whatsapp_messages WHERE conversation_id=? AND direction='out' ORDER BY created_at DESC,id DESC LIMIT 1",[$id]);
-    if(($prev['body']??'')===$s['messages']['unsupported']){self::handoff($id,'El cliente envía archivos que la IA no puede leer');return true;}
+    if(($prev['body']??'')===$s['messages']['unsupported']){self::handoff($c,'El cliente envía archivos que la IA no puede leer','handoff',$account,$s);return true;}
     self::system($account,$c,$s['messages']['unsupported']);return true;
    }
    $products=WhatsAppSheets::sellable($owner);
-   if(!$products){self::system($account,$c,$s['messages']['fallback']);self::handoff($id,'No hay fichas de producto aprobadas para el agente');return true;}
+   if(!$products){self::handoff($c,'No hay fichas de producto aprobadas para el agente','handoff',$account,$s);return true;}
    $ids=array_column($products,'id');
    // Stage 4: an offer identified from the ad or a code fixes the product (and its price, computed by the server).
    $offer=WhatsAppOffers::forConversation($owner,$c);if($offer&&!$offer['active'])$offer=null;
-   if($offer&&!in_array($offer['product']['id'],$ids,true)){self::system($account,$c,$s['messages']['fallback']);self::handoff($id,'El producto de la oferta del anuncio no tiene ficha aprobada');return true;}
+   if($offer&&!in_array($offer['product']['id'],$ids,true)){self::handoff($c,'El producto de la oferta del anuncio no tiene ficha aprobada','handoff',$account,$s);return true;}
    $productId=$offer?$offer['product']['id']:(in_array($c['product_id'],$ids,true)?$c['product_id']:(count($products)===1?$products[0]['id']:null));
    $sheet=$productId?WhatsAppSheets::approved($owner,$productId):null;
    $captured=json_decode((string)$c['captured'],true);$captured=is_array($captured)?$captured:[];
@@ -97,7 +104,7 @@ final class WhatsAppAgent {
    catch(\Throwable $t){
     // The customer gets the neutral message and an advisor takes over; the log has no personal data.
     error_log('WhatsApp agent AI error ('.$id.'): '.get_class($t));
-    self::system($account,$c,$s['messages']['fallback']);self::handoff($id,'La IA no pudo responder'.($t instanceof HttpError?': '.mb_substr($t->getMessage(),0,120):''));return true;
+    self::system($account,$c,$s['messages']['fallback']);self::handoff($c,'La IA no pudo responder'.($t instanceof HttpError?': '.mb_substr($t->getMessage(),0,120):''),'ai_failure');return true;
    }
    $d=$r['proposal'];$tokens=(int)$r['usage']['inputTokens']+(int)$r['usage']['outputTokens'];
    $reply=self::cut(is_string($d['reply']??null)?$d['reply']:'',self::REPLY_CHARS[$s['length']]);
@@ -112,9 +119,11 @@ final class WhatsAppAgent {
    $mode=Database::one('SELECT owner_mode FROM whatsapp_conversations WHERE id=?',[$id])['owner_mode']??'';
    if($mode!=='ai')return true;
    if($reply==='')$reply=$s['messages']['fallback'];
+   $reason=$action==='handoff'?(is_string($d['handoff_reason']??null)&&trim($d['handoff_reason'])!==''?'La IA pidió un asesor: '.trim($d['handoff_reason']):'La IA pidió un asesor'):(in_array($action,['request_quote','present_summary','confirm'],true)?self::BUYING:null);
+   // With the handoff notice on, the customer receives only the store's custom message, not the AI text.
+   if($reason!==null&&$s['handoff_notice']){self::handoff($c,$reason,'handoff',$account,$s);return true;}
    WhatsAppInbox::sendText($account,$c,$reply,'ai',null,null,$tokens);
-   if($action==='handoff')self::handoff($id,is_string($d['handoff_reason']??null)&&trim($d['handoff_reason'])!==''?'La IA pidió un asesor: '.trim($d['handoff_reason']):'La IA pidió un asesor');
-   elseif(in_array($action,['request_quote','present_summary','confirm'],true))self::handoff($id,self::BUYING);
+   if($reason!==null)self::handoff($c,$reason);
    return true;
   }finally{
    Database::query('UPDATE whatsapp_conversations SET ai_seq=GREATEST(ai_seq,?),lock_token=NULL,locked_until=NULL WHERE id=? AND lock_token=?',[$seq,$id,$lock]);

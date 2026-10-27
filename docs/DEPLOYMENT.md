@@ -104,7 +104,7 @@ Estructura: `~/public_html` = contenido de `backend/public`; `~/tinvana` = backe
    ```
 
    `migrate` es seguro de repetir: usa un bloqueo, aplica solo los archivos nuevos de `backend/mysql/migrations` y se niega a continuar si un archivo ya aplicado cambió. No borra ni importa datos. Revisa `~/migrate.log`: solo tiene líneas cuando hubo cambios, y cada aplicación termina en «Esquema MySQL verificado». Para forzar una revisión, borra `migrations.stamp`.
-6. Cron (cPanel → *Cron Jobs*): `php ~/tinvana/bin/console.php webhooks:work 20`, `whatsapp:work 50` y `mail:work` cada minuto; `maintenance` diario. `whatsapp:work` es el respaldo del procesamiento de mensajes de WhatsApp (el webhook ya procesa al recibir); usa la misma forma que `migrate:auto`: `/usr/bin/php -q -d register_argc_argv=1 /home/USUARIO/tinvana/bin/console.php whatsapp:work 50`.
+6. Cron (cPanel → *Cron Jobs*): `php ~/tinvana/bin/console.php webhooks:work 20`, `whatsapp:work 50` y `mail:work` cada minuto; `maintenance` diario. `mail:work` también envía los correos de las notificaciones de la tienda. `whatsapp:work` es el respaldo del procesamiento de mensajes de WhatsApp (el webhook ya procesa al recibir); usa la misma forma que `migrate:auto`: `/usr/bin/php -q -d register_argc_argv=1 /home/USUARIO/tinvana/bin/console.php whatsapp:work 50`.
 7. Tras cambios de React: `npm run build`, commit de `backend/public/app` y *Deploy HEAD Commit* de nuevo.
 
 ## HTTPS en GoDaddy sin AutoSSL (Let's Encrypt con acme.sh por cron)

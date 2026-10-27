@@ -82,6 +82,7 @@ final class WhatsAppInbox {
     [$mode,$reason]=WhatsAppAgent::initialMode($owner);
     Database::query("INSERT INTO whatsapp_conversations(id,user_id,account_id,contact_id,captured,owner_mode,handoff_reason) VALUES(?,?,?,?,?::jsonb,?,?)",[$id,$owner,$account['id'],$contact,'{}',$mode,$reason]);
     $conv=Database::one('SELECT * FROM whatsapp_conversations WHERE id=? FOR UPDATE',[$id]);
+    if($mode==='human')Notifications::notify($owner,'new_chat',WhatsAppAgent::who(['profile_name'=>$name,'phone'=>$from]).' escribió por WhatsApp',(string)$reason,'/panel/whatsapp/'.$id,$id);
    }
    Database::query("INSERT INTO whatsapp_messages(id,user_id,conversation_id,direction,type,body,payload,wamid,status,sender,created_at) VALUES(?,?,?,'in',?,?,?::jsonb,?,'received','customer',?)",
     [Support::uuid(),$owner,$conv['id'],$type,$body,Support::json($m),$wamid,$at]);

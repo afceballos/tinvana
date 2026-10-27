@@ -77,7 +77,7 @@ try {
  if($command==='dropi:sync'){echo Support::json(App\DropiTracking::syncDue(min(200,max(1,(int)($argv[2]??40))))).PHP_EOL;exit;}
  if($command==='dropi:order-probe'){echo App\DropiOrderProbe::run((string)($argv[2]??''));exit;}
  if($command==='dropi:shipping-probe'){echo App\DropiProbe::run((string)($argv[2]??''),(string)($argv[3]??'11001'),($argv[4]??'')==='full');exit;}
- if($command==='mail:work'){$max=min(100,max(1,(int)($argv[2]??20)));$result=App\AccountMail::work($max);$result['orders']=App\OrderMail::work($max);echo Support::json($result).PHP_EOL;exit;}
+ if($command==='mail:work'){$max=min(100,max(1,(int)($argv[2]??20)));$result=App\AccountMail::work($max);$result['orders']=App\OrderMail::work($max);$result['notifications']=App\Notifications::work($max);echo Support::json($result).PHP_EOL;exit;}
  if($command==='whatsapp:work'){echo Support::json(App\WhatsAppInbox::work(min(200,max(1,(int)($argv[2]??50)))))."\n";exit;}
  if($command==='webhooks:work'){echo Support::json(Leads::deliver(min(100,max(1,(int)($argv[2]??20)))))."\n";exit;}
  if($command==='maintenance'){Database::query("UPDATE account_mail SET status='cancelled',payload_ciphertext=null,updated_at=now() WHERE status IN ('pending','failed') AND token_id IN (SELECT id FROM account_tokens WHERE expires_at<now() OR used_at IS NOT NULL)");Database::query("DELETE FROM account_tokens WHERE expires_at<now()-interval '7 days'");Database::query('DELETE FROM rate_limits WHERE expires_at<now()-interval \'1 day\'');echo "Límites vencidos eliminados.\n";exit;}
