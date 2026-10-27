@@ -257,7 +257,9 @@ Referencia histórica: <https://es.scribd.com/document/683043719/Documentacion-d
 - [ ] Asesor IA con fichas aprobadas, captura guiada, cotización y confirmación vinculada a versión. Hecho y probado en local: fichas versionadas, captura guiada y paso a asesor (etapa 3). Falta: cotización y confirmación (etapa 5) y prueba con IA real.
 - [ ] Reconocimiento de anuncio y oferta con metadatos reales; pedir aclaración ante ambigüedad. Hecho y probado en local con la estructura oficial del `referral` (etapa 4). Falta: probarlo con un anuncio real.
 - [x] Intervención humana: tomar el chat pausa al agente y solo una acción explícita lo devuelve (etapas 2 y 3, probado en local). Los seguimientos se integran a esta regla en la etapa 6.
-- [ ] Plantillas aprobadas y verificación de ventanas/consentimiento antes de cada envío.
+- [ ] Plantillas aprobadas y verificación de ventanas/consentimiento antes de cada envío. Hecho y probado en local (2026-10-27): plantillas creadas desde Tinvana y enviadas a Meta, sincronización, «Nuevo chat» y «Enviar plantilla» con ventana cerrada y casilla de permiso del cliente. Falta: crear y aprobar una plantilla real en Meta y enviarla.
+- [x] Ventas por WhatsApp, etapas 2 a 4 (bandeja, agente de IA con fichas y ajustes, anuncios y ofertas), aviso al pasar a asesor y notificaciones de la tienda. Implementado y probado en local; detalle en [WHATSAPP.md](WHATSAPP.md).
+- [ ] **Siguiente:** confirmación de pedidos de landings por WhatsApp (resumen con «Confirmar pedido»/«Cambiar algo», evidencia, revisión manual por defecto y opción por tienda de enviar a Dropi al confirmar, aviso visible en el formulario). Después: etapa 5 (cotización y pedido con origen WhatsApp), etapa 6 (recordatorios, avisos de estado Dropi, baja voluntaria, bandeja de operación) y etapa 7 (copia opcional a GHL y regresión completa con pedidos en MariaDB).
 - [ ] Recuperación de compras incompletas identificables y parada al comprar/rechazar/revocar permiso.
 - [ ] Sincronizar resultados y estados logísticos reales con la oportunidad correcta.
 

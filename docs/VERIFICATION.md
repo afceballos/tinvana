@@ -71,6 +71,22 @@ No se publicó ningún dominio ni se desplegó encima del catálogo existente.
 
 ## Repetir pruebas
 
+### Ejecutor de suites (Windows, 2026-10-27)
+
+`tests/run-suites.ps1` corre suites de `tests/*.mjs` una por una contra la base local `zenzales_test`: antes de cada suite limpia y crea fixtures y ejecuta `npm test` (que siembra productos y pedidos de la cuenta secundaria). Apunta Dropi (8443–8445), Meta Graph (8446) y OpenAI (8447) a simuladores locales y levanta PHP en 8081.
+
+```powershell
+& .	estsun-suites.ps1 -Label prueba -Only whatsapp-templates,whatsapp-inbox,orders
+& .	estsun-suites.ps1 -Label ia -Only ai-http -Ai   # -Ai levanta el router de IA en 8083
+```
+
+- Requisitos: PostgreSQL local en 127.0.0.1:55432 (`.tools/pg/pgsql/bin/pg_ctl.exe -D .tools/pg-data -o "-p 55432 -h 127.0.0.1" start`), `.tools/test-env.json` y `npm run build`.
+- `ai-ui.mjs` necesita la clave de IA que deja `ai-http.mjs`: ejecútalas seguidas sobre los mismos fixtures (sin recrearlos entre ambas) y con `backend/tests/ai-reset.php all` entre ellas.
+- `errors-session.mjs` necesita `SESSION_LIFETIME=8` y `account-access` el router de cuentas en 8084.
+- Si hay una demo local usando 8081/8446 o el mismo número de prueba de WhatsApp, deténla y borra sus filas de WhatsApp antes; si no, las pruebas de WhatsApp fallan al conectar el número.
+- `modern.mjs` y `ai-ui.mjs` en el ejecutor (fixtures nuevos) ya fallaban antes de los cambios de octubre; no son regresiones.
+- MariaDB local (MySQL de producción): servidor en 127.0.0.1:33307, base `tinvana_test`, con `DB_DRIVER=mysql` y `php -d extension=pdo_mysql backend/bin/console.php migrate`. Detenerlo con `mariadb-admin -P 33307 -u root shutdown` y dejar 0 usuarios de prueba.
+
 Pruebas puras:
 
 ```sh

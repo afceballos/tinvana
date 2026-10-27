@@ -9,7 +9,7 @@ Módulo propio de Tinvana para vender por WhatsApp con la **API oficial de Whats
 | 3 | Agente de IA, fichas de producto aprobadas y ajustes | Implementada y probada en local |
 | 4 | Anuncios → oferta y códigos de oferta (incluido el botón de WhatsApp de la landing) | Implementada y probada en local |
 | 5 | Cotización, confirmación, pedido con origen WhatsApp y envío a Dropi con revisión | Pendiente |
-| 6 | Plantillas, recordatorios, avisos de estado Dropi, consentimiento y bandeja de operación | Pendiente |
+| 6 | Plantillas, recordatorios, avisos de estado Dropi, consentimiento y bandeja de operación | Plantillas, nuevo chat y consentimiento al enviar: implementados (2026-10-27). Resto pendiente |
 | 7 | Copia opcional a GHL, documentación y regresión completa | Pendiente |
 
 **Ampliaciones pedidas por el propietario (2026-10-26), para después de la etapa 4:**
