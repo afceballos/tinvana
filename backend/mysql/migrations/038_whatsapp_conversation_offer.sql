@@ -1,0 +1,1 @@
+ALTER TABLE whatsapp_conversations ADD COLUMN ad_ref CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NULL, ADD COLUMN offer_method VARCHAR(10) NULL, ADD COLUMN offer_certainty VARCHAR(5) NULL, ADD COLUMN offer_changed TINYINT(1) NOT NULL DEFAULT 0

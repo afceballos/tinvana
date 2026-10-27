@@ -85,6 +85,8 @@ final class WhatsAppInbox {
    }
    Database::query("INSERT INTO whatsapp_messages(id,user_id,conversation_id,direction,type,body,payload,wamid,status,sender,created_at) VALUES(?,?,?,'in',?,?,?::jsonb,?,'received','customer',?)",
     [Support::uuid(),$owner,$conv['id'],$type,$body,Support::json($m),$wamid,$at]);
+   // Ad or offer code of this entry (stage 4); every entry is recorded separately.
+   WhatsAppOffers::resolveEntry($owner,$conv,$body,$referral,$at);
    $newer=fn(?string $current)=>$current===null||strtotime($current)<strtotime($at);
    Database::query('UPDATE whatsapp_conversations SET last_customer_at=?,last_message_at=?,unread=unread+1,customer_seq=customer_seq+1,updated_at=now() WHERE id=?',
     [$newer($conv['last_customer_at'])?$at:Database::timestamp((string)$conv['last_customer_at']),$newer($conv['last_message_at'])?$at:Database::timestamp((string)$conv['last_message_at']),$conv['id']]);
@@ -172,7 +174,14 @@ final class WhatsAppInbox {
   $origin=$c['first_origin']?json_decode((string)$c['first_origin'],true):null;
   $product=null;if($c['product_id']){$p=Database::one('SELECT mapped_data FROM selected_products WHERE id=? AND user_id=?',[$c['product_id'],$owner]);if($p){$m=json_decode((string)$p['mapped_data'],true);$product=['id'=>$c['product_id'],'name'=>is_string($m['name']??null)?$m['name']:'Producto','sheet_version'=>$c['sheet_version']!==null?(int)$c['sheet_version']:null];}}
   $captured=json_decode((string)$c['captured'],true);$fields=[];foreach(WhatsAppAgent::CAPTURE as $k=>$label)if(is_string($captured[$k]??null)&&$captured[$k]!=='')$fields[]=['key'=>$k,'label'=>$label,'value'=>$captured[$k]];
-  return ['stamp'=>$stamp,'conversation'=>self::summary($c,null)+['contact_since'=>$c['contact_since'],'has_referral'=>is_array($origin)&&isset($origin['referral']),'product'=>$product,'captured'=>$fields,'ai_tokens'=>(int)$c['ai_tokens']],'messages'=>array_map(self::messageView(...),$rows)];
+  // Origin of the current entry: ad (with its name and id), verified landing code or typed code, and its certainty.
+  $entry=null;
+  if($c['offer_method']){
+   $ad=$c['ad_ref']?Database::one('SELECT name,ad_id FROM whatsapp_ads WHERE id=? AND user_id=?',[$c['ad_ref'],$owner]):null;$offer=WhatsAppOffers::forConversation($owner,$c);
+   $entry=['method'=>$c['offer_method'],'method_label'=>WhatsAppOffers::METHODS[$c['offer_method']]??$c['offer_method'],'certainty'=>$c['offer_certainty'],'ad'=>$ad?['name'=>$ad['name'],'ad_id'=>$ad['ad_id']]:null,
+    'offer'=>$offer?['name'=>$offer['name'],'code'=>$offer['code'],'label'=>$offer['label'],'version'=>$c['offer_version']!==null?(int)$c['offer_version']:null]:null];
+  }
+  return ['stamp'=>$stamp,'conversation'=>self::summary($c,null)+['contact_since'=>$c['contact_since'],'has_referral'=>is_array($origin)&&isset($origin['referral']),'product'=>$product,'captured'=>$fields,'ai_tokens'=>(int)$c['ai_tokens'],'entry'=>$entry],'messages'=>array_map(self::messageView(...),$rows)];
  }
  public static function markRead(string $owner,string $id): array {
   $c=self::owned($owner,$id);if((int)$c['unread']>0)Database::query('UPDATE whatsapp_conversations SET unread=0,updated_at=now() WHERE id=?',[$c['id']]);

@@ -7,7 +7,7 @@ Módulo propio de Tinvana para vender por WhatsApp con la **API oficial de Whats
 | 1 | Datos, conexión del número (credenciales del piloto) y webhook firmado con eventos guardados y deduplicados | Implementada y probada en local |
 | 2 | Bandeja: recibir y responder a mano, estados de entrega, ventana de 24 h, tomar y devolver el chat | Implementada y probada en local |
 | 3 | Agente de IA, fichas de producto aprobadas y ajustes | Implementada y probada en local |
-| 4 | Anuncios → oferta y códigos de oferta (incluido el botón de WhatsApp de la landing) | Pendiente |
+| 4 | Anuncios → oferta y códigos de oferta (incluido el botón de WhatsApp de la landing) | Implementada y probada en local |
 | 5 | Cotización, confirmación, pedido con origen WhatsApp y envío a Dropi con revisión | Pendiente |
 | 6 | Plantillas, recordatorios, avisos de estado Dropi, consentimiento y bandeja de operación | Pendiente |
 | 7 | Copia opcional a GHL, documentación y regresión completa | Pendiente |
@@ -140,6 +140,31 @@ Resumen, qué puede decir, precio y promociones que puede mencionar, hasta 12 pr
 ### Comprobaciones de la etapa 3
 - `node tests/whatsapp-agent.mjs` (Meta simulado en 8446 e IA simulada en 8447 con `AI_OPENAI_URL`): 50 comprobaciones. Cubren predeterminados, ajustes propios y su validación, CSRF, predeterminados del superusuario con auditoría, fichas y versiones, borrador con IA, aislamiento, la petición a la IA (estricta, sin almacenamiento, 400 tokens, clave de la tienda, sin teléfono ni token), una sola respuesta ante 10 entregas, recorte de respuestas largas, datos capturados, pasos a asesor (cliente listo para comprar, pide persona, falla de la IA, archivos, fuera de horario, límite mensual, plan sin agente), tomar y devolver con versión, emisor único y el panel en claro, oscuro y móvil.
 - MariaDB 10.11.19 local: 11 comprobaciones (migraciones 032–034, ajustes, fichas, uso mensual, consulta de pendientes, bloqueo con intervalos y `GREATEST`).
+## Etapa 4: anuncios y ofertas
+
+Estructura del `referral` confirmada en la documentación oficial el 2026-10-26: `source_url`, `source_id`, `source_type` (`ad`), `body`, `headline`, `media_type`, `image_url` (anuncio de imagen), `video_url` y `thumbnail_url` (anuncio de video), `ctwa_clid` (no viene en anuncios de Estados) y `welcome_message.text`.
+
+### Ofertas (`whatsapp_offers`)
+Una oferta es un producto, sus unidades (combos) y su regla de precio: los **tramos por cantidad** del producto (versión vigente de `ProductOffers`; si no hay tramos vigentes, «precio pendiente» y el agente no habla de precio) o un **precio fijo**. Cada oferta tiene un código `TV-XXXX` (automático o propio, único por tienda) y su mensaje predeterminado para pegar en el anuncio: «Hola, quiero {nombre} ({código})». Una oferta por producto puede marcarse para el **botón de WhatsApp de las landings**; ese enlace lleva el código con una firma HMAC de 4 caracteres (`TV-PICA1-K7Q2`). Archivar una oferta la retira de anuncios y landings sin borrar el historial.
+
+### Anuncios (`whatsapp_ads`) y entradas (`whatsapp_entries`)
+- Un anuncio que llega por primera vez se crea **sin asignar**, con el título, el texto y la imagen que envía Meta, y aparece primero en la tabla para elegir su oferta. También se puede agregar antes pegando su identificador. Un anuncio pausado no asigna su oferta.
+- Orden de reconocimiento, sin elegir nunca el producto más vendido: (1) identificador del anuncio; (2) código firmado de la landing (certeza alta); (3) código escrito a mano (certeza media; el agente lo confirma); (4) sin relación clara, el agente pregunta.
+- Cada entrada se guarda aparte (anuncio, oferta, método, certeza, código y `referral`). La conversación guarda la oferta, el producto, el anuncio, el método y la certeza de su última entrada. Si llega por otra oferta con datos de compra ya capturados, el agente pregunta si continúa la compra o empieza otra. Un anuncio nuevo no cambia pedidos anteriores.
+- El agente recibe la oferta con el precio calculado por el servidor (`offer.price_text`) y solo puede repetirlo. Si el cliente cambia a otro producto, la oferta deja de aplicar a ese chat. Si el producto de la oferta no tiene ficha aprobada, el chat pasa a un asesor.
+
+### Panel
+Pestaña **Anuncios** (`/panel/whatsapp/anuncios`): tabla de anuncios (sin asignar en amarillo, entradas de los últimos 7 días, estado, asignar oferta, pausar, quitar), ofertas (crear, editar, archivar), mensajes predeterminados para copiar, guía para configurar un anuncio y orden de reconocimiento. En la bandeja, el contexto muestra el origen de la entrada (anuncio, identificador, método, certeza y oferta).
+
+### API
+`GET|POST /api/whatsapp/ads`, `PUT|DELETE /api/whatsapp/ads/{id}`, `POST /api/whatsapp/offers`, `PUT|DELETE /api/whatsapp/offers/{id}`.
+
+### Datos (PostgreSQL `023`; MySQL `035`–`038`)
+`whatsapp_offers`, `whatsapp_ads`, `whatsapp_entries` y, en `whatsapp_conversations`, `ad_ref`, `offer_method`, `offer_certainty` y `offer_changed`. Los indicadores usan 0/1 enteros, como el resto del proyecto.
+
+### Comprobaciones de la etapa 4
+- `node tests/whatsapp-ads.mjs` (Meta e IA simulados): 30 comprobaciones. Cubren validación y CSRF de ofertas; códigos, precios calculados y combos; código repetido; tramos sin vigencia; anuncios preparados antes; anuncios A y B con el mismo «Hola» y productos distintos; anuncio nuevo sin asignar con título e imagen; el agente pregunta sin elegir por defecto; asignar y reconocer al siguiente cliente; código escrito (indicio), código firmado de la landing, firma alterada; mensaje sin anuncio ni código; mismo teléfono por otro anuncio con compra en curso; anuncio pausado; oferta archivada; aislamiento entre tiendas, incluido el mismo identificador de anuncio en otra tienda; y el panel (crear oferta, contexto del chat, claro, oscuro y móvil).
+- MariaDB 10.11.19 local: migraciones 035–038 y 6 comprobaciones (oferta, anuncio, entrada con `referral`, anuncio desconocido, orden y conteos, código firmado y archivo).
 ### Configuración en Meta (cuando se autorice el piloto real)
 
 1. En la app de Meta: WhatsApp → Configuración → Webhook: URL `https://<dominio>/whatsapp/webhook` y el mismo `WHATSAPP_VERIFY_TOKEN` del servidor; suscribir el campo `messages`.

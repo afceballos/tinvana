@@ -89,6 +89,7 @@ Formularios -> lead + entrega pendiente + borrador de pedido (misma transacción
 | 014 | Subdominio de tienda por usuario (`users.store_subdomain`), en PostgreSQL y MySQL. |
 | 019 | Superusuario y planes: `users.status`, `plan_id`, `plan_expires_at`, `entitlement_overrides`, `admin_note`, `last_login_at` y rol `superadmin`; tablas `plans`, `app_settings` y `admin_audit` (en MySQL, 020 a 025). |
 | 020 | Ventas por WhatsApp, etapa 1: `whatsapp_accounts`, `whatsapp_events`, `whatsapp_contacts`, `whatsapp_conversations` y `whatsapp_messages` (en MySQL, archivos 026 a 030). Aplicada solo en las bases locales de prueba. |
+| 023 | Anuncios y ofertas de WhatsApp: `whatsapp_offers`, `whatsapp_ads`, `whatsapp_entries` y campos de origen en `whatsapp_conversations` (en MySQL, 035 a 038). Aplicada solo en las bases locales de prueba. |
 | 022 | Agente de WhatsApp: `whatsapp_agent_settings`, `whatsapp_product_sheets` y campos del agente en `whatsapp_conversations` (en MySQL, 032 a 034). Aplicada solo en las bases locales de prueba. |
 | 021 | WhatsApp con app de Meta propia por tienda: clave secreta cifrada y token de verificación por cuenta (en MySQL, 031). Aplicada solo en las bases locales de prueba. |
 | 018 | Logística reflejada desde Dropi: valores ampliados de `logistics_status` (en MySQL, 019). |
@@ -723,6 +724,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado (local):** `whatsapp-agent.mjs` 50 (tres veces seguidas), `whatsapp-inbox.mjs` 43, `whatsapp-connection.mjs` 52, MariaDB 11 + humo anterior 11 + 4 + 11; regresión `npm test` 107, `ai-http.mjs` 39, `ai.php` 38, `run.php` 69, `mysql-dialect.php` 19, `admin` 39, `orders` 38, `order-editing` 52, `dropi-orders` 36, `dropi-shipping` 20, `dropi-tracking` 28, `order-mail` 23, `compact` 27, `legal-pages` 17, `webhook-card` 13, `dropi-integrations-ui` 10.
 - **Datos reales:** ninguno. Ninguna llamada a Meta ni a proveedores de IA (IA simulada).
 - **Límites y siguiente paso:** cotización, confirmación y pedido llegan en la etapa 5; hasta entonces el cliente listo para comprar pasa a un asesor. Etapa 4: anuncios y códigos de oferta.
+
+### 2026-10-26 · Ventas por WhatsApp, etapa 4: anuncios y ofertas
+- **Cambio:** ofertas con unidades, precio por tramos o fijo y código; anuncios de Click to WhatsApp creados con el primer mensaje o pegados antes; reconocimiento por anuncio, código firmado de la landing o código escrito; entradas por separado; el agente presenta la oferta con el precio calculado por el servidor; botón de WhatsApp de la landing con código firmado; pestaña Anuncios y origen en el contexto del chat. Detalle en [WHATSAPP.md](WHATSAPP.md).
+- **Comprobado (local):** `whatsapp-ads.mjs` 30, `whatsapp-agent.mjs` 50, `whatsapp-inbox.mjs` 43, `whatsapp-connection.mjs` 52; MariaDB 6 + 11 + 11 + 11; regresión `landing-design` 40, `owner-edit` 12, `store-router` 20, `lead-success` 12, `product-list`, `dropi-shipping` 20, `orders` 38, `order-editing` 52, `dropi-orders` 36, `admin` 39, `legal-pages` 17, `blocks.php` 101, `run.php` 69, `mysql-dialect.php` 19, `ai.php` 38.
+- **Datos reales:** ninguno.
+- **Siguiente paso:** las ampliaciones pedidas (nuevo chat con plantilla, confirmación de pedidos de landings por WhatsApp y plantillas creadas desde Tinvana) y luego la etapa 5.
 
 ### Plantilla para la próxima actualización
 

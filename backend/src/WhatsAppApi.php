@@ -14,6 +14,19 @@ final class WhatsAppApi {
   if($path==='/api/whatsapp/account/test'&&$method==='POST'){Auth::limit('whatsapp-test:'.$owner,10,600);return WhatsAppAccount::test($owner);}
   if($path==='/api/whatsapp/account/subscribe'&&$method==='POST'){Auth::limit('whatsapp-subscribe:'.$owner,10,600);return WhatsAppAccount::subscribe($owner);}
   if($path==='/api/whatsapp/agent'||str_starts_with($path,'/api/whatsapp/sheets'))return self::agent($owner,$path,$method);
+  if($path==='/api/whatsapp/ads'){
+   if($method==='GET')return WhatsAppOffers::list($owner);
+   if($method==='POST'){Auth::limit('whatsapp-ads:'.$owner,60,600);return WhatsAppOffers::addAd($owner,Api::body());}
+  }
+  if(preg_match('~^/api/whatsapp/ads/([a-f0-9-]{36})$~D',$path,$m)){
+   if($method==='PUT'){Auth::limit('whatsapp-ads:'.$owner,60,600);return WhatsAppOffers::updateAd($owner,$m[1],Api::body());}
+   if($method==='DELETE')return WhatsAppOffers::deleteAd($owner,$m[1]);
+  }
+  if($path==='/api/whatsapp/offers'&&$method==='POST'){Auth::limit('whatsapp-offers:'.$owner,60,600);return WhatsAppOffers::saveOffer($owner,null,Api::body());}
+  if(preg_match('~^/api/whatsapp/offers/([a-f0-9-]{36})$~D',$path,$m)){
+   if($method==='PUT'){Auth::limit('whatsapp-offers:'.$owner,60,600);return WhatsAppOffers::saveOffer($owner,$m[1],Api::body());}
+   if($method==='DELETE')return WhatsAppOffers::archiveOffer($owner,$m[1]);
+  }
   if($path==='/api/whatsapp/conversations'&&$method==='GET')return WhatsAppInbox::list($owner,$_GET);
   if(preg_match('~^/api/whatsapp/conversations/([a-f0-9-]{36})(?:/(read|take|release|messages))?$~D',$path,$m)){
    $id=$m[1];$action=$m[2]??'';

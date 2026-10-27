@@ -14,6 +14,9 @@ if($op==='reset'){
  Database::query('DELETE FROM whatsapp_contacts WHERE user_id IN (?,?)',$ids);
  Database::query('UPDATE users SET entitlement_overrides=NULL WHERE id IN (?,?)',$ids);
  Database::query("UPDATE users SET role='admin' WHERE id IN (?,?) AND role='superadmin'",$ids);
+ Database::query('DELETE FROM whatsapp_ads WHERE user_id IN (?,?)',$ids);
+ Database::query('DELETE FROM whatsapp_offers WHERE user_id IN (?,?)',$ids);
+ Database::query('DELETE FROM selected_products WHERE user_id IN (?,?) AND dropi_id=900002',$ids);
  Database::query('DELETE FROM whatsapp_agent_settings WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_product_sheets WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM ai_connections WHERE user_id IN (?,?)',$ids);
@@ -26,6 +29,16 @@ if($op==='override'){
  $v=json_decode($argv[2]??'null',true);if(!is_array($v))throw new RuntimeException('JSON expected.');
  Database::query('UPDATE users SET entitlement_overrides=?::jsonb WHERE id=?',[Support::json(['features'=>(object)($v['features']??[]),'limits'=>(object)($v['limits']??[])]),$fixture['owner']]);
  echo 'ok';exit;
+}
+if($op==='add-product'){
+ // A second product for the owner (copy of the fixture product), to test two ads with different products.
+ $p=Database::one('SELECT * FROM selected_products WHERE id=?',[$fixture['product']]);$id=Support::uuid();$m=json_decode((string)$p['mapped_data'],true);$m['name']='Cepillo eléctrico giratorio';
+ Database::query('INSERT INTO selected_products(id,user_id,integration_id,dropi_id,original_data,mapped_data) VALUES(?,?,?,?,?::jsonb,?::jsonb)',[$id,$p['user_id'],$p['integration_id'],900002,$p['original_data'],Support::json($m)]);
+ echo $id;exit;
+}
+if($op==='landing-text'){
+ // Prefilled WhatsApp text of the fixture landing (its product's landing offer, with the verified code).
+ echo App\WhatsAppOffers::landingMessage((array)Database::one('SELECT * FROM landing_pages WHERE id=?',[$fixture['landing']]))??'';exit;
 }
 if($op==='superadmin'){
  // Temporarily makes the second fixture account a superadmin for the Administración checks.

@@ -112,3 +112,9 @@
 .wa-banner.is-handoff{background:#fff4e5;color:#9a3412}
 :root[data-theme=dark] .wa-banner.is-handoff{background:#2a1d10;color:#fdba74}
 .wa-tokens{margin-top:auto!important}
+.wa-certainty{margin-left:6px;padding:1px 8px;border-radius:999px;font-size:11px;letter-spacing:0;text-transform:none}
+.wa-certainty.is-alta{background:#dcfce7;color:#15803d}
+.wa-certainty.is-media{background:#fef3c7;color:#92400e}
+.wa-certainty.is-baja{background:color-mix(in srgb,var(--muted) 14%,transparent);color:var(--muted)}
+.wa-mono{display:block;font-family:ui-monospace,monospace;font-weight:400;font-size:12px;color:var(--muted)}
+.wa-context .wa-code{font-size:11px;padding:1px 6px}

@@ -82,12 +82,16 @@ final class WhatsAppAgent {
    $products=WhatsAppSheets::sellable($owner);
    if(!$products){self::system($account,$c,$s['messages']['fallback']);self::handoff($id,'No hay fichas de producto aprobadas para el agente');return true;}
    $ids=array_column($products,'id');
-   $productId=in_array($c['product_id'],$ids,true)?$c['product_id']:(count($products)===1?$products[0]['id']:null);
+   // Stage 4: an offer identified from the ad or a code fixes the product (and its price, computed by the server).
+   $offer=WhatsAppOffers::forConversation($owner,$c);if($offer&&!$offer['active'])$offer=null;
+   if($offer&&!in_array($offer['product']['id'],$ids,true)){self::system($account,$c,$s['messages']['fallback']);self::handoff($id,'El producto de la oferta del anuncio no tiene ficha aprobada');return true;}
+   $productId=$offer?$offer['product']['id']:(in_array($c['product_id'],$ids,true)?$c['product_id']:(count($products)===1?$products[0]['id']:null));
    $sheet=$productId?WhatsAppSheets::approved($owner,$productId):null;
    $captured=json_decode((string)$c['captured'],true);$captured=is_array($captured)?$captured:[];
    $input=['store'=>$account['verified_name']?:'la tienda','now'=>(new \DateTimeImmutable('now',new \DateTimeZone('America/Bogota')))->format('Y-m-d H:i'),'in_hours'=>WhatsAppAgentSettings::inHours($s),
     'products'=>array_map(fn($p)=>['id'=>$p['id'],'name'=>$p['name']],$products),'product'=>$productId?['id'=>$productId,'name'=>$products[array_search($productId,$ids,true)]['name']]:null,
     'sheet'=>$sheet['content']??null,'captured'=>(object)$captured,
+    'offer'=>$offer?['name'=>$offer['name'],'code'=>$offer['code'],'units'=>$offer['units'],'price_text'=>$offer['price']['text'],'certainty'=>$offer['certainty'],'came_from'=>$offer['method'],'new_entry_while_buying'=>$offer['changed']]:null,
     'history'=>array_map(fn($m)=>['from'=>$m['direction']==='in'?'cliente':'tienda','text'=>in_array($m['type'],['text','button','interactive'],true)||$m['direction']==='out'?mb_substr((string)$m['body'],0,600):'[archivo]'],$history)];
    try{$r=AiClient::structured(self::instructions($s),'whatsapp_reply',self::schema(),$input,AiConnections::credentials($owner),self::MAX_TOKENS[$s['length']],self::TIMEOUT);}
    catch(\Throwable $t){
@@ -101,7 +105,9 @@ final class WhatsAppAgent {
    $newProduct=is_string($d['product_id']??null)&&in_array($d['product_id'],$ids,true)?$d['product_id']:$productId;
    foreach(self::CAPTURE as $k=>$_){$v=$d['captured'][$k]??'';if(is_string($v)&&trim($v)!=='')$captured[$k]=mb_substr(trim($v),0,200);}
    $newSheet=$newProduct?(WhatsAppSheets::approved($owner,$newProduct)['version']??null):null;
-   Database::query('UPDATE whatsapp_conversations SET captured=?::jsonb,product_id=?,sheet_version=?,ai_tokens=ai_tokens+?,stage=?,updated_at=now() WHERE id=?',[Support::json((object)$captured),$newProduct,$newSheet,$tokens,$action==='none'?'asesorando':$action,$id]);
+   // If the customer turns to another product, the ad's offer no longer applies to this chat.
+   $keepOffer=$offer&&$newProduct===$offer['product']['id'];
+   Database::query('UPDATE whatsapp_conversations SET captured=?::jsonb,product_id=?,sheet_version=?,ai_tokens=ai_tokens+?,stage=?,offer_changed=0'.($offer&&!$keepOffer?',offer_id=NULL,offer_version=NULL':'').',updated_at=now() WHERE id=?',[Support::json((object)$captured),$newProduct,$newSheet,$tokens,$action==='none'?'asesorando':$action,$id]);
    // Re-check before sending: an advisor may have taken the chat while the AI was thinking.
    $mode=Database::one('SELECT owner_mode FROM whatsapp_conversations WHERE id=?',[$id])['owner_mode']??'';
    if($mode!=='ai')return true;
@@ -133,9 +139,10 @@ final class WhatsAppAgent {
   if($h['custom']!=='')$motives[]=$h['custom'];
   return 'Eres el asesor de ventas por WhatsApp de la tienda indicada en "store", en Colombia. Tono: '.$tone.'. '.$length."\n"
    .'Responde siempre en español. Usa solo la información de la ficha aprobada ("sheet"); no inventes características, garantías ni tiempos.'."\n"
-   .'Nunca digas ni calcules precios, costos de envío, totales, descuentos, tiempos de entrega ni disponibilidad, salvo el texto exacto de "sheet.price_note" si existe.'."\n"
+   .'Nunca digas ni calcules precios, costos de envío, totales, descuentos, tiempos de entrega ni disponibilidad, salvo el texto exacto de "offer.price_text" o de "sheet.price_note" si existen.'."\n"
    .'No creas pedidos ni confirmes compras. Cuando el cliente quiera comprar, pide los datos que falten (nombre, ciudad y departamento, dirección, barrio, referencia, cantidad y variante si aplica), uno o dos a la vez; cuando los tengas, usa action "request_quote".'."\n"
    .'Si "product" es null y hay varios productos en "products", pregunta cuál le interesa (action "ask_product"). Cuando lo identifiques, devuelve su id exacto en "product_id"; si no, deja "product_id" en "".'."\n"
+   .'Si hay "offer", el cliente llegó por esa oferta: preséntala por su nombre y puedes decir exactamente "offer.price_text" (es el precio que calculó la tienda). Si "offer.certainty" es "media", confirma primero que le interesa esa oferta. Si "offer.new_entry_while_buying" es true, pregunta si quiere continuar la compra que ya tenía o empezar con esta oferta.'."\n"
    .($motives?'Pasa a un asesor (action "handoff", con el motivo en "handoff_reason" y un mensaje breve diciendo que un asesor le escribirá) cuando: '.implode('; ',$motives).".\n":'')
    .(!$h['unknown']?'Si algo no está en la ficha, dilo con amabilidad y ofrece ayuda con lo que sí sabes.'."\n":'')
    .'En "captured" escribe solo datos que el cliente dio explícitamente en la conversación; deja "" en lo demás. "intent" es una palabra que resuma lo que quiere el cliente.'

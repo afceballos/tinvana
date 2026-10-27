@@ -3,7 +3,7 @@ import {useAllowed} from '../access';
 import './whatsapp.css';
 
 // Sections of the module; each one is listed once its stage is built. «Bandeja» covers /panel/whatsapp and each chat.
-const tabs:[string,string,string?][]=[['','Bandeja'],['agente','Agente IA','whatsapp_ai'],['conexion','Conexión']];
+const tabs:[string,string,string?][]=[['','Bandeja'],['anuncios','Anuncios'],['agente','Agente IA','whatsapp_ai'],['conexion','Conexión']];
 const sections=new Set(tabs.map(([p])=>p).filter(Boolean));
 
 export function WhatsAppTabs({unread=0}:{unread?:number}){
