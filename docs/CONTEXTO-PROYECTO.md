@@ -757,6 +757,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado (local):** `backend/tests/ai.php` 45, `ai-http.mjs` 41, `ai-ui.mjs` (ejecutada después de `ai-http` sobre los mismos datos, porque necesita la clave de IA que esa prueba deja guardada), `owner-edit` 12, `landing-design` 40, `admin` 39; MariaDB 10.11.19 local: migración 042 y guardado/lectura del enfoque. Ninguna solicitud a OpenAI ni a Claude.
 - **Datos reales:** ninguno. Pendiente que el propietario lo pruebe con su producto real tras el despliegue.
 
+### 2026-10-27 · Botón «Nuevo chat» reorganizado
+- **Reporte del usuario:** el botón «Nuevo chat» se veía apretado junto al título de la bandeja.
+- **Cambio:** «En vivo» pasa debajo de «Conversaciones» y el botón queda como píldora compacta con «+», en una sola línea, con estados de foco, hover y presión (`WhatsAppInbox.tsx`, `inbox.css`).
+- **Comprobado (local):** capturas antes y después en 1440, 1024 y 390 px; `whatsapp-templates.mjs` 32 y `whatsapp-inbox.mjs` 43.
+- **Datos reales:** ninguno.
+
 ### Plantilla para la próxima actualización
 
 ```text

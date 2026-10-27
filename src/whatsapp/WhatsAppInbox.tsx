@@ -78,7 +78,7 @@ export function WhatsAppInbox(){
   </div>
   <div className={'wa-inbox'+(id?' has-chat':'')}>
    <aside className="wa-list" aria-label="Conversaciones">
-    <div className="wa-col-head"><h2>Conversaciones</h2><span className="wa-live" title="Se actualiza sola cada pocos segundos">En vivo</span><button type="button" className="primary wa-new-chat" onClick={()=>setNewChat(true)}><Icon name="chat"/>Nuevo chat</button></div>
+    <div className="wa-col-head"><div className="wa-col-title"><h2>Conversaciones</h2><span className="wa-live" title="Se actualiza sola cada pocos segundos">En vivo</span></div><button type="button" className="wa-new-chat" title="Escribir a un número con una plantilla aprobada" onClick={()=>setNewChat(true)}><span aria-hidden="true">+</span>Nuevo chat</button></div>
     {newChat&&<TemplateSendDialog onClose={()=>setNewChat(false)} onSent={cid=>{setNewChat(false);refreshList();navigate('/panel/whatsapp/'+cid);}}/>}
     <label className="wa-search"><Icon name="search"/><span className="sr-only">Buscar por nombre o teléfono</span><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar nombre o teléfono"/></label>
     <div className="wa-filters" role="group" aria-label="Filtrar conversaciones">{FILTERS.map(([k,label])=><button key={k} type="button" className={filter===k?'is-active':''} aria-pressed={filter===k} onClick={()=>setFilter(k)}>{label}</button>)}</div>
