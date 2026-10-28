@@ -912,6 +912,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Limitaciones:** los pasos no se recorrieron en una cuenta real de Meta desde esta sesión.
 - **Datos reales:** ninguno.
 
+### 2026-10-28 · Paso a paso en panel lateral
+- **Pedido del usuario:** un diseño más sutil para la guía, como panel a la derecha (como en Consultas recibidas) pero sin desenfocar el fondo, para pegar datos sin cerrarla.
+- **Cambio:** la guía pasa a un panel lateral no modal que se abre con «Ver el paso a paso»; el contenido se corre en pantallas anchas.
+- **Comprobado (local):** `whatsapp-connection.mjs` 56 (con el panel abierto se llena el formulario; Escape lo cierra) y revisión de la captura.
+- **Datos reales:** ninguno.
+
 ### Plantilla para la próxima actualización
 
 ```text

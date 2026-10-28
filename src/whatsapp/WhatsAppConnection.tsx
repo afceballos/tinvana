@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useCallback,useEffect,useState} from 'react';
 import {api,post} from '../api';
 import {useFeedbackState} from '../Notifications';
 import {InlineLoading} from '../Loading';
@@ -18,6 +18,7 @@ const states:Record<Account['status'],[string,string]>={connected:['on','Conecta
 // Same card system as «Integraciones Dropi» and «Conexión GHL» (webhook-current, webhook-head, webhook-state).
 export function WhatsAppConnection(){
  const [view,setView]=useState<View|null>(null);const [sub,setSub]=useState<Subscription|null>(null);const [busy,setBusy]=useState(false);const [editing,setEditing]=useState(false);const [confirmDelete,setConfirmDelete]=useState(false);
+ const [guide,setGuide]=useState(false);const closeGuide=useCallback(()=>setGuide(false),[]);
  const [,setError]=useFeedbackState('error');const [,setNotice]=useFeedbackState('success');
  useEffect(()=>{api<View>('/api/whatsapp/account').then(setView).catch(e=>setError((e as Error).message));},[]);
  const copy=(text:string,label:string)=>{void navigator.clipboard?.writeText(text).then(()=>setNotice(label+' copiado.'),()=>setError('No se pudo copiar. Selecciónalo y cópialo a mano.'));};
@@ -27,7 +28,8 @@ export function WhatsAppConnection(){
  return <>
   <WhatsAppTabs/>
   <p className="muted">Cada tienda conecta su propio número de WhatsApp Business. Los mensajes llegan directo a Tinbana por la API oficial de Meta; el token se guarda cifrado en el servidor y nunca se muestra.</p>
-  <WhatsAppGuide open={!a||a.status!=='connected'}/>
+  <div className="wa-guide-cta"><Icon name="check"/><span>{!a?'¿Primera vez? Te explicamos paso a paso cómo sacar estos datos de Meta, con el número de prueba o con el tuyo.':'¿Necesitas cambiar de número o revisar la configuración en Meta?'}</span><button type="button" className="secondary" aria-expanded={guide} onClick={()=>setGuide(g=>!g)}>{guide?'Ocultar el paso a paso':'Ver el paso a paso'}</button></div>
+  <WhatsAppGuide open={guide} onClose={closeGuide}/>
   {a&&<section className="panel narrow webhook-current wa-account">
    <div className="webhook-head"><span className="webhook-logo wa-logo" aria-hidden="true"><Icon name="whatsapp"/></span><div><span className="eyebrow">WhatsApp Business</span><h2>{a.display_phone||'Número sin verificar'}{a.verified_name?' · '+a.verified_name:''}</h2></div><span className={'webhook-state '+states[a.status][0]}>{states[a.status][1]}</span></div>
    <dl className="wa-facts">
@@ -58,7 +60,7 @@ export function WhatsAppConnection(){
   </section>}
   {showForm&&<form className="panel narrow editor-form wa-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void run(async()=>{const r=await api<View>('/api/whatsapp/account',{method:'PUT',body:JSON.stringify({phone_number_id:f.get('phone_number_id'),waba_id:f.get('waba_id'),token:f.get('token'),app_secret:f.get('app_secret'),...(f.get('drop_own_app')?{own_app:false}:{})})});setView(r);setEditing(false);setNotice('Credenciales guardadas. Prueba la conexión para verificarlas.');});}}>
    <h3>{a?'Reemplazar credenciales':'Conectar tu número'}</h3>
-   <p className="small muted">Los encuentras en Meta, en <strong>WhatsApp → Configuración de la API</strong> de tu app. El token debe ser el permanente de un usuario del sistema, con los permisos <code>whatsapp_business_messaging</code> y <code>whatsapp_business_management</code>.</p>
+   <p className="small muted">Los encuentras en Meta, en <strong>WhatsApp → Configuración de la API</strong> de tu app; si no sabes dónde, <button type="button" className="link wa-inline-link" onClick={()=>setGuide(true)}>mira el paso a paso</button>. El token debe ser el permanente de un usuario del sistema, con los permisos <code>whatsapp_business_messaging</code> y <code>whatsapp_business_management</code>.</p>
    <label>Phone Number ID<input name="phone_number_id" required inputMode="numeric" pattern="[0-9]{5,32}" defaultValue={a?.phone_number_id} placeholder="Ej. 106540352242922"/></label>
    <label>WhatsApp Business Account ID<input name="waba_id" required inputMode="numeric" pattern="[0-9]{5,32}" defaultValue={a?.waba_id} placeholder="Ej. 102290129340398"/></label>
    <label>Token de acceso permanente<input name="token" type="password" required={!a} autoComplete="new-password" maxLength={4096} placeholder={a?'Déjalo vacío para conservar el actual':'Pega el token'}/><span className="small muted">Se guarda cifrado y no vuelve a mostrarse.</span></label>

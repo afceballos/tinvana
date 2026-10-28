@@ -1,4 +1,4 @@
-import {useState,type ReactNode} from 'react';
+import {useEffect,useRef,useState,type ReactNode} from 'react';
 import {Icon} from '../ui';
 
 type Step={title:string;body:ReactNode;tinbana?:ReactNode;link?:[string,string]};
@@ -40,22 +40,31 @@ const OWN:Step[]=[createApp,
  {title:'Prueba y verifica tu negocio',
   body:<>Pulsa <b>Probar conexión</b> y escribe a tu número desde otro celular. Para enviar más mensajes al día, verifica tu negocio en la Configuración del negocio → <b>Centro de seguridad</b>.</>}];
 
-/** Step-by-step guide to connect a Meta number (test or own) with the fields of this page. */
-export function WhatsAppGuide({open}:{open:boolean}){
- const [kind,setKind]=useState<'test'|'own'>('test');const steps=kind==='test'?TEST:OWN;
- return <details className="panel narrow wa-guide" open={open}>
-  <summary><span className="webhook-logo" aria-hidden="true"><Icon name="check"/></span><span><span className="eyebrow">Paso a paso</span><strong>Cómo conectar tu número de Meta</strong></span><Icon name="chevron" className="wa-guide-chevron"/></summary>
-  <p className="small muted">Usa el <b>número de prueba</b> para ensayar sin costo (solo conversa con hasta 5 números que tú agregas) y <b>tu número propio</b> para atender a tus clientes. Los nombres de los menús pueden cambiar un poco según el idioma de Meta.</p>
-  <div className="wa-guide-tabs" role="tablist" aria-label="Tipo de número">
-   <button type="button" role="tab" aria-selected={kind==='test'} className={kind==='test'?'is-on':''} onClick={()=>setKind('test')}>Número de prueba</button>
-   <button type="button" role="tab" aria-selected={kind==='own'} className={kind==='own'?'is-on':''} onClick={()=>setKind('own')}>Mi número propio</button>
+/**
+ * Step-by-step guide to connect a Meta number (test or own), in a side panel that does not block the page: the store
+ * can copy and paste into the form while reading. On wide screens the page makes room for it.
+ */
+export function WhatsAppGuide({open,onClose}:{open:boolean;onClose:()=>void}){
+ const [kind,setKind]=useState<'test'|'own'>('test');const steps=kind==='test'?TEST:OWN;const close=useRef<HTMLButtonElement>(null);
+ useEffect(()=>{if(!open)return;const trigger=document.activeElement as HTMLElement|null;document.documentElement.classList.add('wa-guide-open');close.current?.focus();
+  const key=(e:KeyboardEvent)=>{if(e.key==='Escape')onClose();};document.addEventListener('keydown',key);
+  return()=>{document.documentElement.classList.remove('wa-guide-open');document.removeEventListener('keydown',key);trigger?.focus?.();};},[open,onClose]);
+ if(!open)return null;
+ return <aside className="wa-guide-drawer" role="complementary" aria-labelledby="wa-guide-title">
+  <header><div><span className="eyebrow">Paso a paso</span><h2 id="wa-guide-title">Cómo conectar tu número de Meta</h2></div><button ref={close} type="button" className="icon-button" aria-label="Cerrar el paso a paso" onClick={onClose}><Icon name="close"/></button></header>
+  <div className="wa-guide-body">
+   <p className="small muted">Usa el <b>número de prueba</b> para ensayar sin costo (solo conversa con hasta 5 números que tú agregas) y <b>tu número propio</b> para atender a tus clientes. Puedes dejar este panel abierto mientras pegas los datos. Los nombres de los menús pueden cambiar un poco según el idioma de Meta.</p>
+   <div className="wa-guide-tabs" role="tablist" aria-label="Tipo de número">
+    <button type="button" role="tab" aria-selected={kind==='test'} className={kind==='test'?'is-on':''} onClick={()=>setKind('test')}>Número de prueba</button>
+    <button type="button" role="tab" aria-selected={kind==='own'} className={kind==='own'?'is-on':''} onClick={()=>setKind('own')}>Mi número propio</button>
+   </div>
+   <ol className="wa-guide-steps">{steps.map((s,i)=><li key={kind+i}>
+    <span className="wa-guide-n" aria-hidden="true">{i+1}</span>
+    <div><strong>{s.title}</strong><p>{s.body}</p>
+     {s.tinbana&&<p className="wa-guide-here"><Icon name="arrow"/><span><b>En Tinbana:</b> {s.tinbana}</span></p>}
+     {s.link&&<a className="secondary wa-guide-link" href={s.link[0]} target="_blank" rel="noopener noreferrer">{s.link[1]}<Icon name="external"/></a>}</div>
+   </li>)}</ol>
+   <p className="small muted">¿Dudas? Guía oficial de Meta: <a href={M.docs} target="_blank" rel="noopener noreferrer">Primeros pasos con la API de WhatsApp Cloud</a>.</p>
   </div>
-  <ol className="wa-guide-steps">{steps.map((s,i)=><li key={kind+i}>
-   <span className="wa-guide-n" aria-hidden="true">{i+1}</span>
-   <div><strong>{s.title}</strong><p>{s.body}</p>
-    {s.tinbana&&<p className="wa-guide-here"><Icon name="arrow"/><span><b>En Tinbana:</b> {s.tinbana}</span></p>}
-    {s.link&&<a className="secondary wa-guide-link" href={s.link[0]} target="_blank" rel="noopener noreferrer">{s.link[1]}<Icon name="external"/></a>}</div>
-  </li>)}</ol>
-  <p className="small muted">¿Dudas? Guía oficial de Meta: <a href={M.docs} target="_blank" rel="noopener noreferrer">Primeros pasos con la API de WhatsApp Cloud</a>.</p>
- </details>;
+ </aside>;
 }
