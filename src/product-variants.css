@@ -1,0 +1,31 @@
+/* Variantes de un producto de Dropi en Explorar productos. Usa los tokens de Tinvana (modo claro y oscuro). */
+.pv{display:grid;grid-template-columns:minmax(0,1fr);min-width:0;max-width:100%;gap:12px;margin:18px 0;padding:16px;border:1px solid var(--line);border-radius:var(--radius,16px);background:var(--surface,#fff)}
+.pv-head{display:flex;align-items:center;gap:8px}
+.pv-head strong{font-size:15px;color:var(--ink)}
+.pv-count{min-width:24px;padding:1px 8px;border-radius:999px;background:color-mix(in srgb,var(--brand-accent) 14%,transparent);color:#c2410c;font-size:12px;font-weight:700;text-align:center}
+.pv-option{display:grid;grid-template-columns:72px minmax(0,1fr);gap:10px;align-items:start}
+.pv-option>span{padding-top:5px;color:var(--muted);font-size:13px;font-weight:600}
+.pv-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.pv-chips li{padding:4px 11px;border:1px solid var(--line);border-radius:999px;background:var(--paper,#fffaf6);color:var(--ink);font-size:13px;font-weight:600;line-height:1.4}
+.pv-details summary{display:flex;align-items:center;gap:6px;min-height:36px;cursor:pointer;color:var(--ink);font-size:14px;font-weight:600}
+.pv-details summary::after{content:'';width:7px;height:7px;margin-left:2px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg) translateY(-2px);transition:transform .2s ease}
+.pv-details[open] summary::after{transform:rotate(-135deg) translateY(-1px)}
+.pv-details summary::-webkit-details-marker{display:none}
+.pv-details summary{list-style:none}
+.pv-details summary:focus-visible{outline:3px solid #ffba3d;outline-offset:3px;border-radius:6px}
+.pv-details{min-width:0}
+.pv-table-wrap{max-width:100%;margin-top:10px;max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:12px}
+.pv-table-wrap:focus-visible{outline:3px solid #ffba3d;outline-offset:2px}
+.pv-table{width:100%;border-collapse:collapse;font-size:13px}
+.pv-table th,.pv-table td{padding:9px 12px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--line)}
+.pv-table thead th{position:sticky;top:0;background:var(--soft,#fff4ec);color:var(--muted);font-size:12px;font-weight:700;z-index:1}
+.pv-table tbody th{color:var(--ink);font-weight:600}
+.pv-table td{color:var(--ink);font-variant-numeric:tabular-nums}
+.pv-table tr:last-child>*{border-bottom:0}
+.pv-out{color:#b42318!important;font-weight:700}
+.card .price-from,.modal-layout .price .price-from{font-size:.7em;font-weight:600;color:var(--muted);margin-right:4px}
+:root[data-theme=dark] .pv-count{color:#fdba74}
+:root[data-theme=dark] .pv-out{color:#fca5a5!important}
+@media (max-width:640px){.pv{padding:14px}.pv-option{grid-template-columns:1fr;gap:4px}.pv-option>span{padding-top:0}.pv-table th,.pv-table td{padding:8px 9px}}
+@media (prefers-reduced-motion:reduce){.pv-details summary::after{transition:none}}
+.modal-layout .price .price-from{font-size:.5em;vertical-align:.2em}

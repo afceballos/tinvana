@@ -13,13 +13,9 @@ final class ProductOffers {
   if(!$p)throw new HttpError(409,'No se encontró el producto original del pedido.');return $p;
  }
  public static function variants(array $p): array {
+  // Labels from the variant's options ("Negro · L"), also for products saved before the variants were mapped.
   $mapped=json_decode($p['mapped_data'],true);$out=[];
-  foreach($mapped['variations']??[] as $v){
-   if(!is_array($v))continue;$id=(string)($v['id']??'');if(!preg_match('/^[1-9][0-9]{0,17}$/D',$id))continue;
-   $label=$v['name']??$v['title']??$v['sku']??null;
-   if(!is_string($label)||trim($label)==='')$label='Variante '.$id;
-   $out[$id]=['id'=>$id,'label'=>mb_substr(trim($label),0,160),'sku'=>is_string($v['sku']??null)?mb_substr($v['sku'],0,120):null];
-  }
+  foreach(Product::variants(['variations'=>$mapped['variations']??[]]) as $v)$out[$v['id']]=['id'=>$v['id'],'label'=>$v['label'],'sku'=>$v['sku']];
   return array_values($out);
  }
  public static function view(string $owner,string $id): array {

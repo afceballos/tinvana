@@ -78,6 +78,19 @@ check('existing percent encoding preserved',Product::image('https://example.com/
 check('invalid control in image rejected',Product::image("foto\n.jpg")===null);
 $source=tempnam(sys_get_temp_dir(),'zen-img-');$target=$source.'.webp';
 try{$im=imagecreatetruecolor(2400,1200);imagepng($im,$source);imagedestroy($im);$meta=App\Media::optimize($source,$target);$info=getimagesize($target);check('uploaded PNG converted resized and bounded',$info[2]===IMAGETYPE_WEBP&&$meta['width']===1600&&$meta['height']===800&&$meta['bytes']<=409600);file_put_contents($source,'<?php echo 1;');rejects('non image upload refused',fn()=>App\Media::optimize($source,$target));}finally{@unlink($source);@unlink($target);}
+// Variable product shaped like the Dropi probe of 2026-10-28 (product 2261687): no product price or stock, one photo.
+$variation=fn(int $id,string $color,string $size,string $price,?int $stock,array $more=[])=>array_replace(['id'=>$id,'sku'=>'-'.$id,'sale_price'=>$price,'suggested_price'=>'50000.00','stock'=>null,'deleted_at'=>null,
+ 'attribute_values'=>[['value'=>$color,'attribute_name'=>'COLOR'],['value'=>$size,'attribute_name'=>'TALLA']],'warehouse_product_variation'=>[['warehouse_id'=>9,'stock'=>$stock,'warehouse'=>['name'=>'Bodega Norte','city'=>['name'=>'Cali']]]]],$more);
+$var=['id'=>2261687,'name'=>'Faja','type'=>'VARIABLE','sale_price'=>null,'suggested_price'=>null,'gallery'=>[['main'=>true,'url'=>'colombia/products/2261687/main.jpeg']],'warehouse_product'=>[],
+ 'variations'=>[$variation(1,'NEGRO','L','23000.00',4496),$variation(2,'BLANCO','2XL','23000.00',4583),$variation(3,'BEIGE','S','25000.00',10),$variation(4,'NEGRO','S','23000.00',5,['deleted_at'=>'2026-01-01'])]];
+$v=Product::map($var);
+check('variable product price comes from its variants as a range',$v['price']===23000.0&&$v['priceMax']===25000.0&&$v['suggestedPrice']===50000.0);
+check('variable product stock adds up its variants and warehouses',$v['stock']==9089&&count($v['warehouses'])===1&&$v['warehouses'][0]['stock']==9089&&$v['warehouses'][0]['name']==='Bodega Norte');
+check('variants are named by their options, not by SKU',array_column($v['variants'],'label')===['Negro · L','Blanco · 2XL','Beige · S']&&$v['variants'][0]['options'][0]===['name'=>'Color','value'=>'Negro']);
+check('every variant starts with the product photo',$v['variants'][2]['image']==='https://d39ru7awumhhs2.cloudfront.net/colombia/products/2261687/main.jpeg'&&!isset($v['variants'][0]['warehouses']));
+check('deleted variants are left out',count($v['variants'])===3);
+check('same prices give no range',Product::map(['variations'=>[$variation(1,'NEGRO','L','23000.00',1),$variation(2,'BLANCO','M','23000.00',1)]]+$var)['priceMax']===null);
+check('order variant labels use the options too',array_column(App\ProductOffers::variants(['mapped_data'=>Support::json(['variations'=>$var['variations']])]),'label')===['Negro · L','Blanco · 2XL','Beige · S']);
 $mediaId='11111111-1111-4111-8111-111111111111';$canonical=rtrim(App\Support::env('APP_URL'),'/');
 check('own local upload follows current public origin',App\Media::rebase('http://127.0.0.1:8080/media/'.$mediaId.'.webp')===$canonical.'/media/'.$mediaId.'.webp');
 check('old temporary upload follows current origin',App\Media::rebase(['blocks'=>[['image'=>'https://old-demo.trycloudflare.com/media/'.$mediaId.'.webp']]])['blocks'][0]['image']===$canonical.'/media/'.$mediaId.'.webp');

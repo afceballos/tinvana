@@ -787,6 +787,13 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado (local):** sintaxis y validaciones (ID inválido, usuario inexistente). No se contactó a Dropi.
 - **Siguiente paso:** el propietario lo ejecuta en producción para el producto 2261687; con la salida se corrigen precio/stock de variables, galería y luego las variantes en las landings.
 
+### 2026-10-28 · Productos con variantes en Explorar productos
+- **Diagnóstico real (ejecutado por el propietario en producción con `dropi:product-probe`, producto 2261687 «FAJA QUITA FACIL»):** tipo `VARIABLE`, `sale_price` y `suggested_price` del producto nulos, `warehouse_product` vacío y 18 variaciones con `sale_price` (23.000), `suggested_price` (50.000), `attribute_values` (COLOR y TALLA) y stock en `warehouse_product_variation` aun con `get_stock:false`. La galería del producto trae una sola foto y las variaciones no traen fotos.
+- **Cambio:** `Product::variants` normaliza cada variante (nombre por opciones «Negro · L», opciones, precio, sugerido, stock y la foto principal del producto para todas, que la tienda podrá cambiar al crear la landing). En productos variables el precio sale del mínimo de las variantes (`priceMax` cuando hay rango), el sugerido del mínimo y el stock y las bodegas de la suma de las variantes. `ProductOffers::variants` usa los mismos nombres, así que los pedidos muestran «Negro · L» en lugar del SKU (también para productos guardados antes). Explorar productos: «Desde $X» en la tarjeta y el detalle, stock con separador de miles y bloque «Variantes» con las opciones como etiquetas y una tabla desplegable de precio, sugerido y stock (reemplaza el JSON de «Variaciones originales»). Los productos ya guardados actualizan precio y stock con «Actualizar desde Dropi».
+- **Comprobado (local):** `backend/tests/run.php` 76 (7 nuevas con la forma real de Dropi), `dropi-block.php` 18, `ai.php` 45, `blocks.php` 101; `orders` 38, `order-editing` 52, `dropi-orders` 36, `product-list`, `builder`, `dropi-block`, `whatsapp-confirm` 59. Capturas en escritorio, móvil y modo oscuro con el catálogo simulado en el navegador (sin llamar a Dropi).
+- **Datos reales:** solo la lectura del diagnóstico hecha por el propietario.
+- **Siguiente paso:** variantes en las landings (selector en el formulario, precio público y foto por variante, variantes ocultas y pedido con la variante exacta).
+
 ### Plantilla para la próxima actualización
 
 ```text
