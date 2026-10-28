@@ -862,6 +862,14 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Datos reales:** ninguno.
 - **Siguiente paso:** etapa 5 (crear el pedido desde el chat).
 
+### 2026-10-28 · Etapa 5: pedidos armados en el chat de WhatsApp
+- **Pedido del usuario:** que el cliente pueda comprar por el chat con las recomendaciones propuestas (interruptor por tienda, precio de la oferta o de la landing publicada, si no hay se pasa a un asesor), también cuando escribe sin venir de un enlace y pregunta por los productos.
+- **Cambio:** interruptor «Vender por WhatsApp», catálogo con precios para la IA, `WhatsAppChatOrder` (validación de datos, ciudad DANE, variante, cantidad, oferta o landing, creación por el camino del formulario), pedidos con `source=whatsapp` (migración PostgreSQL 034 / MySQL 051), «2 NO» en pedidos del chat sin asesor, aviso `chat_order`, etiquetas en Pedidos. La cédula no se pide porque la integración con Dropi no la envía (cambia lo recomendado antes).
+- **Comprobado (local, IA, Meta y catálogo Dropi simulados):** `whatsapp-agent.mjs` 93 (11 nuevas: interruptor, catálogo con precio, falta de apellido, ciudad repetida, creación con Cali 76001 y envío incluido, sin texto de la IA y con aviso, sin duplicado, «2» sin asesor, reemplazo del borrador, «1 SÍ»), `run.php` 110 (10 nuevas de ciudad, variante y cantidad), `whatsapp-confirm` 65, `whatsapp-inbox` 43, `whatsapp-ads` 30, `whatsapp-notify` 27, `orders` 38, `order-editing` 52, `order-lookup` 18, `landing-variants` 40, `landing-stock` 24, `dropi-shipping` 20, `admin` 39.
+- **Limitaciones:** el precio por oferta de anuncio o código y la elección de variante dentro del chat no tienen prueba de punta a punta (sí la variante en pruebas internas). No se probó con una IA real ni con Meta ni Dropi reales.
+- **Datos reales:** ninguno.
+- **Siguiente paso:** probar en el piloto con la IA real; etapas 6 y 7.
+
 ### Plantilla para la próxima actualización
 
 ```text

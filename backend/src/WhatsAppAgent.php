@@ -13,7 +13,7 @@ namespace App;
  */
 final class WhatsAppAgent {
  public const ACTIONS=['none','ask_product','request_quote','present_summary','confirm','handoff','show_order'];
- public const CAPTURE=['name'=>'Nombre','city'=>'Ciudad','department'=>'Departamento','address'=>'Dirección','neighborhood'=>'Barrio','reference'=>'Referencia','quantity'=>'Cantidad','variant'=>'Variante'];
+ public const CAPTURE=['name'=>'Nombre','city'=>'Ciudad','department'=>'Departamento','address'=>'Dirección','neighborhood'=>'Barrio','reference'=>'Referencia','quantity'=>'Cantidad','variant'=>'Variante','email'=>'Correo'];
  private const HISTORY=20;
  private const REPLY_CHARS=['breve'=>350,'normal'=>700];
  private const MAX_TOKENS=['breve'=>400,'normal'=>800];
@@ -106,8 +106,11 @@ final class WhatsAppAgent {
    $productId=$offer?$offer['product']['id']:(in_array($c['product_id'],$ids,true)?$c['product_id']:(count($products)===1?$products[0]['id']:null));
    $sheet=$productId?WhatsAppSheets::approved($owner,$productId):null;
    $captured=json_decode((string)$c['captured'],true);$captured=is_array($captured)?$captured:[];
+   $landings=[];foreach($ids as $pid)$landings[$pid]=WhatsAppChatOrder::landing($owner,$pid);
+   $sell=$s['chat_orders']&&Entitlements::allows($owner,'whatsapp_ai');
    $input=['store'=>$account['verified_name']?:'la tienda','now'=>(new \DateTimeImmutable('now',new \DateTimeZone('America/Bogota')))->format('Y-m-d H:i'),'in_hours'=>WhatsAppAgentSettings::inHours($s),
-    'products'=>array_map(fn($p)=>['id'=>$p['id'],'name'=>$p['name']],$products),'product'=>$productId?['id'=>$productId,'name'=>$products[array_search($productId,$ids,true)]['name']]:null,
+    'products'=>array_map(fn($p)=>['id'=>$p['id'],'name'=>$p['name'],'price_text'=>$landings[$p['id']]?WhatsAppChatOrder::priceText($landings[$p['id']]):null],$products),
+    'buy'=>$sell&&$productId?(WhatsAppChatOrder::terms($landings[$productId])??['unavailable'=>'Este producto no se puede pedir por el chat: pásalo a un asesor cuando quiera comprar']):null,'product'=>$productId?['id'=>$productId,'name'=>$products[array_search($productId,$ids,true)]['name']]:null,
     'sheet'=>$sheet['content']??null,'captured'=>(object)$captured,'memory'=>(string)($c['summary']??''),'orders'=>WhatsAppOrderChat::context($owner,$c),
     'knowledge'=>WhatsAppKnowledge::relevant($owner,(string)($last['body']??'').' '.(string)($c['summary']??'')),
     'offer'=>$offer?['name'=>$offer['name'],'code'=>$offer['code'],'units'=>$offer['units'],'price_text'=>$offer['price']['text'],'certainty'=>$offer['certainty'],'came_from'=>$offer['method'],'new_entry_while_buying'=>$offer['changed']]:null,
@@ -138,6 +141,13 @@ final class WhatsAppAgent {
     if(!$number&&count($mine)>0){WhatsAppOrderChat::answerOrderQuestion($owner,$c);return true;}
     if(!$number){WhatsAppInbox::sendText($account,$c,self::ASK_ORDER,'system',null);return true;}}
    if($reply==='')$reply=$s['messages']['fallback'];
+   // Stage 5: with «Vender por WhatsApp» on, the server builds the order and shows the summary (never the AI's text).
+   if($sell&&in_array($action,['request_quote','present_summary','confirm'],true)){
+    $fresh=Database::one('SELECT c.*,ct.phone,ct.profile_name FROM whatsapp_conversations c JOIN whatsapp_contacts ct ON ct.id=c.contact_id AND ct.user_id=c.user_id WHERE c.id=?',[$id]);
+    try{$why=WhatsAppChatOrder::prepare($owner,$fresh);}catch(\Throwable $t){error_log('WhatsApp chat order '.$id.': '.get_class($t));$why='No se pudo armar el pedido desde el chat';}
+    if($why!==null)self::handoff($fresh,$why,'handoff',$account,$s);
+    return true;
+   }
    $reason=$action==='handoff'?(is_string($d['handoff_reason']??null)&&trim($d['handoff_reason'])!==''?'La IA pidió un asesor: '.trim($d['handoff_reason']):'La IA pidió un asesor'):(in_array($action,['request_quote','present_summary','confirm'],true)?self::BUYING:null);
    // With the handoff notice on, the customer receives only the store's custom message, not the AI text.
    if($reason!==null&&$s['handoff_notice']){self::handoff($c,$reason,'handoff',$account,$s);return true;}
@@ -165,13 +175,16 @@ final class WhatsAppAgent {
   if($h['unknown'])$motives[]='el cliente pregunta algo que no está en la ficha';
   if($h['no_sheet'])$motives[]='el cliente pregunta por un producto que no está en "products"';
   if($h['custom']!=='')$motives[]=$h['custom'];
+  $sell=$s['chat_orders']?'Puedes tomar pedidos en el chat. Si el cliente quiere comprar y "buy" no tiene "unavailable", pide uno o dos a la vez los datos que falten: variante (una de "buy.variants", si hay), cantidad (máximo "buy.max_quantity"; si hay "offer", la cantidad es la de la oferta), nombre y apellido, ciudad o municipio (y departamento si hay varias con ese nombre), dirección y barrio; la referencia y el correo son opcionales. Cuando los tengas todos, usa action "request_quote" con un "reply" corto: el sistema arma el pedido, le muestra el resumen con el precio y el envío y le pregunta «1 SÍ / 2 NO». No digas el total ni que el pedido quedó creado o confirmado. Si "buy" tiene "unavailable", pasa a un asesor cuando quiera comprar.'."\n"
+   :'No creas pedidos ni confirmes compras. Cuando el cliente quiera comprar, pide los datos que falten (nombre, ciudad y departamento, dirección, barrio, referencia, cantidad y variante si aplica), uno o dos a la vez; cuando los tengas, usa action "request_quote".'."\n";
   return 'Eres el asesor de ventas por WhatsApp de la tienda indicada en "store", en Colombia. Tono: '.$tone.'. '.$length."\n"
    .'Si el cliente solo agradece o se despide, responde con una despedida breve y amable: no ofrezcas productos ni temas que no pidió.'."\n"
    .'Responde siempre en español. Usa solo la información de la ficha aprobada ("sheet") y de "knowledge" (respuestas aprobadas por la tienda o la plataforma: úsalas tal cual cuando apliquen); no inventes características, garantías ni tiempos.'."\n"
-   .'Nunca digas ni calcules precios, costos de envío, totales, descuentos, tiempos de entrega ni disponibilidad, salvo el texto exacto de "offer.price_text" o de "sheet.price_note" si existen.'."\n"
+   .'Nunca digas ni calcules precios, costos de envío, totales, descuentos, tiempos de entrega ni disponibilidad, salvo el texto exacto de "offer.price_text", del "price_text" del producto en "products" o de "sheet.price_note" si existen.'."\n"
+   .'Si el cliente pregunta qué productos hay, cuéntale los de "products" (nombre y "price_text" si lo tiene) y pregunta cuál le interesa; cuando pregunte por uno, devuelve su id en "product_id".'."\n"
    .'En "orders" están los pedidos de este cliente (número, producto, total, estado y si falta confirmarlo). No inventes estados ni datos de pedidos. Si pregunta por un pedido, quiere confirmarlo o ver su información, usa action "show_order" con su número en "order_number" (o "" si tiene varios y no sabes cuál): el sistema le muestra el pedido y, si falta confirmarlo, le pregunta «1 SÍ / 2 NO». No digas que un pedido quedó confirmado: eso lo hace el sistema. Si no tiene pedidos en "orders", pídele su número de pedido, que empieza por TB. No pases a un asesor por preguntas sobre pedidos; solo si reporta un problema.'."\n"
    .'En "memory" está lo que ya sabes de esta conversación; devuelve en "memory" un resumen breve y actualizado (qué quiere el cliente, sus datos, pedidos mencionados y en qué quedó), máximo 400 caracteres. Si "order_number" no aplica, déjalo en "".'."\n"
-   .'No creas pedidos ni confirmes compras. Cuando el cliente quiera comprar, pide los datos que falten (nombre, ciudad y departamento, dirección, barrio, referencia, cantidad y variante si aplica), uno o dos a la vez; cuando los tengas, usa action "request_quote".'."\n"
+   .$sell
    .'Si "product" es null y hay varios productos en "products", pregunta cuál le interesa (action "ask_product"). Cuando lo identifiques, devuelve su id exacto en "product_id"; si no, deja "product_id" en "".'."\n"
    .'Si hay "offer", el cliente llegó por esa oferta: preséntala por su nombre y puedes decir exactamente "offer.price_text" (es el precio que calculó la tienda). Si "offer.certainty" es "media", confirma primero que le interesa esa oferta. Si "offer.new_entry_while_buying" es true, pregunta si quiere continuar la compra que ya tenía o empezar con esta oferta.'."\n"
    .($motives?'Pasa a un asesor (action "handoff", con el motivo en "handoff_reason" y un mensaje breve diciendo que un asesor le escribirá) cuando: '.implode('; ',$motives).".\n":'')

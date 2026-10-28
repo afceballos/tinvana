@@ -1,5 +1,5 @@
 // Agent settings form, shared by each store («Agente IA») and the superadmin defaults («Valores globales»).
-export type AgentSettings={enabled:boolean;handoff_notice:boolean;tone:string;instructions:string;length:string;
+export type AgentSettings={enabled:boolean;handoff_notice:boolean;chat_orders:boolean;tone:string;instructions:string;length:string;
  handoff:{customer_asks:boolean;complaint:boolean;unknown:boolean;no_sheet:boolean;custom:string};
  schedule:{days:number[];start:string;end:string;off_hours:'reply'|'handoff'};
  messages:{off_hours:string;fallback:string;unsupported:string;handoff:string}};
@@ -15,6 +15,7 @@ export function AgentSettingsForm({value,catalog,onChange,idPrefix='agent'}:{val
  const day=(d:number)=>set({schedule:{...value.schedule,days:value.schedule.days.includes(d)?value.schedule.days.filter(x=>x!==d):[...value.schedule.days,d].sort()}});
  return <div className="wa-agent-form">
   <label className="wa-switch"><input type="checkbox" checked={value.enabled} onChange={e=>set({enabled:e.target.checked})}/><span><strong>Agente de IA activo</strong><small>Si lo apagas, los chats nuevos llegan directo a un asesor.</small></span></label>
+  <label className="wa-switch"><input type="checkbox" checked={value.chat_orders} onChange={e=>set({chat_orders:e.target.checked})}/><span><strong>Vender por WhatsApp</strong><small>La IA toma los datos del cliente y Tinbana arma el pedido con el precio de la oferta o de la landing publicada y el envío de Dropi (o incluido). El cliente lo confirma con «1 SÍ». Si lo apagas, cuando alguien quiera comprar pasa a un asesor.</small></span></label>
   <fieldset><legend>Tono</legend><div className="wa-choices">{Object.entries(catalog.tones).map(([k,label])=><label key={k} className={'wa-choice'+(value.tone===k?' is-on':'')}><input type="radio" name={idPrefix+'-tone'} checked={value.tone===k} onChange={()=>set({tone:k})}/><strong>{label}</strong><small>{TONE_HINT[k]}</small></label>)}</div></fieldset>
   <fieldset><legend>Largo de las respuestas</legend><div className="wa-choices">{Object.entries(catalog.lengths).map(([k,label])=><label key={k} className={'wa-choice'+(value.length===k?' is-on':'')}><input type="radio" name={idPrefix+'-length'} checked={value.length===k} onChange={()=>set({length:k})}/><strong>{label}</strong><small>{LENGTH_HINT[k]}</small></label>)}</div></fieldset>
   <label>Instrucciones adicionales <span className="muted">(opcional)</span><textarea rows={2} maxLength={600} value={value.instructions} onChange={e=>set({instructions:e.target.value})} placeholder="Ej. Despedirse siempre con «¡Gracias por comprar en Tienda X!»"/></label>

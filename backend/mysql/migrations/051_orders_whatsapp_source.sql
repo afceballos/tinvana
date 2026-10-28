@@ -1,0 +1,1 @@
+ALTER TABLE orders DROP CONSTRAINT orders_source_ck, ADD CONSTRAINT orders_source_v2_ck CHECK (source IN ('landing','whatsapp'))

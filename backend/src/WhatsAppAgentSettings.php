@@ -11,7 +11,7 @@ final class WhatsAppAgentSettings {
  public const TONES=['cercano'=>'Cercano y amable','profesional'=>'Profesional','entusiasta'=>'Entusiasta'];
  public const LENGTHS=['breve'=>'Breve y al punto','normal'=>'Normal'];
  public const BUILT_IN=[
-  'enabled'=>true,'tone'=>'cercano','instructions'=>'','length'=>'breve','handoff_notice'=>true,
+  'enabled'=>true,'tone'=>'cercano','instructions'=>'','length'=>'breve','handoff_notice'=>true,'chat_orders'=>false,
   'handoff'=>['customer_asks'=>true,'complaint'=>true,'unknown'=>true,'no_sheet'=>true,'custom'=>''],
   'schedule'=>['days'=>[1,2,3,4,5,6],'start'=>'08:00','end'=>'20:00','off_hours'=>'reply'],
   'messages'=>[
@@ -34,7 +34,7 @@ final class WhatsAppAgentSettings {
  public static function clean(mixed $b): array {
   if(!is_array($b))throw new HttpError(422,'Ajustes inválidos.');
   // Settings saved before a field existed keep working: the missing field takes its built-in value.
-  $b['handoff_notice']??=self::BUILT_IN['handoff_notice'];if(is_array($b['messages']??null))$b['messages']['handoff']??=self::BUILT_IN['messages']['handoff'];
+  $b['handoff_notice']??=self::BUILT_IN['handoff_notice'];$b['chat_orders']??=self::BUILT_IN['chat_orders'];if(is_array($b['messages']??null))$b['messages']['handoff']??=self::BUILT_IN['messages']['handoff'];
   $tone=$b['tone']??null;if(!is_string($tone)||!isset(self::TONES[$tone]))throw new HttpError(422,'Elige un tono.');
   $length=$b['length']??null;if(!is_string($length)||!isset(self::LENGTHS[$length]))throw new HttpError(422,'Elige el largo de las respuestas.');
   $h=is_array($b['handoff']??null)?$b['handoff']:[];$s=is_array($b['schedule']??null)?$b['schedule']:[];$m=is_array($b['messages']??null)?$b['messages']:[];
@@ -47,6 +47,7 @@ final class WhatsAppAgentSettings {
   return [
    'enabled'=>is_bool($b['enabled']??null)?$b['enabled']:throw new HttpError(422,'Indica si el agente está activo.'),
    'handoff_notice'=>is_bool($b['handoff_notice'])?$b['handoff_notice']:throw new HttpError(422,'Indica si se avisa al cliente al pasar a un asesor.'),
+   'chat_orders'=>is_bool($b['chat_orders'])?$b['chat_orders']:throw new HttpError(422,'Indica si la IA arma pedidos en el chat.'),
    'tone'=>$tone,'instructions'=>self::str($b['instructions']??'',600,'Instrucciones adicionales'),'length'=>$length,
    'handoff'=>['customer_asks'=>$bool($h['customer_asks']??null),'complaint'=>$bool($h['complaint']??null),'unknown'=>$bool($h['unknown']??null),'no_sheet'=>$bool($h['no_sheet']??null),'custom'=>self::str($h['custom']??'',400,'Otros motivos')],
    'schedule'=>['days'=>$days,'start'=>$start,'end'=>$end,'off_hours'=>$off],

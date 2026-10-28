@@ -12,6 +12,7 @@ final class WhatsAppOrderChat {
  private const YES='/^\s*(1|s[ií]|confirm\w*|dale|de una|ok|listo)(?![\p{L}\p{N}])/iu';
  private const NO='/^\s*(2|no)(?![\p{L}\p{N}])/iu';
  public const ASK_CONFIRM='¿Lo confirmamos? Responde *1* para SÍ o *2* para NO (si quieres cambiar algo).';
+ public const CHANGE='Claro. Dime qué quieres cambiar (producto, opción, cantidad, dirección…) y te armo el resumen de nuevo.';
  public const ANY_MORE='¿Tienes alguna otra pregunta? Escríbela aquí. Si no, responde *no* y cerramos este chat.';
  public const GOODBYE='¡Con gusto! 😊 Damos por cerrado este chat. Si más adelante necesitas algo, escríbenos aquí mismo.';
  /** Words of a «no more questions» answer; anything else (a question, «pero…», «tengo una duda») goes on to the agent. */
@@ -106,6 +107,8 @@ final class WhatsAppOrderChat {
   $ref=($n=Database::one('SELECT id,order_number FROM orders WHERE id=?',[$p['order_id']]))?Orders::displayNumber($n):'';
   if($p['answer']==='no'){
    if($o=Database::one('SELECT * FROM orders WHERE id=? AND user_id=?',[$p['order_id'],$owner]))Orders::event($o,'whatsapp_change_requested',['conversation_id'=>$c['id'],'reply_wamid'=>$p['wamid']??null,'by'=>'text','answer'=>self::said((string)($p['text']??'2'),false)],null);
+   // An order made in this chat is changed in the chat: the agent asks what to change and builds the summary again.
+   if(isset($o)&&$o&&$o['source']==='whatsapp'&&$c['owner_mode']==='ai'&&WhatsAppAgentSettings::forUser($owner)['settings']['chat_orders']){self::send($owner,$c,self::CHANGE);return;}
    Database::query("UPDATE whatsapp_order_confirmations SET status='change',reply='change',replied_at=now(),updated_at=now() WHERE order_id=? AND user_id=? AND status<>'confirmed'",[$p['order_id'],$owner]);
    WhatsAppOrderConfirm::handoff($c,'Quiere cambiar algo del pedido '.$ref);
    Notifications::notify($owner,'order_change',WhatsAppAgent::who($c).' quiere cambiar algo de su pedido','Pedido '.$ref.'. Revisa el chat y corrige el pedido antes de confirmarlo.','/panel/whatsapp/'.$c['id'],(string)$c['id']);

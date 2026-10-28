@@ -12,29 +12,41 @@ final class Leads {
    'dropi_id'=>$p['id'],'category'=>array_values(array_filter(array_column($p['categories']??[],'name'))),
    'tags'=>['dropi-product-lead','product-'.$p['id']]];
  }
- public static function validate(array $b): array {
+ /** $chat: the order comes from the WhatsApp chat (WhatsAppChatOrder), where the email is optional. */
+ public static function validate(array $b,bool $chat=false): array {
   $key=$b['idempotency_key']??'';if(!is_string($key)||!Support::isUuid($key))throw new HttpError(422,'Identificador de consulta inválido.');
   if(($b['website']??'')!=='')throw new HttpError(422,'No fue posible aceptar la consulta.');
-  $first=Support::text($b['first_name']??null,100);$last=Support::text($b['last_name']??null,100);$email=Support::text($b['email']??null,254);$phone=Support::text($b['phone']??null,30);
-  if(!filter_var($email,FILTER_VALIDATE_EMAIL)||!preg_match('/^\+?[0-9 ()-]{7,30}$/',$phone)||strlen(preg_replace('/\D/','',$phone))<7)throw new HttpError(422,'Verifica el email y el teléfono.');
+  $first=Support::text($b['first_name']??null,100);$last=Support::text($b['last_name']??null,100);$email=$chat&&($b['email']??'')===''?'':Support::text($b['email']??null,254);$phone=Support::text($b['phone']??null,30);
+  if(!($chat&&$email==='')&&!filter_var($email,FILTER_VALIDATE_EMAIL))throw new HttpError(422,'Verifica el email y el teléfono.');
+  if(!preg_match('/^\+?[0-9 ()-]{7,30}$/',$phone)||strlen(preg_replace('/\D/','',$phone))<7)throw new HttpError(422,'Verifica el email y el teléfono.');
   $number=DeliveryAddress::phone($phone,$b['phone_country']??'CO');$delivery=DeliveryAddress::validate($b);return ['key'=>$key,'first'=>$first,'last'=>$last,'email'=>strtolower($email),'phone'=>$number['phone'],'phone_country'=>$number['phone_country'],'delivery'=>$delivery];
  }
- public static function save(array $landing,array $b): array {
-  $v=self::validate($b);$r=Landing::decode($landing);$c=$r['content'];$p=$r['product_snapshot'];
+ /**
+  * Saves a buyer request and its draft order. $chat (WhatsAppChatOrder) marks an order made in the WhatsApp chat:
+  * ['conversation_id', 'offer' => null|['name','code','units','unit_price'], 'fingerprint']. The offer of the chat fixes
+  * the quantity and the unit price; the WhatsApp template confirmation is not queued (the chat asks «1 SÍ / 2 NO»).
+  */
+ public static function save(array $landing,array $b,?array $chat=null): array {
+  $v=self::validate($b,$chat!==null);$r=Landing::decode($landing);$c=$r['content'];$p=$r['product_snapshot'];
   // Live stock with Dropi before saving (the buyer may have spent minutes on the form); a failure keeps the saved copy.
   $stock=LandingStock::check($r,true);if(!$stock['available'])throw new HttpError(409,LandingStock::SOLD_OUT,['sold_out'=>true]);
-  $quantity=filter_var($b['quantity']??1,FILTER_VALIDATE_INT);$max=$c['commerce']['quantityEnabled']?$c['commerce']['maxQuantity']:1;if($quantity===false||$quantity<1||$quantity>$max)throw new HttpError(422,'Cantidad inválida.');
+  $quantity=filter_var($b['quantity']??1,FILTER_VALIDATE_INT);$max=isset($chat['offer'])?100:($c['commerce']['quantityEnabled']?$c['commerce']['maxQuantity']:1);if($quantity===false||$quantity<1||$quantity>$max)throw new HttpError(422,'Cantidad inválida.');
   // The chosen variant sets the unit price (its own or the landing price); the browser only sends its id.
   $variant=LandingVariants::chosen($c,$p,$b);
   if($variant&&($stock['variants'][$variant['id']]??true)===false)throw new HttpError(409,'Esa opción se agotó. Elige otra, por favor.',['sold_out_variant'=>$variant['id']]);$data=self::productData($r,$quantity);
   if($variant){$data['variant']=['id'=>$variant['id'],'label'=>$variant['label'],'options'=>$variant['options']];$data['variant_id']=$variant['id'];$data['variant_label']=$variant['label'];if($variant['price']!==null){$data['public_price']=$data['unit_price']=$data['inflated_price']=$variant['price'];$data['total']=round($variant['price']*$quantity,2);}if($variant['image'])$data['image']=$variant['image'];}
+  if($chat!==null){
+   $data['origin']='whatsapp';$data['conversation_id']=$chat['conversation_id'];$data['chat_fingerprint']=$chat['fingerprint']??null;
+   if(isset($chat['offer'])){$unit=(float)$chat['offer']['unit_price'];$data['public_price']=$data['unit_price']=$data['inflated_price']=$unit;$data['total']=round($unit*$quantity,2);$data['whatsapp_offer']=['name'=>$chat['offer']['name'],'code'=>$chat['offer']['code'],'units'=>$chat['offer']['units']];$variant=$variant?['price'=>$unit]+$variant:null;}
+  }
   // Freight is quoted again on the server (never trusted from the browser); without a quote the lead is still saved.
-  if(($c['commerce']['dropiShipping']??false)===true){$q=DropiShipping::forLanding($r,$v['delivery']['city_code'],$quantity,$variant['price']??null);$data['shipping_source']='dropi';$data['shipping_price']=$q['amount']??null;$data['shipping_carrier']=$q['carrier']??null;$data['grand_total']=$q!==null&&$data['total']!==null?round($data['total']+$q['amount'],2):null;}
+  if(($c['commerce']['dropiShipping']??false)===true){$q=DropiShipping::forLanding($r,$v['delivery']['city_code'],$quantity,$variant['price']??(isset($chat['offer'])?(float)$chat['offer']['unit_price']:null));$data['shipping_source']='dropi';$data['shipping_price']=$q['amount']??null;$data['shipping_carrier']=$q['carrier']??null;$data['grand_total']=$q!==null&&$data['total']!==null?round($data['total']+$q['amount'],2):null;}
   $db=Database::connection();$db->beginTransaction();try{
    $lead=Database::one('INSERT INTO leads(id,user_id,landing_page_id,idempotency_key,first_name,last_name,email,phone,phone_country,delivery_address,product_data) VALUES(?,?,?,?,?,?,?,?,?,?::jsonb,?::jsonb) ON CONFLICT(landing_page_id,idempotency_key) DO NOTHING RETURNING id,status',[Support::uuid(),$r['user_id'],$r['id'],$v['key'],$v['first'],$v['last'],$v['email'],$v['phone'],$v['phone_country'],Support::json($v['delivery']),Support::json($data)]);
-   if($lead){Database::query('INSERT INTO webhook_deliveries(id,lead_id) VALUES(?,?)',[Support::uuid(),$lead['id']]);Orders::fromLead($r['user_id'],$lead['id']);$order=Database::one('SELECT * FROM orders WHERE lead_id=? AND user_id=?',[$lead['id'],$r['user_id']]);if($order){OrderMail::queue($order,'buyer_received');OrderMail::queue($order,'owner_new_order');$whatsapp=WhatsAppOrderConfirm::queue($order);}}
+   if($lead){Database::query('INSERT INTO webhook_deliveries(id,lead_id) VALUES(?,?)',[Support::uuid(),$lead['id']]);Orders::fromLead($r['user_id'],$lead['id']);$order=Database::one('SELECT * FROM orders WHERE lead_id=? AND user_id=?',[$lead['id'],$r['user_id']]);if($order){OrderMail::queue($order,'buyer_received');OrderMail::queue($order,'owner_new_order');if($chat===null)$whatsapp=WhatsAppOrderConfirm::queue($order);}}
    else $lead=Database::one('SELECT id,status FROM leads WHERE landing_page_id=? AND idempotency_key=?',[$r['id'],$v['key']]);
-   $db->commit();$number=Database::one('SELECT order_number FROM orders WHERE lead_id=? AND user_id=?',[$lead['id'],$r['user_id']])['order_number']??null;
+   $db->commit();$o=Database::one('SELECT id,order_number FROM orders WHERE lead_id=? AND user_id=?',[$lead['id'],$r['user_id']]);$number=$o['order_number']??null;
+   if($chat!==null)return ['order_id'=>$o['id']??null,'order_number'=>$number];
    return ['saved'=>true,'order_number'=>$number,'tracking_url'=>$number?OrderLookup::url((string)$r['user_id'],$number):null,'whatsapp_confirmation'=>isset($whatsapp),'whatsapp'=>isset($whatsapp)&&$whatsapp['link']?$whatsapp:null,'delivery_status'=>$lead['status'],'message'=>$lead['status']==='delivered'?'Tu consulta fue guardada y enviada.':'Tu consulta fue guardada. El envío al equipo está pendiente.'];
   }catch(\Throwable $e){$db->rollBack();throw $e;}
  }

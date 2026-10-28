@@ -27,6 +27,8 @@ const openai=createServer(tls,(req,res)=>{let raw='';req.on('data',c=>raw+=c);re
  const empty={name:'',city:'',department:'',address:'',neighborhood:'',reference:'',quantity:'',variant:''};
  const pid=input.products[0]?.id||'';
  if(/falla/i.test(last))return reply({},500);
+ // Test shortcut: «pedido: {json}» is what the customer gave; the AI asks the server for the summary.
+ if(/^pedido: /.test(last))return reply({reply:'Listo, ya te armo el resumen.',intent:'comprar',product_id:pid,captured:{...empty,...JSON.parse(last.slice(8))},action:'request_quote',handoff_reason:'',order_number:'',memory:''});
  if(/qué pedidos tengo/i.test(last))return reply({reply:'Te muestro tu pedido.',intent:'pedido',product_id:'',captured:empty,action:'show_order',handoff_reason:'',order_number:'',memory:'Clienta Nora; preguntó por sus pedidos.'});
  if(/hablar con alguien/i.test(last))return reply({reply:'Claro, te comunico con un asesor.',intent:'asesor',product_id:'',captured:empty,action:'handoff',handoff_reason:'el cliente pidió una persona'});
  if(/lo quiero/i.test(last))return reply({reply:'¡Perfecto, Laura! Ya tengo tus datos.',intent:'comprar',product_id:pid,captured:{...empty,name:'Laura Gómez',city:'Pereira',department:'Risaralda',quantity:'2'},action:'request_quote',handoff_reason:''});
@@ -176,6 +178,32 @@ try{
  check('after reopening, the AI history starts at the closing',!JSON.stringify(ai.at(-1).input.history).includes('Muchas gracias')&&JSON.stringify(ai.at(-1).input.history).includes('qué pedidos tengo'));
  check('the AI sees the customer\'s orders (number, status, whether to confirm) and its memory',ai.length===a8+1&&ai.at(-1).input.orders.length===2&&ai.at(-1).input.orders.some(x=>x.number===o2.order_number&&x.needs_confirmation===true)&&'memory' in ai.at(-1).input);
  check('the AI action «show_order» is answered by the server with the orders, and the memory is kept',sends.at(-1).text.body.includes(o2.order_number)&&(await detail(nora.id)).conversation.memory==='Clienta Nora; preguntó por sus pedidos.');
+ // Stage 5: orders made in the chat, also without a link
+ v=await agent();check('«Vender por WhatsApp» is off by default',v.settings.chat_orders===false);
+ check('the store turns on «Vender por WhatsApp»',(await owner.ctx.put('/api/whatsapp/agent',{headers:owner.H,data:{...v.settings,chat_orders:true}})).ok()&&(await agent()).settings.chat_orders===true);
+ const a10=ai.length;await say('573007770020','Mario Ruiz','Hola, ¿qué productos tienen?');const cat=ai.at(-1);
+ check('without a link the AI gets the catalog with each price and the instructions to sell',ai.length===a10+1&&cat.input.products.some(x=>x.price_text==='$59.900')&&cat.payload.instructions.includes('qué productos hay')&&cat.payload.instructions.includes('Puedes tomar pedidos')&&cat.input.buy&&cat.input.buy.max_quantity>=1);
+ const mario=await convOf('573007770020');const ask=d=>say('573007770020','Mario Ruiz','pedido: '+JSON.stringify(d));
+ const chatOrders=async()=>(await(await owner.ctx.get('/api/orders')).json()).orders.filter(o=>o.customer.phone==='+573007770020');
+ await ask({name:'Mario',city:'Cali',address:'Calle 5 # 10-20',neighborhood:'San Fernando'});
+ check('without the surname the server asks for it and creates nothing',/nombre y apellido/.test(sends.at(-1).text.body)&&(await chatOrders()).length===0);
+ await ask({name:'Mario Ruiz',city:'Barbosa',address:'Calle 5 # 10-20',neighborhood:'Centro'});
+ check('a city that exists in two departments asks which one',/Antioquia/.test(sends.at(-1).text.body)&&/Santander/.test(sends.at(-1).text.body));
+ const data={name:'Mario Ruiz',city:'Cali',address:'Calle 5 # 10-20',neighborhood:'San Fernando',reference:'Casa azul'};
+ await ask(data);let mo=await chatOrders();last=sends.at(-1).text.body;
+ check('with all the data the server creates the order (WhatsApp, Cali 76001, landing price, shipping included) and asks 1 SÍ / 2 NO',mo.length===1&&mo[0].source==='whatsapp'&&mo[0].delivery_address.city_code==='76001'&&/San Fernando/.test(mo[0].delivery_address.address_details)&&mo[0].unit_price==='59900.00'&&mo[0].shipping_price==='0.00'&&last.includes(mo[0].order_number)&&last.includes('Responde *1*'));
+ check('the AI text is not sent: the summary comes from the server, and the store is notified',!sends.slice(-3).some(x=>(x.text?.body||'').includes('ya te armo'))&&JSON.parse(await helper('notifications')).some(n=>n.kind==='chat_order'));
+ await ask(data);
+ check('the same data again shows the same order, without a duplicate',(await chatOrders()).length===1&&sends.at(-1).text.body.includes(mo[0].order_number));
+ await say('573007770020','Mario Ruiz','2');
+ check('«2 NO» on a chat order asks what to change, without an advisor',/qué quieres cambiar/.test(sends.at(-1).text.body)&&(await detail(mario.id)).conversation.owner_mode==='ai');
+ await ask({...data,neighborhood:'Granada'});mo=await chatOrders();
+ const fresh=mo.find(o=>o.sale_status==='draft'),old=mo.find(o=>o.sale_status==='cancelled');
+ check('changed data creates a new order and cancels the previous draft',mo.length===2&&fresh&&old&&/Granada/.test(fresh.delivery_address.address_details)&&sends.at(-1).text.body.includes(fresh.order_number));
+ await say('573007770020','Mario Ruiz','1');
+ const fd=(await(await owner.ctx.get('/api/orders/'+fresh.id)).json()).order;
+ check('«1 SÍ» confirms the chat order in Pedidos',fd.sale_status==='confirmed'&&fd.confirmation.method==='whatsapp_text'&&fd.confirmation.evidence.includes('«1 SÍ»'));
+ v=await agent();await owner.ctx.put('/api/whatsapp/agent',{headers:owner.H,data:{...v.settings,chat_orders:false}});
  // Closing after 24 hours without messages and deleting the messages 30 days after the closing
  await helper('close-age',nora.id,'25');let hk=JSON.parse(await helper('housekeeping'));
  const idle=(await detail(nora.id)).conversation;

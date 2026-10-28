@@ -252,6 +252,16 @@ Documentación oficial consultada el 2026-10-27 (mensajes interactivos con boton
 - **IA:** si el cliente solo agradece o se despide, responde con una despedida breve y no ofrece productos que no pidió.
 
 
+### Etapa 5 · Pedidos armados en el chat (2026-10-28, PostgreSQL `034`, MySQL `051`)
+
+- **Interruptor «Vender por WhatsApp»** en los ajustes del agente (`chat_orders`, apagado por defecto; también en los predeterminados de superadmin). Apagado, quien quiere comprar pasa a un asesor como antes.
+- **Catálogo sin enlace:** la IA recibe los productos con ficha aprobada y, si tienen landing publicada, su `price_text` (precio de la landing o «desde» la variante más barata disponible), que puede decir tal cual. También recibe `buy` (variantes disponibles, cantidad máxima) del producto elegido.
+- **Datos:** la IA pide nombre y apellido, ciudad (y departamento si se repite), dirección, barrio, variante y cantidad; referencia y correo opcionales. No se pide cédula: la integración con Dropi no la envía. Con todo, devuelve `request_quote` y su texto no se envía.
+- **Servidor (`WhatsAppChatOrder`):** valida y pregunta lo que falta o es ambiguo (apellido, ciudad repetida, variante, cantidad máxima). Ciudad por nombre DANE (acepta «Cali» por «Santiago De Cali»; con nombre parcial prefiere la capital del departamento). Precio: la oferta del chat (anuncio o código) si es del mismo producto, que fija las unidades (si el total no se reparte en unidades exactas, pasa a un asesor); si no, la landing publicada (precio de la variante). Sin landing publicada, pasa a un asesor. Crea la consulta y el pedido por el mismo camino que el formulario (stock en vivo con Dropi, envío de Dropi o incluido, correo a la tienda, GHL) con `orders.source=whatsapp` y `product_data.origin=whatsapp`; no encola la plantilla de confirmación. Aviso «Un cliente armó un pedido en el chat» (`chat_order`).
+- **Resumen y confirmación:** muestra el resumen con «1 SÍ / 2 NO». Los mismos datos muestran el mismo pedido; datos distintos crean otro y cancelan el borrador anterior del chat. «1» confirma (evidencia «1 SÍ»); «2» en un pedido del chat pregunta qué cambiar y la IA sigue, sin asesor.
+- **Panel:** etiqueta «WhatsApp» en la lista de pedidos y «Por WhatsApp» en el detalle.
+
+
 ### Configuración en Meta (cuando se autorice el piloto real)
 
 1. En la app de Meta: WhatsApp → Configuración → Webhook: URL `https://<dominio>/whatsapp/webhook` y el mismo `WHATSAPP_VERIFY_TOKEN` del servidor; suscribir el campo `messages`.

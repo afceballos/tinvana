@@ -50,3 +50,7 @@
 .order-search label:focus-within{border-color:var(--brand-accent,#ff6a00);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-accent,#ff6a00) 20%,transparent)}
 .order-search .secondary{min-height:44px}
 :root[data-theme=dark] .order-number{color:#fdba74}
+/* Order made in the WhatsApp chat (stage 5). */
+.order-origin{display:inline-block;margin:0 0 2px 8px;padding:0 7px;border-radius:999px;background:#e9f8ef;color:#14532d;font-size:11px;font-weight:700}
+.order-state.is-whatsapp{background:#e9f8ef;color:#14532d}
+:root[data-theme=dark] .order-origin,:root[data-theme=dark] .order-state.is-whatsapp{background:#123222;color:#4ade80}

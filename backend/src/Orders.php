@@ -35,10 +35,12 @@ final class Orders {
   $shipping=is_numeric($p['shipping_price']??null)?self::amount((string)(int)$p['shipping_price'],true):null;
     // The variant the buyer chose on the landing comes with its label, so the order is ready for Dropi.
   $variant=is_array($p['variant']??null)&&preg_match('/^[1-9][0-9]{0,17}$/D',(string)($p['variant']['id']??''))?['id'=>(string)$p['variant']['id'],'label'=>(string)($p['variant']['label']??''),'sku'=>null]:null;
-  $r=Database::one('INSERT INTO orders(id,order_number,user_id,lead_id,customer,delivery_address,product_data,quantity,unit_price,shipping_price,variant_data) VALUES(?,?,?,?,?::jsonb,?::jsonb,?::jsonb,?,?,?,?::jsonb) ON CONFLICT(lead_id) DO NOTHING RETURNING *',[
-   $id,self::newNumber(),$owner,$leadId,Support::json(array_intersect_key($lead,array_flip(['first_name','last_name','email','phone']))),$lead['delivery_address']??'{}',$lead['product_data'],max(1,min(100,(int)($p['quantity']??1))),$unit,$shipping,$variant?Support::json($variant):null
+  // An order made in the WhatsApp chat (WhatsAppChatOrder) keeps that origin.
+  $source=($p['origin']??'')==='whatsapp'?'whatsapp':'landing';
+  $r=Database::one('INSERT INTO orders(id,order_number,user_id,lead_id,source,customer,delivery_address,product_data,quantity,unit_price,shipping_price,variant_data) VALUES(?,?,?,?,?,?::jsonb,?::jsonb,?::jsonb,?,?,?,?::jsonb) ON CONFLICT(lead_id) DO NOTHING RETURNING *',[
+   $id,self::newNumber(),$owner,$leadId,$source,Support::json(array_intersect_key($lead,array_flip(['first_name','last_name','email','phone']))),$lead['delivery_address']??'{}',$lead['product_data'],max(1,min(100,(int)($p['quantity']??1))),$unit,$shipping,$variant?Support::json($variant):null
   ]);
-  if($r)self::event($r,'created',['origin'=>'landing','lead_id'=>$leadId],null);
+  if($r)self::event($r,'created',['origin'=>$source,'lead_id'=>$leadId]+($source==='whatsapp'?['conversation_id'=>$p['conversation_id']??null]:[]),null);
   else $r=Database::one('SELECT * FROM orders WHERE lead_id=? AND user_id=?',[$leadId,$owner]);
   return self::view($r);
  }

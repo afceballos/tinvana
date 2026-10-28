@@ -113,4 +113,11 @@ check('old temporary upload follows current origin',App\Media::rebase(['blocks'=
 check('external image origin stays unchanged',App\Media::rebase('https://example.com/media/'.$mediaId.'.webp')==='https://example.com/media/'.$mediaId.'.webp');
 foreach(['no','No, gracias','Muchas gracias!!','listo 👍','👍','Ok, perfecto','nada más, gracias','Gracias, Dios le bendiga'] as $t)check('closing answer: '.$t,App\WhatsAppOrderChat::isDone($t));
 foreach(['¿Cuándo llega?','no, pero quiero cambiar la dirección','sí','tengo una duda','gracias, otra cosa: el color',''] as $t)check('not a closing answer: '.$t,!App\WhatsAppOrderChat::isDone($t));
+foreach([['Cali','','76001'],['Bogotá','','11001'],['medellin','','05001'],['Barbosa','Santander','68077'],['Cartagena','','13001']] as [$city,$dep,$code])check('chat city: '.$city,(App\WhatsAppChatOrder::city($city,$dep)[0]['city_code']??null)===$code);
+check('chat city repeated asks for the department',App\WhatsAppChatOrder::city('Barbosa','')[0]===null&&str_contains((string)App\WhatsAppChatOrder::city('Barbosa','')[1],'Antioquia'));
+check('chat city unknown asks again',App\WhatsAppChatOrder::city('Xyzópolis','')[0]===null);
+$vs=[['id'=>'1','label'=>'Negro','options'=>['Color'=>'Negro'],'available'=>true],['id'=>'2','label'=>'Blanco','options'=>['Color'=>'Blanco'],'available'=>true],['id'=>'3','label'=>'Rojo','options'=>['Color'=>'Rojo'],'available'=>false]];
+check('chat variant by name',(App\WhatsAppChatOrder::variant($vs,'el negro por favor')[0]['id']??null)==='1');
+check('chat variant sold out or missing asks with the available ones',App\WhatsAppChatOrder::variant($vs,'rojo')[0]===null&&str_contains((string)App\WhatsAppChatOrder::variant($vs,'')[1],'Negro, Blanco'));
+check('chat quantity in words and digits',App\WhatsAppChatOrder::quantity('dos')===2&&App\WhatsAppChatOrder::quantity('3 unidades')===3&&App\WhatsAppChatOrder::quantity('')===null);
 echo "$passed tests passed. No external services used.\n";
