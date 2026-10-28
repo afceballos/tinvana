@@ -22,9 +22,9 @@ try{
  v=await(await owner.put('/api/mail-settings',{headers:H,data:{settings:draft}})).json();
  check('sender name sanitized for the From header',v.settings.sender_name==='Mi Tienda Pro x');
  const p=await(await owner.post('/api/mail-settings/preview/buyer_received',{headers:H,data:{settings:v.settings}})).json();
- check('preview renders the Tinvana layout with store and escaped message',p.html.includes('Recibimos tu pedido')&&p.html.includes('Mi Tienda Pro x')&&p.html.includes('&lt;b&gt;lunes&lt;/b&gt;')&&p.html.includes('/brand/tinvana-mail.png')&&p.subject==='Recibimos tu pedido · Mi Tienda Pro x');
+ check('preview renders the Tinbana layout with store and escaped message',p.html.includes('Recibimos tu pedido')&&p.html.includes('Mi Tienda Pro x')&&p.html.includes('&lt;b&gt;lunes&lt;/b&gt;')&&p.html.includes('/brand/tinvana-mail.png')&&p.subject==='Recibimos tu pedido · Mi Tienda Pro x');
  const op=await(await owner.post('/api/mail-settings/preview/owner_new_order',{headers:H,data:{}})).json();
- check('owner preview has the order button and buyer contact',op.html.includes('Ver pedido')&&op.html.includes('cliente@ejemplo.com')&&op.subject.startsWith('Nuevo pedido #'));
+ check('owner preview has the order button and buyer contact',op.html.includes('Ver pedido')&&op.html.includes('cliente@ejemplo.com')&&op.subject.startsWith('Nuevo pedido TB-'));
  check('unknown email kind rejected',(await owner.post('/api/mail-settings/preview/otro',{headers:H,data:{}})).status()===404);
  check('fixture landing published',(await owner.post('/api/landings/'+f.landing+'/publish',{headers:H})).status()===200);
  const page=await(await visitor.get('/p/'+f.slug)).text();const token=page.match(/name="csrf" value="([^"]+)"/)[1];

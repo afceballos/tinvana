@@ -47,7 +47,7 @@ export function WhatsAppAdsPage(){
   </section>
   <section className="panel webhook-current wa-offers">
    <div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name="tag"/></span><div><span className="eyebrow">Qué vendes en cada anuncio</span><h2>Ofertas</h2></div></div>
-   <p className="small muted">Una oferta es un producto con sus unidades (por ejemplo, combos de 2) y su precio: el de los tramos por cantidad del producto o un precio fijo. El precio lo calcula Tinvana; la IA solo lo repite.</p>
+   <p className="small muted">Una oferta es un producto con sus unidades (por ejemplo, combos de 2) y su precio: el de los tramos por cantidad del producto o un precio fijo. El precio lo calcula Tinbana; la IA solo lo repite.</p>
    <ul className="wa-offer-list">{view.offers.map(o=><li key={o.id}>
     <span className="wa-code">{o.code}</span><div><strong>{o.name}</strong><small>{o.label}{o.landing_default&&' · botón de WhatsApp de las landings'}</small></div>
     <div className="wa-row-actions"><button className="secondary" disabled={busy} onClick={()=>setOfferForm({id:o.id,product_id:o.product.id,name:o.name,units:o.units,price_mode:o.price_mode,fixed_price:o.fixed_price!==null?String(o.fixed_price):'',code:o.code,landing_default:o.landing_default})}>Editar</button><button className="secondary danger" disabled={busy} onClick={()=>void run(()=>api<View>('/api/whatsapp/offers/'+o.id,{method:'DELETE'}),'Oferta archivada.')}>Archivar</button></div>
@@ -64,12 +64,12 @@ export function WhatsAppAdsPage(){
    <section className="panel webhook-current"><div className="webhook-head"><div><span className="eyebrow">Guía</span><h2>Configurar un anuncio nuevo</h2></div></div>
     <h3 className="wa-help-title">En Meta (Administrador de anuncios)</h3>
     <ol className="wa-steps"><li>Crea la campaña y en «Ubicación de la conversión» elige <strong>Apps de mensajes → WhatsApp</strong>.</li><li>Elige el número de tu tienda.</li><li>En «Mensaje predeterminado» pega el texto de la oferta (lo copias arriba).</li><li>Publica el anuncio.</li></ol>
-    <h3 className="wa-help-title">En Tinvana, elige una forma</h3>
+    <h3 className="wa-help-title">En Tinbana, elige una forma</h3>
     <div className="wa-ways"><div><strong>Asignarlo al primer mensaje</strong> <span className="wa-tag is-ok">Recomendado</span><p className="small muted">No copias nada. Cuando llegue el primer cliente, el anuncio aparece arriba en amarillo con el título y la imagen que envía Meta, y eliges su oferta.</p></div><div><strong>Dejarlo listo antes de publicar</strong><p className="small muted">Copia el identificador del anuncio en Meta y pégalo con «Agregar anuncio».</p></div></div>
    </section>
    <section className="panel webhook-current"><div className="webhook-head"><div><span className="eyebrow">Sin adivinar</span><h2>Cómo se reconoce el producto</h2></div></div>
     <p className="small muted">El agente sigue este orden y nunca elige el producto más vendido por defecto.</p>
-    <ol className="wa-steps"><li>Identificador del anuncio recibido con el mensaje, buscado en esta tabla.</li><li>Código de oferta del botón de WhatsApp de la landing (lleva una firma que Tinvana comprueba).</li><li>Código escrito en el mensaje: se toma como indicio y el agente lo confirma, porque el cliente pudo editarlo.</li><li>Sin relación clara: el agente pregunta qué producto le interesa.</li></ol>
+    <ol className="wa-steps"><li>Identificador del anuncio recibido con el mensaje, buscado en esta tabla.</li><li>Código de oferta del botón de WhatsApp de la landing (lleva una firma que Tinbana comprueba).</li><li>Código escrito en el mensaje: se toma como indicio y el agente lo confirma, porque el cliente pudo editarlo.</li><li>Sin relación clara: el agente pregunta qué producto le interesa.</li></ol>
     <p className="small muted">Si la persona llega por otro anuncio, se guarda como una entrada nueva y no cambia un pedido anterior; si tenía una compra en curso, el agente le pregunta si quiere continuarla o empezar otra.</p>
    </section>
   </div>
@@ -81,14 +81,14 @@ function OfferEditor({form,products,busy,onCancel,onSave}:{form:OfferForm;produc
  return <form className="editor-form wa-inline-form" onSubmit={e=>{e.preventDefault();onSave(f);}}>
   <h3>{f.id?'Editar oferta':'Nueva oferta'}</h3>
   <label>Producto<select value={f.product_id} disabled={!!f.id} onChange={e=>setF({...f,product_id:e.target.value})}>{products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-  <label>Nombre de la oferta<input required maxLength={160} value={f.name} onChange={e=>setF({...f,name:e.target.value})} placeholder="Ej. el picatodo eléctrico"/><span className="small muted">Se usa en el mensaje: «Hola, quiero {f.name||'…'} ({f.code||'TV-…'})».</span></label>
+  <label>Nombre de la oferta<input required maxLength={160} value={f.name} onChange={e=>setF({...f,name:e.target.value})} placeholder="Ej. el picatodo eléctrico"/><span className="small muted">Se usa en el mensaje: «Hola, quiero {f.name||'…'} ({f.code||'TB-…'})».</span></label>
   <label>Unidades<input type="number" min={1} max={99} required value={f.units} onChange={e=>setF({...f,units:Number(e.target.value)})}/></label>
   <fieldset className="wa-choices-row"><legend>Precio</legend>
    <label className="wa-check"><input type="radio" name="price_mode" checked={f.price_mode==='tiers'} onChange={()=>setF({...f,price_mode:'tiers'})}/>Tramos por cantidad del producto (Mis productos → Ofertas)</label>
    <label className="wa-check"><input type="radio" name="price_mode" checked={f.price_mode==='fixed'} onChange={()=>setF({...f,price_mode:'fixed'})}/>Precio fijo para esta oferta</label>
    {f.price_mode==='fixed'&&<label>Precio total (COP)<input type="number" min={0} step={100} required value={f.fixed_price} onChange={e=>setF({...f,fixed_price:e.target.value})} placeholder="Ej. 99000"/></label>}
   </fieldset>
-  <label>Código <span className="muted">(opcional)</span><input maxLength={15} value={f.code} onChange={e=>setF({...f,code:e.target.value.toUpperCase()})} placeholder="Se genera solo, ej. TV-PICA1"/></label>
+  <label>Código <span className="muted">(opcional)</span><input maxLength={15} value={f.code} onChange={e=>setF({...f,code:e.target.value.toUpperCase()})} placeholder="Se genera solo, ej. TB-PICA1"/></label>
   <label className="wa-check"><input type="checkbox" checked={f.landing_default} onChange={e=>setF({...f,landing_default:e.target.checked})}/>Usar en el botón de WhatsApp de las landings de este producto</label>
   <div className="row"><button className="primary" disabled={busy}>{busy?'Guardando…':'Guardar oferta'}</button><button type="button" className="secondary" onClick={onCancel}>Cancelar</button></div>
  </form>;

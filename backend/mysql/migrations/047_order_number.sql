@@ -1,0 +1,1 @@
+ALTER TABLE orders ADD COLUMN order_number VARCHAR(16) NULL, ADD UNIQUE KEY orders_order_number_uq (order_number)

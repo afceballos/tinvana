@@ -6,6 +6,8 @@ use App\{Support,Database};
 if(!str_ends_with(Support::env('DB_DATABASE'),'_test')||Support::env('DB_HOST')!=='127.0.0.1')throw new RuntimeException('Local test database only.');
 $fixture=json_decode(file_get_contents(dirname(__DIR__,2).'/.tools/test-fixture.json'),true);
 if(($argv[1]??'')==='reset-limits')Database::query('DELETE FROM rate_limits');
+// An order created before order numbers existed (it must get one when read).
+if(($argv[1]??'')==='clear-number')Database::query('UPDATE orders SET order_number=NULL WHERE id=? AND user_id=?',[$argv[2]??'',$fixture['owner']]);
 // The last stock check of the fixture product is old, so the next buy button asks Dropi again.
 if(($argv[1]??'')==='stock-expire')Database::query('UPDATE selected_products SET stock_checked_at=NULL WHERE id=? AND user_id=?',[$fixture['product'],$fixture['owner']]);
 if(in_array($argv[1]??'',['reset-orders','reset-editing'],true)){

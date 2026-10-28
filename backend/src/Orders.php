@@ -4,6 +4,27 @@ namespace App;
 
 /** Local order lifecycle. Submission to Dropi lives in DropiOrders. */
 final class Orders {
+ // Public order number TB-XXXX-XXXX: random, unique (database index), without 0/O/1/I/L so it reads and dictates well.
+ private const NUMBER_CHARS='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+ public const NUMBER_RE='[ABCDEFGHJKMNPQRSTUVWXYZ2-9]{4}';
+ public static function newNumber(): string {
+  for($i=0;$i<20;$i++){$c='';for($j=0;$j<8;$j++)$c.=self::NUMBER_CHARS[random_int(0,strlen(self::NUMBER_CHARS)-1)];$n='TB-'.substr($c,0,4).'-'.substr($c,4);
+   if(!Database::one('SELECT id FROM orders WHERE order_number=?',[$n]))return $n;}
+  throw new \RuntimeException('No se pudo generar el número de pedido.');
+ }
+ /** Accepts TB-7KQ2-MX9P written with or without dashes, spaces or lowercase; null when it is not an order number. */
+ public static function normalizeNumber(string $raw): ?string {
+  $s=strtoupper(preg_replace('/[^a-z0-9]/i','',$raw)??'');if(str_starts_with($s,'TB'))$s=substr($s,2);
+  return preg_match('/^('.self::NUMBER_RE.')('.self::NUMBER_RE.')$/D',$s,$m)?'TB-'.$m[1].'-'.$m[2]:null;
+ }
+ /** Orders created before the number existed get one the first time they are read. */
+ private static function ensureNumber(array $r): array {
+  if(!empty($r['order_number'])||empty($r['id']))return $r;
+  for($i=0;$i<3;$i++){try{Database::query('UPDATE orders SET order_number=? WHERE id=? AND order_number IS NULL',[self::newNumber(),$r['id']]);break;}catch(\PDOException){}}
+  $r['order_number']=Database::one('SELECT order_number FROM orders WHERE id=?',[$r['id']])['order_number']??null;return $r;
+ }
+ /** Number shown to people: the public order number, or the first 8 characters of the id. */
+ public static function displayNumber(array $r): string {return !empty($r['order_number'])?(string)$r['order_number']:strtoupper(substr((string)$r['id'],0,8));}
  public static function fromLead(string $owner,string $leadId): array {
   if(!Support::isUuid($leadId))throw new HttpError(404,'Consulta no encontrada.');
   $lead=Database::one('SELECT * FROM leads WHERE id=? AND user_id=?',[$leadId,$owner]);
@@ -14,8 +35,8 @@ final class Orders {
   $shipping=is_numeric($p['shipping_price']??null)?self::amount((string)(int)$p['shipping_price'],true):null;
     // The variant the buyer chose on the landing comes with its label, so the order is ready for Dropi.
   $variant=is_array($p['variant']??null)&&preg_match('/^[1-9][0-9]{0,17}$/D',(string)($p['variant']['id']??''))?['id'=>(string)$p['variant']['id'],'label'=>(string)($p['variant']['label']??''),'sku'=>null]:null;
-  $r=Database::one('INSERT INTO orders(id,user_id,lead_id,customer,delivery_address,product_data,quantity,unit_price,shipping_price,variant_data) VALUES(?,?,?,?::jsonb,?::jsonb,?::jsonb,?,?,?,?::jsonb) ON CONFLICT(lead_id) DO NOTHING RETURNING *',[
-   $id,$owner,$leadId,Support::json(array_intersect_key($lead,array_flip(['first_name','last_name','email','phone']))),$lead['delivery_address']??'{}',$lead['product_data'],max(1,min(100,(int)($p['quantity']??1))),$unit,$shipping,$variant?Support::json($variant):null
+  $r=Database::one('INSERT INTO orders(id,order_number,user_id,lead_id,customer,delivery_address,product_data,quantity,unit_price,shipping_price,variant_data) VALUES(?,?,?,?,?::jsonb,?::jsonb,?::jsonb,?,?,?,?::jsonb) ON CONFLICT(lead_id) DO NOTHING RETURNING *',[
+   $id,self::newNumber(),$owner,$leadId,Support::json(array_intersect_key($lead,array_flip(['first_name','last_name','email','phone']))),$lead['delivery_address']??'{}',$lead['product_data'],max(1,min(100,(int)($p['quantity']??1))),$unit,$shipping,$variant?Support::json($variant):null
   ]);
   if($r)self::event($r,'created',['origin'=>'landing','lead_id'=>$leadId],null);
   else $r=Database::one('SELECT * FROM orders WHERE lead_id=? AND user_id=?',[$leadId,$owner]);
@@ -42,6 +63,7 @@ final class Orders {
   if(!$r)throw new HttpError(404,'Pedido no encontrado.');return $r;
  }
  public static function view(array $r): array {
+  $r=self::ensureNumber($r);
   foreach(['customer','delivery_address','product_data','confirmation','variant_data','offer_snapshot','integration_data','dropi_tracking'] as $key)$r[$key]=($r[$key]??null)===null?null:json_decode($r[$key],true,512,JSON_THROW_ON_ERROR);
   $r['quantity']=(int)$r['quantity'];$r['version']=(int)$r['version'];
   $r['total']=$r['unit_price']!==null&&$r['shipping_price']!==null?self::decimal(self::cents($r['unit_price'])*$r['quantity']+self::cents($r['shipping_price'])):null;
@@ -51,6 +73,9 @@ final class Orders {
   $status=$q['status']??'';if(!is_string($status)||!in_array($status,['','draft','confirmed','cancelled'],true))throw new HttpError(422,'Estado inválido.');
   $page=max(1,min(10000,(int)($q['page']??1)));$args=[$owner];$where='user_id=?';
   if($status!==''){$where.=' AND sale_status=?';$args[]=$status;}
+  // Search by order number (TB-7KQ2-MX9P, with or without dashes) or a part of it.
+  $q2=is_string($q['q']??null)?strtoupper(preg_replace('/[^a-z0-9]/i','',$q['q'])??''):'';if(str_starts_with($q2,'TB'))$q2=substr($q2,2);
+  if($q2!==''){if(strlen($q2)>8)throw new HttpError(422,'Número de pedido inválido.');$where.=" AND REPLACE(order_number,'-','') LIKE ?";$args[]='%'.$q2.'%';}
   // Date range by Colombia calendar day (UTC-5, no DST): from 00:00 of `from` to the end of `to`.
   $day=function(string $key)use($q):?\DateTimeImmutable{$v=$q[$key]??'';if($v==='')return null;if(!is_string($v)||!preg_match('/^\d{4}-\d{2}-\d{2}$/D',$v)||!checkdate((int)substr($v,5,2),(int)substr($v,8,2),(int)substr($v,0,4)))throw new HttpError(422,'Fecha inválida.');return new \DateTimeImmutable($v.'T00:00:00-05:00');};
   $from=$day('from');$to=$day('to');

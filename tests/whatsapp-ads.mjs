@@ -48,12 +48,12 @@ try{
  check('offers require CSRF',(await owner.ctx.post('/api/whatsapp/offers',{headers:{'X-CSRF-Token':'bad'},data:{product_id:f.product,name:'x',units:1,price_mode:'fixed',fixed_price:1}})).status()===419);
  let v=await(await owner.ctx.post('/api/whatsapp/offers',{headers:owner.H,data:{product_id:f.product,name:'el picatodo eléctrico',units:1,price_mode:'fixed',fixed_price:68000,landing_default:true}})).json();
  const pica1=v.offers[0];
- check('an offer gets a TV code, a server-computed price and the message to paste in the ad',/^TV-[A-Z0-9]{2,12}$/.test(pica1.code)&&pica1.price.text==='1 unidad · $68.000'&&pica1.message===`Hola, quiero el picatodo eléctrico (${pica1.code})`);
- v=await(await owner.ctx.post('/api/whatsapp/offers',{headers:owner.H,data:{product_id:product2,name:'2 cepillos eléctricos',units:2,price_mode:'fixed',fixed_price:99000,code:'TV-CEP2'}})).json();
- v=await(await owner.ctx.post('/api/whatsapp/offers',{headers:owner.H,data:{product_id:product2,name:'el cepillo eléctrico',units:1,price_mode:'fixed',fixed_price:59000,code:'TV-CEP1'}})).json();
- const cep2=v.offers.find(o=>o.code==='TV-CEP2'),cep1=v.offers.find(o=>o.code==='TV-CEP1');
+ check('an offer gets a TB code, a server-computed price and the message to paste in the ad',/^TB-[A-Z0-9]{2,12}$/.test(pica1.code)&&pica1.price.text==='1 unidad · $68.000'&&pica1.message===`Hola, quiero el picatodo eléctrico (${pica1.code})`);
+ v=await(await owner.ctx.post('/api/whatsapp/offers',{headers:owner.H,data:{product_id:product2,name:'2 cepillos eléctricos',units:2,price_mode:'fixed',fixed_price:99000,code:'TB-CEP2'}})).json();
+ v=await(await owner.ctx.post('/api/whatsapp/offers',{headers:owner.H,data:{product_id:product2,name:'el cepillo eléctrico',units:1,price_mode:'fixed',fixed_price:59000,code:'TB-CEP1'}})).json();
+ const cep2=v.offers.find(o=>o.code==='TB-CEP2'),cep1=v.offers.find(o=>o.code==='TB-CEP1');
  check('two offers of the same product with different combos',cep2.units===2&&cep2.price.text==='2 unidades · $99.000'&&cep1.price.text==='1 unidad · $59.000');
- check('a repeated code is refused',(await owner.ctx.post('/api/whatsapp/offers',{headers:owner.H,data:{product_id:product2,name:'otra',units:1,price_mode:'fixed',fixed_price:1,code:'TV-CEP1'}})).status()===409);
+ check('a repeated code is refused',(await owner.ctx.post('/api/whatsapp/offers',{headers:owner.H,data:{product_id:product2,name:'otra',units:1,price_mode:'fixed',fixed_price:1,code:'TB-CEP1'}})).status()===409);
  check('tier pricing without active tiers says the price is pending',(await(await owner.ctx.post('/api/whatsapp/offers',{headers:owner.H,data:{product_id:f.product,name:'tramos',units:3,price_mode:'tiers'}})).json()).offers.find(o=>o.name==='tramos').price.text===null);
  // Ads prepared before publishing
  v=await(await owner.ctx.post('/api/whatsapp/ads',{headers:owner.H,data:{ad_id:'120210448812734471',name:'Anuncio A · Picatodo',offer_id:pica1.id}})).json();
@@ -65,7 +65,7 @@ try{
  check('ad A identifies its offer with high certainty and the agent presents it',c.entry.method==='ad'&&c.entry.certainty==='alta'&&c.entry.ad.name==='Anuncio A · Picatodo'&&c.entry.offer.code===pica1.code&&lastAi().offer.price_text==='1 unidad · $68.000'&&sends.at(-1).text.body.includes('$68.000'));
  check('the agent gets the product of the offer',lastAi().product.id===f.product);
  await say('573001110002','Carlos Ruiz','Hola',ref('120210448812739902','2 cepillos'));c=await detail((await convOf('573001110002')).id);
- check('ad B with the same «Hola» identifies a different product and combo',c.entry.offer.code==='TV-CEP2'&&lastAi().product.id===product2&&lastAi().offer.units===2&&sends.at(-1).text.body.includes('$99.000'));
+ check('ad B with the same «Hola» identifies a different product and combo',c.entry.offer.code==='TB-CEP2'&&lastAi().product.id===product2&&lastAi().offer.units===2&&sends.at(-1).text.body.includes('$99.000'));
  // New ad not assigned
  await say('573001110003','Ana Torres','Hola',ref('120210448812755508','2 cepillos con envío gratis'));c=await detail((await convOf('573001110003')).id);
  v=await ads();const fresh=v.ads.find(a=>a.ad_id==='120210448812755508');
@@ -73,10 +73,10 @@ try{
  check('without an offer the agent asks which product, never picking one by default',c.entry.certainty==='baja'&&c.entry.offer===null&&lastAi().product===null&&lastAi().offer===null&&sends.at(-1).text.body.includes('Qué producto'));
  await owner.ctx.put('/api/whatsapp/ads/'+fresh.id,{headers:owner.H,data:{offer_id:cep2.id}});
  await say('573001110004','Diana López','Hola',ref('120210448812755508','2 cepillos con envío gratis'));c=await detail((await convOf('573001110004')).id);
- check('after assigning it, the next customer from that ad gets the offer',c.entry.offer.code==='TV-CEP2'&&(await ads()).ads.find(a=>a.ad_id==='120210448812755508').entries_7d===2);
+ check('after assigning it, the next customer from that ad gets the offer',c.entry.offer.code==='TB-CEP2'&&(await ads()).ads.find(a=>a.ad_id==='120210448812755508').entries_7d===2);
  // Codes
- await say('573001110005','Jorge Medina','Hola, quiero el cepillo eléctrico (TV-CEP1)');c=await detail((await convOf('573001110005')).id);
- check('a typed code is only a hint (medium certainty) and the agent is told to confirm it',c.entry.method==='code_text'&&c.entry.certainty==='media'&&c.entry.offer.code==='TV-CEP1'&&lastAi().offer.certainty==='media');
+ await say('573001110005','Jorge Medina','Hola, quiero el cepillo eléctrico (TB-CEP1)');c=await detail((await convOf('573001110005')).id);
+ check('a typed code is only a hint (medium certainty) and the agent is told to confirm it',c.entry.method==='code_text'&&c.entry.certainty==='media'&&c.entry.offer.code==='TB-CEP1'&&lastAi().offer.certainty==='media');
  const landingText=(await helper('landing-text')).trim();
  check('the landing WhatsApp button carries the landing offer code with a signature',landingText.startsWith(`Hola, quiero el picatodo eléctrico (${pica1.code}-`)&&/-[A-Z0-9]{4}\)$/.test(landingText));
  await say('573001110006','Marta Ríos',landingText);c=await detail((await convOf('573001110006')).id);
@@ -88,13 +88,13 @@ try{
  // Same phone, another ad
  await say('573001110001','Laura Gómez','Lo quiero, soy Laura de Pereira');
  await say('573001110001','Laura Gómez','Hola',ref('120210448812739902','2 cepillos'));c=await detail((await convOf('573001110001')).id);
- check('the same customer arriving by another ad is a new entry and the agent asks whether to continue',c.entry.offer.code==='TV-CEP2'&&lastAi().offer.new_entry_while_buying===true&&c.captured.some(x=>x.key==='city'&&x.value==='Pereira'));
+ check('the same customer arriving by another ad is a new entry and the agent asks whether to continue',c.entry.offer.code==='TB-CEP2'&&lastAi().offer.new_entry_while_buying===true&&c.captured.some(x=>x.key==='city'&&x.value==='Pereira'));
  // Paused ad, archived offer
  const adA=(await ads()).ads.find(a=>a.ad_id==='120210448812734471');await owner.ctx.put('/api/whatsapp/ads/'+adA.id,{headers:owner.H,data:{status:'paused'}});
  await say('573001110009','Luis Paz','Hola',ref('120210448812734471','Picatodo 5 en 1'));c=await detail((await convOf('573001110009')).id);
  check('a paused ad does not assign its offer',c.entry.offer===null);
  await owner.ctx.delete('/api/whatsapp/offers/'+cep1.id,{headers:owner.H});
- await say('573001110010','Eva Ruiz','Quiero (TV-CEP1)');c=await detail((await convOf('573001110010')).id);
+ await say('573001110010','Eva Ruiz','Quiero (TB-CEP1)');c=await detail((await convOf('573001110010')).id);
  check('an archived offer is no longer offered',c.entry===null&&!(await ads()).offers.some(o=>o.id===cep1.id));
  // Isolation
  check('another store sees none of these ads or offers',(await ads(other)).ads.length===0&&(await ads(other)).offers.length===0);
@@ -117,7 +117,7 @@ try{
  await page.getByRole('button',{name:'Guardar oferta'}).click();await page.locator('.wa-offer-list li',{hasText:'3 picatodos'}).waitFor();
  check('a new offer is created from the panel',(await page.locator('.wa-offer-list li',{hasText:'3 picatodos'}).innerText()).includes('$150.000'));
  const lauraId=(await convOf('573001110001')).id;await page.goto(base+'/panel/whatsapp/'+lauraId);await page.locator('.wa-context').waitFor();
- check('the chat context shows the ad, the method, the certainty and the offer',/Origen de esta entrada/i.test(await page.locator('.wa-context').innerText())&&(await page.locator('.wa-context').innerText()).includes('TV-CEP2'));
+ check('the chat context shows the ad, the method, the certainty and the offer',/Origen de esta entrada/i.test(await page.locator('.wa-context').innerText())&&(await page.locator('.wa-context').innerText()).includes('TB-CEP2'));
  await page.waitForTimeout(400);await page.screenshot({path:'test-results/whatsapp-ads-chat.png'});
  await page.setViewportSize({width:390,height:844});await page.goto(base+'/panel/whatsapp/anuncios');await page.locator('.wa-ads-table').waitFor();
  check('the Anuncios page fits mobile (the table scrolls inside its card)',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.waitForTimeout(400);await page.screenshot({path:'test-results/whatsapp-ads-mobile.png',fullPage:true});

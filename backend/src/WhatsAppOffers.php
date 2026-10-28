@@ -5,16 +5,17 @@ namespace App;
 /**
  * WhatsApp offers and Click to WhatsApp ads (stage 4).
  * An offer is a product + units (combos) + a price rule (the product's quantity tiers, current version, or a fixed
- * price) + a code (TV-XXXX) for the ad's default message and the landing WhatsApp button.
+ * price) + a code (TB-XXXX) for the ad's default message and the landing WhatsApp button.
  * Identification of each entry, never "the best seller" by default:
  *  1. the ad id Meta sends in `referral.source_id`, looked up in the store's ads (an unknown ad is created unassigned);
- *  2. a verified code from a landing WhatsApp link (code + signature that Tinvana checks);
+ *  2. a verified code from a landing WhatsApp link (code + signature that Tinbana checks);
  *  3. a code typed in the message, taken only as a hint (the agent confirms it with the customer);
  *  4. nothing clear: the agent asks which product.
  * Every entry is stored separately; a new entry never changes a previous order.
  */
 final class WhatsAppOffers {
- private const CODE_RE='/\bTV-([A-Z0-9]{2,12})(?:-([A-Z0-9]{4}))?\b/i';
+ // New codes start with TB- (Tinbana); TV- codes created before the brand change keep working.
+ private const CODE_RE='/\b(T[VB])-([A-Z0-9]{2,12})(?:-([A-Z0-9]{4}))?\b/i';
  public const METHODS=['ad'=>'Identificador del anuncio (Click to WhatsApp)','code_link'=>'Código del botón de WhatsApp de la landing','code_text'=>'Código escrito en el mensaje (indicio)'];
 
  public static function money(float $v): string {return '$'.number_format($v,0,',','.');}
@@ -71,8 +72,8 @@ final class WhatsAppOffers {
  private static function code(string $owner,string $name,int $units,?string $exclude=null): string {
   $base=strtoupper(preg_replace('/[^A-Z0-9]/','',strtoupper(strtr(mb_substr(explode(' ',trim($name))[0]??'OF',0,8),['Á'=>'A','É'=>'E','Í'=>'I','Ó'=>'O','Ú'=>'U','Ñ'=>'N','á'=>'A','é'=>'E','í'=>'I','ó'=>'O','ú'=>'U','ñ'=>'N'])))??'OF');
   $base=substr($base!==''?$base:'OF',0,4).$units;
-  for($i=0;$i<50;$i++){$c='TV-'.$base.($i?chr(65+$i%26).($i>=26?intdiv($i,26):''):'');if(!Database::one('SELECT id FROM whatsapp_offers WHERE user_id=? AND code=?'.($exclude?' AND id<>?':''),array_merge([$owner,$c],$exclude?[$exclude]:[])))return $c;}
-  return 'TV-'.strtoupper(bin2hex(random_bytes(4)));
+  for($i=0;$i<50;$i++){$c='TB-'.$base.($i?chr(65+$i%26).($i>=26?intdiv($i,26):''):'');if(!Database::one('SELECT id FROM whatsapp_offers WHERE user_id=? AND code=?'.($exclude?' AND id<>?':''),array_merge([$owner,$c],$exclude?[$exclude]:[])))return $c;}
+  return 'TB-'.strtoupper(bin2hex(random_bytes(4)));
  }
  public static function saveOffer(string $owner,?string $id,array $b): array {
   $current=$id?self::offerRow($owner,$id):null;
@@ -84,7 +85,7 @@ final class WhatsAppOffers {
   $fixed=null;if($mode==='fixed'){$f=$b['fixed_price']??null;if(!is_int($f)&&!is_float($f)||$f<0||$f>100000000)throw new HttpError(422,'Escribe el precio total de la oferta.');$fixed=round((float)$f,2);}
   $landing=($b['landing_default']??false)===true;
   $code=$b['code']??null;
-  if(is_string($code)&&trim($code)!==''){$code=strtoupper(trim($code));if(!preg_match('/^TV-[A-Z0-9]{2,12}$/D',$code))throw new HttpError(422,'El código debe verse así: TV-PICA1 (letras y números, sin espacios).');
+  if(is_string($code)&&trim($code)!==''){$code=strtoupper(trim($code));if(!preg_match('/^TB-[A-Z0-9]{2,12}$/D',$code))throw new HttpError(422,'El código debe verse así: TB-PICA1 (letras y números, sin espacios).');
    if(Database::one('SELECT id FROM whatsapp_offers WHERE user_id=? AND code=?'.($current?' AND id<>?':''),array_merge([$owner,$code],$current?[$current['id']]:[])))throw new HttpError(409,'Ya tienes otra oferta con ese código.');}
   else $code=$current['code']??self::code($owner,self::productName($owner,$productId)??$name,$units);
   $db=Database::connection();$db->beginTransaction();
@@ -147,8 +148,8 @@ final class WhatsAppOffers {
    }
    $method='ad';
   }elseif(preg_match(self::CODE_RE,$text,$m)){
-   $code='TV-'.strtoupper($m[1]);$o=Database::one("SELECT * FROM whatsapp_offers WHERE user_id=? AND code=? AND status='active'",[$owner,$code]);
-   if($o){$verified=isset($m[2])&&$m[2]!==''&&hash_equals(self::signature($owner,$code),strtoupper($m[2]));$offer=$o;$method=$verified?'code_link':'code_text';$certainty=$verified?'alta':'media';}
+   $code=strtoupper($m[1]).'-'.strtoupper($m[2]);$o=Database::one("SELECT * FROM whatsapp_offers WHERE user_id=? AND code=? AND status='active'",[$owner,$code]);
+   if($o){$verified=isset($m[3])&&$m[3]!==''&&hash_equals(self::signature($owner,$code),strtoupper($m[3]));$offer=$o;$method=$verified?'code_link':'code_text';$certainty=$verified?'alta':'media';}
   }
   if($method===null)return;
   Database::query('INSERT INTO whatsapp_entries(id,user_id,conversation_id,ad_ref,offer_id,method,certainty,code,referral,created_at) VALUES(?,?,?,?,?,?,?,?,?::jsonb,?)',

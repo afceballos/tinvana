@@ -206,6 +206,6 @@ function AgentDefaults(){
  return <Card icon="chat" eyebrow="Ventas por WhatsApp" title="Agente de IA: valores predeterminados" className="admin-agent">
   <p className="muted">Las tiendas usan estos ajustes hasta que guarden los suyos en «Agente IA». Quién puede usar el agente y cuántas conversaciones al mes se controla arriba, en Funciones y Límites, y por plan o por cuenta.</p>
   <AgentSettingsForm value={draft} catalog={data.catalog} onChange={setDraft} idPrefix="admin-agent"/>
-  <div className="admin-actions"><button className="primary" disabled={busy||!dirty} onClick={()=>void save(draft,'Predeterminados del agente guardados.')}>{busy?'Guardando…':'Guardar predeterminados del agente'}</button>{dirty&&<button className="secondary" disabled={busy} onClick={()=>setDraft(data.defaults)}>Descartar cambios</button>}<button className="secondary" disabled={busy} onClick={()=>void save(data.catalog.built_in,'Se restauraron los valores originales de Tinvana.')}>Restaurar valores originales</button></div>
+  <div className="admin-actions"><button className="primary" disabled={busy||!dirty} onClick={()=>void save(draft,'Predeterminados del agente guardados.')}>{busy?'Guardando…':'Guardar predeterminados del agente'}</button>{dirty&&<button className="secondary" disabled={busy} onClick={()=>setDraft(data.defaults)}>Descartar cambios</button>}<button className="secondary" disabled={busy} onClick={()=>void save(data.catalog.built_in,'Se restauraron los valores originales de Tinbana.')}>Restaurar valores originales</button></div>
  </Card>;
 }

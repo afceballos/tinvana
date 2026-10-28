@@ -39,7 +39,7 @@ export function WhatsAppConfirmationsPage(){
     <label className="wa-switch"><input type="checkbox" checked={draft.enabled} onChange={e=>set({enabled:e.target.checked})}/><span><strong>Enviar la confirmación por WhatsApp a cada pedido nuevo</strong><small>El formulario de tus landings mostrará «Te enviaremos la confirmación de tu pedido por WhatsApp».</small></span></label>
     <fieldset><legend>Cómo le llega el resumen</legend>
      <label className="wa-switch"><input type="checkbox" checked={draft.customer_first} onChange={e=>set({customer_first:e.target.checked})}/><span><strong>Primero invitar al cliente a escribirte</strong><small>Al enviar el formulario ve el botón «Confirmar por WhatsApp» con su código. Cuando te escribe, le respondes con botones sin plantilla y sin costo de plantilla.</small></span></label>
-     {draft.customer_first&&!view.business_phone&&<p className="store-warning">Pulsa «Probar conexión» en <Link to="/panel/whatsapp/conexion">Conexión</Link> para que Tinvana conozca tu número y arme el enlace de WhatsApp.</p>}
+     {draft.customer_first&&!view.business_phone&&<p className="store-warning">Pulsa «Probar conexión» en <Link to="/panel/whatsapp/conexion">Conexión</Link> para que Tinbana conozca tu número y arme el enlace de WhatsApp.</p>}
      {draft.customer_first&&<label>Si el cliente no escribe, enviar la plantilla después de<select value={draft.wait_minutes} onChange={e=>set({wait_minutes:Number(e.target.value)})}>{view.waits.map(m=><option key={m} value={m}>{m<60?m+' minutos':m/60+(m===60?' hora':' horas')}</option>)}</select><span className="small muted">{draft.template_id?'Se envía la plantilla elegida abajo.':'Sin plantilla elegida, si el cliente no escribe no se le envía nada.'}</span></label>}
      {draft.customer_first&&(chosen?<p className="small muted">Cuando el cliente escribe recibe el mismo texto de la plantilla elegida abajo, con sus dos botones.</p>:<div className="wc-preview"><span className="eyebrow">Respuesta cuando el cliente escribe</span><TemplatePreview body={view.summary} footer="Pago contra entrega" buttons={view.buttons} values={EXAMPLE}/></div>)}
     </fieldset>
@@ -50,7 +50,7 @@ export function WhatsAppConfirmationsPage(){
       {chosen?.problem&&<p className="store-warning">{chosen.problem}.</p>}
       {chosen&&<div className="wc-preview"><TemplatePreview body={chosen.body} footer={chosen.footer} buttons={chosen.buttons} values={EXAMPLE}/><p className="small muted">Ejemplo con datos ficticios. El primer botón confirma el pedido y el segundo pasa el chat a un asesor.</p></div>}
      </>}
-     <details className="wc-vars"><summary>Variables que Tinvana llena con el pedido</summary><ul>{Object.entries(view.values).map(([k,l])=><li key={k}><code>{'{{'+k+'}}'}</code> {l}</li>)}</ul></details>
+     <details className="wc-vars"><summary>Variables que Tinbana llena con el pedido</summary><ul>{Object.entries(view.values).map(([k,l])=><li key={k}><code>{'{{'+k+'}}'}</code> {l}</li>)}</ul></details>
     </fieldset>
     <fieldset><legend>Respuestas automáticas</legend>
      <label>Cuando el cliente confirma<textarea rows={2} maxLength={500} value={draft.messages.confirmed} onChange={e=>set({messages:{...draft.messages,confirmed:e.target.value}})}/></label>
@@ -58,10 +58,10 @@ export function WhatsAppConfirmationsPage(){
     </fieldset>
     <fieldset><legend>Después de confirmar</legend>
      <div className="wa-choices">
-      <label className={'wa-choice'+(!draft.auto_dropi?' is-on':'')}><input type="radio" name="wc-after" checked={!draft.auto_dropi} onChange={()=>set({auto_dropi:false})}/><strong>Revisión manual (recomendado)</strong><small>El pedido queda confirmado en Tinvana y tú lo envías a Dropi desde su detalle.</small></label>
+      <label className={'wa-choice'+(!draft.auto_dropi?' is-on':'')}><input type="radio" name="wc-after" checked={!draft.auto_dropi} onChange={()=>set({auto_dropi:false})}/><strong>Revisión manual (recomendado)</strong><small>El pedido queda confirmado en Tinbana y tú lo envías a Dropi desde su detalle.</small></label>
       <label className={'wa-choice'+(draft.auto_dropi?' is-on':'')}><input type="radio" name="wc-after" checked={draft.auto_dropi} onChange={()=>set({auto_dropi:true})}/><strong>Enviar a Dropi automáticamente</strong><small>Al confirmar, la orden llega a Dropi como «Pendiente de confirmación» y la confirmas allí.</small></label>
      </div>
-     {draft.auto_dropi&&<p className="store-warning" role="note">Tinvana enviará la orden a Dropi sin que la revises antes. Si Dropi no responde, no se reintenta: el pedido queda «Envío por verificar» para que lo revises.</p>}
+     {draft.auto_dropi&&<p className="store-warning" role="note">Tinbana enviará la orden a Dropi sin que la revises antes. Si Dropi no responde, no se reintenta: el pedido queda «Envío por verificar» para que lo revises.</p>}
     </fieldset>
     <div className="row"><button className="primary" disabled={busy||!dirty} onClick={()=>void save()}>{busy?'Guardando…':'Guardar ajustes'}</button>{dirty&&<button className="secondary" disabled={busy} onClick={()=>setDraft(view.settings)}>Descartar cambios</button>}</div>
    </div>

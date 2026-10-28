@@ -32,7 +32,7 @@ export function MailSettingsPage(){
  const active=kinds.filter(k=>draft.enabled[k.kind]).length;
  return <>
   <div className="section-heading"><div><span className="eyebrow">Comunicación con tus compradores</span><h1>Correos de pedidos</h1></div><span className="pill">{active===1?'1 correo activo':`${active} correos activos`}</span></div>
-  <p className="muted">Elige qué correos se envían cuando entra, se confirma o se cancela un pedido. Todos usan el diseño de Tinvana y se envían automáticamente en menos de un minuto.</p>
+  <p className="muted">Elige qué correos se envían cuando entra, se confirma o se cancela un pedido. Todos usan el diseño de Tinbana y se envían automáticamente en menos de un minuto.</p>
   {!view.mail_configured&&<p className="store-warning" role="note">El servidor todavía no tiene configurado el envío de correos. Puedes dejar todo listo; se enviarán cuando el administrador lo active.</p>}
   <section className="panel narrow webhook-current mail-card">
    <div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name="mail"/></span><div><span className="eyebrow">Remitente</span><h2>Quién envía y a quién responden</h2></div><span className={'webhook-state '+(view.mail_configured?'on':'off')}>{view.mail_configured?'Envío activo':'Sin configurar'}</span></div>

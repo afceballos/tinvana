@@ -1,6 +1,6 @@
 import {birdSvg} from './success-bird';
 
-// Success confirmation shown after the purchase form closes: the Tinvana origami bird folds itself together.
+// Success confirmation shown after the purchase form closes: the Tinbana origami bird folds itself together.
 // Web Animations API only (no animation library on public landings); skipped under prefers-reduced-motion.
 // Focusable parts fade with opacity, never visibility, so focus can move to the button immediately.
 const confettiColors=['#ff6a00','#ffba3d','#fd8f45','#d53e06','#ffe0cd'];
@@ -9,11 +9,15 @@ const rand=(min:number,max:number)=>min+Math.random()*(max-min);
 
 /** WhatsApp step of the order confirmation: the customer writes first, so the store can answer without a template. */
 export type LeadWhatsApp={link:string;code:string};
+export type LeadOrder={number:string;url:string|null};
 const waIcon='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Z"/></svg>';
 
-export function showLeadSuccess(reduced:boolean,returnFocus:HTMLElement|null,whatsapp:LeadWhatsApp|null=null){
+export function showLeadSuccess(reduced:boolean,returnFocus:HTMLElement|null,whatsapp:LeadWhatsApp|null=null,order:LeadOrder|null=null){
+ const clean=(v:string)=>v.replace(/[^A-Z0-9-]/g,'');const number=order?clean(order.number):whatsapp?clean(whatsapp.code):'';
+ const numberHtml=number?`<p class="ls-code">Tu número de pedido: <strong>${number}</strong></p>`:'';
+ const lookup=order?.url?`<a class="ls-later ls-lookup" href="${order.url.replace(/"/g,'&quot;')}" target="_blank" rel="noopener noreferrer">Consultar mi pedido</a>`:'';
  const dialog=document.createElement('dialog');dialog.className='lead-success';dialog.setAttribute('aria-labelledby','lead-success-title');dialog.setAttribute('aria-describedby','lead-success-text');
- dialog.innerHTML=`<div class="ls-card"><div class="ls-art"><span class="ls-glow"></span>${birdSvg}<span class="ls-check"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span><span class="ls-confetti" aria-hidden="true"></span></div><p class="ls-eyebrow">Solicitud enviada</p><h2 id="lead-success-title">¡Listo, la recibimos!</h2>${whatsapp?`<p id="lead-success-text">Confirma tu pedido por WhatsApp: toca el botón y envía el mensaje que aparece. Te mandamos el resumen al instante.</p><a class="ls-button ls-wa" href="${whatsapp.link.replace(/"/g,'&quot;')}" target="_blank" rel="noopener noreferrer">${waIcon}Confirmar por WhatsApp</a><p class="ls-code">Tu código: <strong>${whatsapp.code.replace(/[^A-Z0-9-]/g,'')}</strong></p><button type="button" class="ls-later">Ahora no</button>`:'<p id="lead-success-text">Gracias por tu pedido. Te contactaremos pronto para confirmar los detalles y el envío.</p><button type="button" class="ls-button">Entendido</button>'}</div>`;
+ dialog.innerHTML=`<div class="ls-card"><div class="ls-art"><span class="ls-glow"></span>${birdSvg}<span class="ls-check"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span><span class="ls-confetti" aria-hidden="true"></span></div><p class="ls-eyebrow">Solicitud enviada</p><h2 id="lead-success-title">¡Listo, la recibimos!</h2>${whatsapp?`<p id="lead-success-text">Confirma tu pedido por WhatsApp: toca el botón y envía el mensaje que aparece. Te mandamos el resumen al instante.</p><a class="ls-button ls-wa" href="${whatsapp.link.replace(/"/g,'&quot;')}" target="_blank" rel="noopener noreferrer">${waIcon}Confirmar por WhatsApp</a>${numberHtml}<button type="button" class="ls-later">Ahora no</button>`:'<p id="lead-success-text">Gracias por tu pedido. Te contactaremos pronto para confirmar los detalles y el envío.</p><button type="button" class="ls-button">Entendido</button>'+numberHtml+lookup}</div>`;
  document.body.append(dialog);
  const button=dialog.querySelector<HTMLElement>('.ls-button')!;const overflow=document.body.style.overflow;let closing=false;const running:Animation[]=[];
  const play=(el:Element|null,frames:Keyframe[],options:KeyframeAnimationOptions)=>{if(el)running.push(el.animate(frames,{fill:'backwards',...options}));};

@@ -1,4 +1,4 @@
-# Tinvana: documento maestro de contexto y continuidad
+# Tinbana: documento maestro de contexto y continuidad
 
 Última actualización: **27 de octubre de 2026** (confirmación de pedidos por WhatsApp).
 
@@ -7,7 +7,7 @@ Documento vivo para el propietario del proyecto, desarrolladores y otras IA. Des
 ## 1. Lectura rápida para retomar
 
 - **Producto:** plataforma privada para administrar integraciones Dropi, seleccionar productos, crear/publicar landings y recibir consultas. Se amplía con pedidos y ventas por WhatsApp.
-- **Marca actual:** Tinvana. Zenzales/Dropi + Zenzales son nombres anteriores que aún aparecen en rutas, configuraciones técnicas y algunos documentos.
+- **Marca actual:** Tinbana. Zenzales/Dropi + Zenzales son nombres anteriores que aún aparecen en rutas, configuraciones técnicas y algunos documentos.
 - **Proyecto real:** en producción en **`https://tinbana.com`** (GoDaddy cPanel) con PHP + MySQL (`DB_DRIVER=mysql`); catálogo obtenido de Dropi. Supabase PostgreSQL queda como entorno histórico. No existe fallback de productos inventados. Los datos de pruebas están aislados.
 - **Estado de producción (confirmado por el usuario el 2026-10-23):** despliegue sobre **MariaDB 10.11.19** (no MySQL), login y flujos de la aplicación, correo con Resend, HTTPS Let's Encrypt (raíz y comodín `*.tinbana.com`), subdominio por tienda y cron de trabajadores funcionando. El asistente no lo comprobó directamente.
 - **Última entrega funcional:** envío de pedidos confirmados a Dropi (migración 015), con estado `PENDIENTE CONFIRMACION` y cobro contra entrega, probado contra un Dropi simulado. **Sin desplegar y sin orden real de prueba todavía.**
@@ -114,7 +114,7 @@ Esquema acumulativo: consultar el SQL real antes de cambiarlo. Hay relaciones de
 - [x] Menú de cuenta y cambio de contraseña con revocación de sesiones según versión.
 - [x] Registro con verificación por email y establecimiento de contraseña mediante enlace.
 - [x] Enlace de verificación de 24 horas y recuperación de 30 minutos; tokens de un uso almacenados como hash.
-- [x] Envío de correo con cola y SMTP o Resend, con plantilla HTML de marca Tinvana y remitente «Tinvana».
+- [x] Envío de correo con cola y SMTP o Resend, con plantilla HTML de marca Tinbana y remitente «Tinbana».
 - [x] Resend configurado en producción (dominio `tinbana.com`, cron `mail:work`) y entrega de extremo a extremo funcionando (confirmado por el usuario el 2026-10-23).
 - [ ] Verificación por SMS: no desarrollada ni servicio contratado.
 
@@ -182,7 +182,7 @@ Una suscripción ChatGPT/Claude de usuario no implica acceso de API ni cubre nec
 - [x] Rutas nuevas `backend/storage/media/{usuario}/{año}/{mes}/{uuid}.webp`; compatibilidad con archivos anteriores.
 - [x] Tarjetas compactas, selección por borde/chulo y selección múltiple.
 - [x] Eliminación con confirmación y protección de referencias guardadas en landings, versiones publicadas, leads y plantillas.
-- [x] Marca Tinvana: paloma origami, Montserrat, naranja `#FF6A00`, secundario `#FFBA3D`, oscuro `#1E1E1E`, crema `#FFF8F1`, borde `#FFE0CD`.
+- [x] Marca Tinbana: paloma origami, Montserrat, naranja `#FF6A00`, secundario `#FFBA3D`, oscuro `#1E1E1E`, crema `#FFF8F1`, borde `#FFE0CD`.
 - [x] Toasts flotantes, carga moderna, GSAP y escena Three.js sutil con reducción de movimiento y fallback.
 
 La biblioteca es de imágenes, no un gestor genérico de PDF/documentos. Copiar una URL privada no la publica. Una referencia externa o edición sin guardar no se puede detectar al eliminar.
@@ -191,9 +191,9 @@ La biblioteca es de imágenes, no un gestor genérico de PDF/documentos. Copiar 
 
 ### 5.1 Objetivo y responsabilidades propuestas
 
-Unificar ventas de landing y chat en el mismo proyecto. Tinvana conserva ofertas, cotizaciones, aceptación y pedido; GHL gestiona contactos/conversación/asesores; Dropi acredita sus órdenes y datos logísticos disponibles. La IA conversa; el backend valida operaciones.
+Unificar ventas de landing y chat en el mismo proyecto. Tinbana conserva ofertas, cotizaciones, aceptación y pedido; GHL gestiona contactos/conversación/asesores; Dropi acredita sus órdenes y datos logísticos disponibles. La IA conversa; el backend valida operaciones.
 
-Documentos de origen: `Proyecto_ventas_WhatsApp_GHL_Dropi.docx` y la explicación `output/pdf/Tinvana-Integracion-Ventas-WhatsApp.pdf`. Son propuestas, no certifican funcionalidades ya existentes. El otro DOCX, `Proyecto_control_dropshipping_Boostec_GHL.docx`, no se incorpora automáticamente como requisito implementado.
+Documentos de origen: `Proyecto_ventas_WhatsApp_GHL_Dropi.docx` y la explicación `output/pdf/Tinbana-Integracion-Ventas-WhatsApp.pdf`. Son propuestas, no certifican funcionalidades ya existentes. El otro DOCX, `Proyecto_control_dropshipping_Boostec_GHL.docx`, no se incorpora automáticamente como requisito implementado.
 
 ### 5.2 Etapa 1 completada: pedidos locales supervisados
 
@@ -257,7 +257,7 @@ Referencia histórica: <https://es.scribd.com/document/683043719/Documentacion-d
 - [ ] Asesor IA con fichas aprobadas, captura guiada, cotización y confirmación vinculada a versión. Hecho y probado en local: fichas versionadas, captura guiada y paso a asesor (etapa 3). Falta: cotización y confirmación (etapa 5) y prueba con IA real.
 - [ ] Reconocimiento de anuncio y oferta con metadatos reales; pedir aclaración ante ambigüedad. Hecho y probado en local con la estructura oficial del `referral` (etapa 4). Falta: probarlo con un anuncio real.
 - [x] Intervención humana: tomar el chat pausa al agente y solo una acción explícita lo devuelve (etapas 2 y 3, probado en local). Los seguimientos se integran a esta regla en la etapa 6.
-- [ ] Plantillas aprobadas y verificación de ventanas/consentimiento antes de cada envío. Hecho y probado en local (2026-10-27): plantillas creadas desde Tinvana y enviadas a Meta, sincronización, «Nuevo chat» y «Enviar plantilla» con ventana cerrada y casilla de permiso del cliente. Falta: crear y aprobar una plantilla real en Meta y enviarla.
+- [ ] Plantillas aprobadas y verificación de ventanas/consentimiento antes de cada envío. Hecho y probado en local (2026-10-27): plantillas creadas desde Tinbana y enviadas a Meta, sincronización, «Nuevo chat» y «Enviar plantilla» con ventana cerrada y casilla de permiso del cliente. Falta: crear y aprobar una plantilla real en Meta y enviarla.
 - [x] Ventas por WhatsApp, etapas 2 a 4 (bandeja, agente de IA con fichas y ajustes, anuncios y ofertas), aviso al pasar a asesor y notificaciones de la tienda. Implementado y probado en local; detalle en [WHATSAPP.md](WHATSAPP.md).
 - [ ] Confirmación de pedidos de landings por WhatsApp. Hecho y probado en local (2026-10-27): resumen con la plantilla aprobada y botones «Confirmar pedido»/«Cambiar algo», cotización automática con el precio de la landing y el envío de Dropi, evidencia del botón, revisión manual por defecto u opción de enviar a Dropi al confirmar, aviso en el formulario y envío desde el pedido. Desde la segunda entrega del 2026-10-27 el cliente escribe primero desde el popup con su código y recibe el resumen con botones sin plantilla; la plantilla queda como respaldo. Falta: comprobar las migraciones MySQL 043–045 en MariaDB, desplegar y probarlo con números reales.
 - [ ] **Siguiente:** etapa 5 (cotización y pedido con origen WhatsApp), etapa 6 (recordatorios, avisos de estado Dropi, baja voluntaria, bandeja de operación) y etapa 7 (copia opcional a GHL y regresión completa con pedidos en MariaDB).
@@ -372,7 +372,7 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - Base real PHP/PostgreSQL y autenticación; selección y catálogo real Dropi.
 - Editor/publicación, formularios con dirección, webhook por usuario y colas.
 - IA por cuenta, perfiles, registro/recuperación y geografía.
-- Biblioteca mensual y reutilización; rediseño Tinvana y eliminación segura de medios.
+- Biblioteca mensual y reutilización; rediseño Tinbana y eliminación segura de medios.
 
 ### 2026-10-19 · Primera etapa de pedidos
 
@@ -484,7 +484,7 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 ### 2026-10-22 · Correos de cuenta: marca, diagnóstico y configuración en cPanel
 
 - **Hallazgos:** en producción faltaban `SMTP_*`/`RESEND_API_KEY` (solo existía `MAIL_FROM_ADDRESS`), por lo que registro y recuperación respondían «El envío de correos de cuenta todavía no está configurado»; además los envíos de la cola requieren el cron `mail:work`, y los errores de entrega no quedaban registrados.
-- **Cambio:** plantilla con la marca Tinvana (logo PNG `tinvana-mail.png`, colores y textos), remitente «Tinvana», `SMTP_HOST=localhost` sin verificación de certificado (tráfico local), registro en `error_log` del motivo de cada fallo sin datos personales, `AccountMail::diagnose()` y comando `php bin/console.php mail:test correo@dominio`. Guía en [ACCOUNT-EMAIL.md](ACCOUNT-EMAIL.md).
+- **Cambio:** plantilla con la marca Tinbana (logo PNG `tinvana-mail.png`, colores y textos), remitente «Tinbana», `SMTP_HOST=localhost` sin verificación de certificado (tráfico local), registro en `error_log` del motivo de cada fallo sin datos personales, `AccountMail::diagnose()` y comando `php bin/console.php mail:test correo@dominio`. Guía en [ACCOUNT-EMAIL.md](ACCOUNT-EMAIL.md).
 - **Comprobado:** `node tests/mail-local.mjs` (8 comprobaciones) contra SMTP TLS local; `php backend/tests/account-resend.php` actualizado y aprobado; vista previa visual de los dos correos. **No** se envió ningún correo real ni se accedió a tinbana.com.
 - **Pendiente:** crear el buzón (o cuenta Resend), completar el `.env` del servidor, crear el cron `mail:work` y ejecutar `mail:test` allí; confirmar que la consulta de cola funciona en MySQL (no hay MySQL local).
 
@@ -602,21 +602,21 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Pendiente en producción:** desplegar, aplicar la migración (cron `migrate:auto` o `migrate`) y probar con **Enviarme una prueba** y un pedido real.
 
 ### 2026-10-23 · Seguimiento de pedidos en Dropi
-- **Reporte del usuario:** los pedidos ya se envían a Dropi; quiere ver el estado y su historial en Tinvana.
+- **Reporte del usuario:** los pedidos ya se envían a Dropi; quiere ver el estado y su historial en Tinbana.
 - **Descubrimiento:** `dropi:order-probe` en producción confirmó `GET orders/myorders/{id}` con estado, historial, guía, transportadora y flete. Detalle en [DROPI-ORDERS.md](DROPI-ORDERS.md#seguimiento-de-órdenes-en-dropi-2026-10-23).
 - **Cambio:** `DropiTracking`, migración 017, cron `dropi:sync`, botón **Actualizar desde Dropi**, historial de estados y diferencia de flete en el detalle; estado de Dropi en la lista.
 - **Comprobado (local, Dropi simulado):** `dropi-tracking.mjs` 19, `dropi-tracking.php` 8; regresión `orders.mjs` 38, `order-editing.mjs` 52, `dropi-orders.mjs` 36, `dropi-shipping.mjs` 20, `order-mail.mjs` 23, `compact.mjs` 27, `modern.mjs` 17 y las pruebas PHP.
 - **Pendiente en producción:** desplegar, migrar, crear el cron `dropi:sync` cada 10 minutos y comprobar con un pedido real.
 
-### 2026-10-23 · Estados de Dropi reflejados en Tinvana
-- **Pedido del usuario:** si el pedido cambia de estado o se cancela en Dropi, que cambie también en Tinvana.
+### 2026-10-23 · Estados de Dropi reflejados en Tinbana
+- **Pedido del usuario:** si el pedido cambia de estado o se cancela en Dropi, que cambie también en Tinbana.
 - **Cambio:** la logística sigue a Dropi; la cancelación en Dropi cancela la venta y avisa al comprador; la barra de avance tiene el paso «Entregado». Migración 018. Detalle en [DROPI-ORDERS.md](DROPI-ORDERS.md).
 - **Comprobado (local):** `dropi-tracking.mjs` 26, `dropi-tracking.php` 11 y la regresión de pedidos, Dropi, correos e interfaz.
 
 ### 2026-10-23 · Envío confirmado y notas de Dropi (transportadora retirada)
 - **Prueba real del usuario:** se eligió ENVIA y Dropi asignó VELOCES. La API ignora la transportadora, así que se retiró el selector y ya no se envía ese campo.
 - **Se mantiene:** el envío pendiente o confirmado, con aceptación obligatoria para confirmada.
-- **Nuevo:** las notas que se escriben en Dropi al cambiar de estado o cancelar se ven en el historial de Dropi y en el de Tinvana.
+- **Nuevo:** las notas que se escriben en Dropi al cambiar de estado o cancelar se ven en el historial de Dropi y en el de Tinbana.
 - **Comprobado (local, con Dropi simulado):** regresión completa.
 - **Sin verificar en Dropi real:** que `PENDIENTE` equivalga a confirmar y el nombre del campo `notes` en una cancelación real.
 
@@ -694,7 +694,7 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Límites y siguiente paso:** los eventos quedan `pending` hasta la etapa 2 (bandeja, respuestas manuales, estados y ventana de 24 h). Para el piloto real faltan las variables `WHATSAPP_*` en el servidor y la autorización expresa del propietario.
 
 ### 2026-10-26 · Política de privacidad y términos públicos
-- **Cambio:** páginas públicas `/privacidad` y `/terminos` generadas en el servidor (sin sesión ni JavaScript), con el estilo de Tinvana, modo oscuro y móvil; enlaces en inicio de sesión y registro, y aviso de aceptación al registrarse. Datos del responsable desde `LEGAL_*` del `.env`. Detalle en [LEGAL.md](LEGAL.md).
+- **Cambio:** páginas públicas `/privacidad` y `/terminos` generadas en el servidor (sin sesión ni JavaScript), con el estilo de Tinbana, modo oscuro y móvil; enlaces en inicio de sesión y registro, y aviso de aceptación al registrarse. Datos del responsable desde `LEGAL_*` del `.env`. Detalle en [LEGAL.md](LEGAL.md).
 - **Comprobado (local):** `legal-pages.mjs` 17, `npm test` 107, `account-access` 42 y `whatsapp-connection` 28.
 - **Límites y siguiente paso:** el texto es una base redactada para Colombia (Ley 1581 de 2012, Ley 1480 de 2011) y debe revisarlo un abogado. En producción falta definir `LEGAL_NAME`, `LEGAL_ID`, `LEGAL_ADDRESS` y `LEGAL_EMAIL`.
 
@@ -735,7 +735,7 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** ofertas con unidades, precio por tramos o fijo y código; anuncios de Click to WhatsApp creados con el primer mensaje o pegados antes; reconocimiento por anuncio, código firmado de la landing o código escrito; entradas por separado; el agente presenta la oferta con el precio calculado por el servidor; botón de WhatsApp de la landing con código firmado; pestaña Anuncios y origen en el contexto del chat. Detalle en [WHATSAPP.md](WHATSAPP.md).
 - **Comprobado (local):** `whatsapp-ads.mjs` 30, `whatsapp-agent.mjs` 50, `whatsapp-inbox.mjs` 43, `whatsapp-connection.mjs` 52; MariaDB 6 + 11 + 11 + 11; regresión `landing-design` 40, `owner-edit` 12, `store-router` 20, `lead-success` 12, `product-list`, `dropi-shipping` 20, `orders` 38, `order-editing` 52, `dropi-orders` 36, `admin` 39, `legal-pages` 17, `blocks.php` 101, `run.php` 69, `mysql-dialect.php` 19, `ai.php` 38.
 - **Datos reales:** ninguno.
-- **Siguiente paso:** las ampliaciones pedidas (nuevo chat con plantilla, confirmación de pedidos de landings por WhatsApp y plantillas creadas desde Tinvana) y luego la etapa 5.
+- **Siguiente paso:** las ampliaciones pedidas (nuevo chat con plantilla, confirmación de pedidos de landings por WhatsApp y plantillas creadas desde Tinbana) y luego la etapa 5.
 
 ### 2026-10-26 · Aviso al cliente al pasar a un asesor y notificaciones
 - **Cambio:** mensaje personalizable que recibe el cliente (solo ese) cuando la IA pasa el chat a un asesor; notificaciones de la tienda por campanita, sonido, navegador y correo, con ajustes de eventos, canales y correo. Detalle en [WHATSAPP.md](WHATSAPP.md).
@@ -745,7 +745,7 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 ### 2026-10-27 · WhatsApp: plantillas, nuevo chat y plantilla con la ventana cerrada
 - **Cambio:** pestaña Plantillas (dos sugeridas: confirmación de pedido y saludo; editor con variables `{{nombre}}`, ejemplos, pie, hasta 3 botones y vista previa); se envían a Meta para aprobación, «Actualizar estados» trae su estado e importa las creadas en Meta, y se pueden eliminar. «Nuevo chat» en la Bandeja y «Enviar plantilla» en un chat con la ventana de 24 h cerrada, con plantilla aprobada y confirmación del permiso del cliente. Los mensajes recibidos al instante se ordenan por llegada. Migración PostgreSQL 025 / MySQL 041. Detalle en [WHATSAPP.md](WHATSAPP.md).
 - **Comprobado (local, Meta simulado):** `whatsapp-templates.mjs` 32, `whatsapp-inbox.mjs` 43, `whatsapp-agent.mjs` 50, `whatsapp-ads.mjs` 30, `whatsapp-notify.mjs` 27, `whatsapp-connection.mjs` 52, `orders` 38, `admin` 39; MariaDB 10.11.19 local: migración 041 y 3 + 11 + 11 comprobaciones.
-- **Datos reales:** ninguno. No se creó ninguna plantilla en Meta ni se envió ningún mensaje. La forma exacta de la respuesta de Meta al crear una plantilla no está en la documentación; por eso Tinvana siempre puede leer el estado con «Actualizar estados».
+- **Datos reales:** ninguno. No se creó ninguna plantilla en Meta ni se envió ningún mensaje. La forma exacta de la respuesta de Meta al crear una plantilla no está en la documentación; por eso Tinbana siempre puede leer el estado con «Actualizar estados».
 - **Siguiente paso:** confirmación de pedidos de landings por WhatsApp (usa la plantilla `confirmacion_pedido`) y luego la etapa 5.
 
 ### 2026-10-27 · Enfoque de la página sin límite de 500 caracteres
@@ -782,7 +782,7 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 
 ### 2026-10-27 · Diagnóstico de productos de Dropi (galería y variantes)
 - **Reporte del usuario:** la galería de Dropi no se ve en Explorar productos y los productos con variantes (por ejemplo 2261687) aparecen como «No disponible».
-- **Revisión del código (sin datos reales todavía):** `Product::map` ya toma `gallery` (principal primero) y el detalle de Explorar productos muestra miniaturas; la tarjeta usa solo la primera foto. «No disponible» es el texto de `money(null)` y del stock nulo: un producto variable suele traer `sale_price` y stock por variante, y Tinvana solo lee los del producto (la búsqueda del catálogo usa `get_stock:false`). Las variantes se muestran en bruto («Variaciones originales») y las landings no tienen selector de variante.
+- **Revisión del código (sin datos reales todavía):** `Product::map` ya toma `gallery` (principal primero) y el detalle de Explorar productos muestra miniaturas; la tarjeta usa solo la primera foto. «No disponible» es el texto de `money(null)` y del stock nulo: un producto variable suele traer `sale_price` y stock por variante, y Tinbana solo lee los del producto (la búsqueda del catálogo usa `get_stock:false`). Las variantes se muestran en bruto («Variaciones originales») y las landings no tienen selector de variante.
 - **Cambio:** comando de solo lectura `dropi:product-probe email id_producto` (`DropiProductProbe`): repite la búsqueda del catálogo (`POST products/index` con el ID como palabra clave) con `get_stock` falso y verdadero y muestra claves, precio, galería, stock por bodega y cada variación (precio, stock, fotos y atributos), sin token ni datos del proveedor. En GoDaddy se ejecuta con un cron de un solo uso que guarda la salida en un archivo.
 - **Comprobado (local):** sintaxis y validaciones (ID inválido, usuario inexistente). No se contactó a Dropi.
 - **Siguiente paso:** el propietario lo ejecuta en producción para el producto 2261687; con la salida se corrigen precio/stock de variables, galería y luego las variantes en las landings.
@@ -820,6 +820,19 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** tras un pedido guardado, al volver a tocar «Comprar» el formulario empieza limpio (campos habilitados y vacíos, cantidad 1, identificador nuevo; la variante elegida se conserva); el pedido anterior sigue protegido contra doble envío. El correo «Recibimos tu pedido» incluye el paso de WhatsApp según el estado al enviarse (ver [WHATSAPP.md](WHATSAPP.md)).
 - **Comprobado (local):** `run.php` 83 (3 nuevas del correo), `whatsapp-confirm.mjs` 62, `landing-variants.mjs` 40 (incluye un segundo pedido sin recargar), `order-mail` 23, `lead-success` 12, `lead-phone-country` 6, `delivery-ui`, `builder`, `landing-stock` 24, `dropi-shipping` 20. Correo revisado en captura.
 - **Datos reales:** ninguno; no se envió ningún correo.
+
+### 2026-10-28 · Número de pedido y consulta del comprador
+- **Pedido del usuario:** un número único por pedido, que sirva para consultarlo (página y WhatsApp) sin presentarlo como código de WhatsApp, visible en la lista y el detalle; datos personales parcialmente ocultos y dirección completa.
+- **Cambio:** número `TB-XXXX-XXXX` en cada pedido (también los anteriores), búsqueda en el panel, popup, correos, plantilla y nota de Dropi; página `/pedido` y respuesta por WhatsApp con el estado. Migración PostgreSQL 030 / MySQL 047. Detalle en [ORDERS.md](ORDERS.md).
+- **Comprobado (local, servidor aislado en 8091):** `order-lookup.mjs` 18 (nueva), `run.php` 86, `dropi-orders.php` 29; `whatsapp-confirm` 62, `order-mail` 23, `orders` 38, `order-editing` 52, `dropi-orders` 36, `landing-variants` 40, `landing-stock` 24, `lead-success` 12, `whatsapp-inbox` 43, `whatsapp-agent` 50, `whatsapp-ads` 30, `whatsapp-notify` 27, `whatsapp-templates` 32, `dropi-shipping` 20, `builder`.
+- **Datos reales:** ninguno.
+- **Siguiente paso:** desplegar y aplicar `migrate` (MySQL 043 a 047).
+
+### 2026-10-28 · La marca pasa a llamarse Tinbana
+- **Pedido del usuario:** el nombre correcto es Tinbana (dominio tinbana.com); prefijo TB en números de pedido y códigos de oferta.
+- **Cambio:** «Tinvana» → «Tinbana» en todos los textos visibles, correos, páginas legales, comentarios, pruebas y documentación (244 apariciones en 66 archivos). Números de pedido `TB-XXXX-XXXX`; códigos de oferta nuevos `TB-…` (los `TV-` anteriores siguen funcionando). Sin cambiar: identificadores internos en minúscula (`tinvana.css`, `brand/tinvana-*.svg`, claves guardadas), variables de entorno en mayúscula, migraciones ya aplicadas y `backend/mysql/schema.sql` (el servidor verifica que no cambien) y los PDF.
+- **Pendiente:** los logos (SVG del panel y PNG del correo) aún dibujan «TINVANA»; el propietario enviará los nuevos. El nombre de remitente guardado en Correos no cambia solo.
+- **Comprobado (local):** `run.php` 86, `dropi-orders.php` 29, `dropi-tracking.php` 12, `account-resend.php`, `blocks.php` 101; `landing-design` 40, `order-mail` 23, `order-lookup` 18, `whatsapp-ads` 30, `whatsapp-confirm` 62, `lead-success` 12, `dropi-orders` 36, `builder`; `tinvana-ui` pasa las comprobaciones de marca y luego se detiene al tocar el menú móvil del panel (no relacionado con el texto; no se comprobó si ya fallaba). `dropi-tracking.mjs` no se pudo validar con el servidor en otros puertos (su proceso auxiliar usa el 8445 fijo).
 
 ### Plantilla para la próxima actualización
 

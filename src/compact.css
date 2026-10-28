@@ -1,4 +1,4 @@
-/* Compact lists: products, leads and orders. Inspired by dense, card-and-row dashboards; uses Tinvana tokens only. */
+/* Compact lists: products, leads and orders. Inspired by dense, card-and-row dashboards; uses Tinbana tokens only. */
 .cx-avatar{display:grid;place-items:center;flex:none;border-radius:50%;font-weight:700;font-size:13px;letter-spacing:.02em;color:hsl(var(--hue) 55% 26%);background:hsl(var(--hue) 75% 90%)}
 :root[data-theme=dark] .cx-avatar{color:hsl(var(--hue) 80% 82%);background:hsl(var(--hue) 32% 22%)}
 

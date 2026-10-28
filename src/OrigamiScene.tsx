@@ -1,7 +1,7 @@
 import {useEffect,useRef} from 'react';
 import gsap from 'gsap';
 
-// Facets traced directly from the supplied Tinvana origami SVG.
+// Facets traced directly from the supplied Tinbana origami SVG.
 const faces=[
  {points:[[100,172],[1644,652],[492,808]],color:'#FF6A00'},
  {points:[[492,808],[1644,652],[1168,880],[1064,1500],[1032,892]],color:'#FFBA3D'},

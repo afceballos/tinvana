@@ -37,12 +37,12 @@ export function WhatsAppAgentPage(){
    </dl>
   </section>
   <section className="panel narrow webhook-current wa-agent-settings">
-   <div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name="chat"/></span><div><span className="eyebrow">Cómo responde</span><h2>Ajustes del agente</h2></div><span className="webhook-state on">{view.custom?'Ajustes propios':'Predeterminados de Tinvana'}</span></div>
+   <div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name="chat"/></span><div><span className="eyebrow">Cómo responde</span><h2>Ajustes del agente</h2></div><span className="webhook-state on">{view.custom?'Ajustes propios':'Predeterminados de Tinbana'}</span></div>
    <AgentSettingsForm value={draft} catalog={view.catalog} onChange={setDraft}/>
    <div className="row">
     <button className="primary" disabled={busy||!dirty} onClick={()=>void run(async()=>{load(await api<AgentView>('/api/whatsapp/agent',{method:'PUT',body:JSON.stringify(draft)}));setNotice('Ajustes del agente guardados.');})}>{busy?'Guardando…':'Guardar ajustes'}</button>
     {dirty&&<button className="secondary" disabled={busy} onClick={()=>setDraft(view.settings)}>Descartar cambios</button>}
-    {view.custom&&!dirty&&<button className="secondary" disabled={busy} onClick={()=>void run(async()=>{load(await api<AgentView>('/api/whatsapp/agent',{method:'DELETE'}));setNotice('Volviste a los ajustes predeterminados de Tinvana.');})}>Usar los predeterminados</button>}
+    {view.custom&&!dirty&&<button className="secondary" disabled={busy} onClick={()=>void run(async()=>{load(await api<AgentView>('/api/whatsapp/agent',{method:'DELETE'}));setNotice('Volviste a los ajustes predeterminados de Tinbana.');})}>Usar los predeterminados</button>}
    </div>
   </section>
   <Sheets onChange={()=>{api<AgentView>('/api/whatsapp/agent').then(v=>setView({...v,settings:view.settings})).catch(()=>{});}}/>

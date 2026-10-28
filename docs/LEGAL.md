@@ -2,7 +2,7 @@
 
 Páginas públicas del dominio principal, generadas en el servidor por `backend/src/LegalPages.php` (sin sesión, sin JavaScript, caché pública de una hora):
 
-- `/privacidad`: política de privacidad y tratamiento de datos (Ley 1581 de 2012, Decreto 1074 de 2015). Explica el doble papel de Tinvana (responsable de los datos de las tiendas, encargado de los datos de los clientes de cada tienda), los datos tratados, finalidades, terceros (Dropi, Meta/WhatsApp, OpenAI/Anthropic, webhooks/CRM, infraestructura), transferencias internacionales, derechos, plazos de consultas (10 + 5 días hábiles) y reclamos (15 + 8), eliminación de datos, conservación, seguridad, cookies y menores.
+- `/privacidad`: política de privacidad y tratamiento de datos (Ley 1581 de 2012, Decreto 1074 de 2015). Explica el doble papel de Tinbana (responsable de los datos de las tiendas, encargado de los datos de los clientes de cada tienda), los datos tratados, finalidades, terceros (Dropi, Meta/WhatsApp, OpenAI/Anthropic, webhooks/CRM, infraestructura), transferencias internacionales, derechos, plazos de consultas (10 + 5 días hábiles) y reclamos (15 + 8), eliminación de datos, conservación, seguridad, cookies y menores.
 - `/terminos`: términos y condiciones de uso (servicio, cuenta, planes, responsabilidades de la tienda incluida la Ley 1480 de 2011, usos prohibidos, terceros, inteligencia artificial, propiedad intelectual, disponibilidad, responsabilidad, terminación, ley colombiana).
 
 Ambas sirven como URL de política de privacidad, términos y eliminación de datos (`/privacidad#eliminacion`) en la app de Meta.
@@ -11,7 +11,7 @@ Ambas sirven como URL de política de privacidad, términos y eliminación de da
 
 | Variable | Uso |
 |---|---|
-| `LEGAL_NAME` | Nombre o razón social. Si falta se muestra «Tinvana». |
+| `LEGAL_NAME` | Nombre o razón social. Si falta se muestra «Tinbana». |
 | `LEGAL_ID` | NIT o documento. Si falta no se muestra. |
 | `LEGAL_ADDRESS` | Domicilio. Si falta no se muestra. |
 | `LEGAL_EMAIL` | Correo para solicitudes de datos. Si falta se usa `MAIL_FROM_ADDRESS`; conviene un buzón que se lea, no uno «no-reply». |

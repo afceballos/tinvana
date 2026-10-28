@@ -7,7 +7,7 @@ namespace App;
  * - A new landing order is queued when the store turned it on. The worker quotes it with the landing price and the
  *   freight Dropi quoted at submission (never invented: without freight or with variants to choose it is skipped, and
  *   the store sends it from the order after quoting by hand).
- * - Customer first (default): the success popup opens WhatsApp with a short code (TV-XXXXXX). When the customer sends
+ * - Customer first (default): the success popup opens WhatsApp with a order number (TB-XXXX-XXXX). When the customer sends
  *   it, the 24-hour window is open and the summary goes out as an interactive reply buttons message, no template.
  *   If the customer does not write within the store's wait, the approved template is the fallback (when there is one).
  * - Both carry one id per button: "Confirmar pedido" and "Cambiar algo". A tap comes back as a "button" (template) or
@@ -17,7 +17,7 @@ namespace App;
  *   confirmation in Dropi, the same as the manual button). The template is never resent automatically.
  */
 final class WhatsAppOrderConfirm {
- /** Template variables Tinvana knows how to fill from an order. */
+ /** Template variables Tinbana knows how to fill from an order. */
  public const VALUES=['nombre'=>'Nombre del cliente','apellido'=>'Apellido','producto'=>'Producto','variante'=>'Variante','cantidad'=>'Cantidad','precio'=>'Precio por unidad','envio'=>'Envío','total'=>'Total con envío','direccion'=>'Dirección','ciudad'=>'Ciudad','departamento'=>'Departamento','pedido'=>'Número de pedido','tienda'=>'Nombre de la tienda'];
  public const WAITS=[5,10,15,30,60,120];
  public const BUILT_IN=['enabled'=>false,'customer_first'=>true,'wait_minutes'=>15,'template_id'=>null,'auto_dropi'=>false,'messages'=>[
@@ -28,8 +28,8 @@ final class WhatsAppOrderConfirm {
  private const PAYLOAD_RE='/^tvc:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(ok|change)$/D';
  private const SENDING_MINUTES=5;
  // Code the customer sends from the popup; no 0/O/1/I/L so it can be read and typed without mistakes.
- private const CODE_CHARS='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
- private const CODE_RE='/\bTV-([ABCDEFGHJKMNPQRSTUVWXYZ2-9]{6})\b/i';
+ // The order number (TB-7KQ2-MX9P) found in a message, with or without dashes or spaces.
+ private const NUMBER_IN_TEXT='/\bTB[\s-]?[A-Z0-9]{4}[\s-]?[A-Z0-9]{4}\b/i';
  private const BUTTONS=['Confirmar pedido','Cambiar algo'];
  private const SUMMARY="Hola {{nombre}}, este es el resumen de tu pedido:\n{{producto}} ({{cantidad}} und.)\nTotal con envío: {{total}}\nEntrega en {{direccion}}, {{ciudad}}.\n¿Lo confirmamos?";
 
@@ -50,7 +50,7 @@ final class WhatsAppOrderConfirm {
  public static function ineligible(array $t): ?string {
   if($t['status']!=='APPROVED')return 'Meta todavía no la aprueba';
   if(count(json_decode((string)$t['buttons'],true)?:[])!==2)return 'Necesita exactamente dos botones: el primero confirma y el segundo pide cambios';
-  foreach(json_decode((string)$t['variables'],true)?:[] as $v)if(!isset(self::VALUES[$v['key']]))return 'Usa la variable {{'.$v['key'].'}}, que Tinvana no sabe llenar con los datos del pedido';
+  foreach(json_decode((string)$t['variables'],true)?:[] as $v)if(!isset(self::VALUES[$v['key']]))return 'Usa la variable {{'.$v['key'].'}}, que Tinbana no sabe llenar con los datos del pedido';
   return null;
  }
  /** Digits of the connected number for a wa.me link, or null until «Probar conexión» stored it. */
@@ -88,7 +88,7 @@ final class WhatsAppOrderConfirm {
    if(!$t)throw new HttpError(422,'Plantilla no encontrada.');
    if($enabled&&($why=self::ineligible($t)))throw new HttpError(422,'Esa plantilla no sirve para confirmar pedidos: '.$why.'.');
   }elseif($enabled&&!$first)throw new HttpError(422,'Sin el botón para que el cliente escriba primero necesitas una plantilla aprobada: elígela antes de activarla.');
-  if($enabled&&$first&&!$tid){$a=WhatsAppAccount::ofUser($owner);if(!$a||!self::businessPhone($a))throw new HttpError(422,'Pulsa «Probar conexión» en Conexión para que Tinvana conozca tu número de WhatsApp, o elige una plantilla.');}
+  if($enabled&&$first&&!$tid){$a=WhatsAppAccount::ofUser($owner);if(!$a||!self::businessPhone($a))throw new HttpError(422,'Pulsa «Probar conexión» en Conexión para que Tinbana conozca tu número de WhatsApp, o elige una plantilla.');}
   $value=Support::json(['enabled'=>$enabled,'customer_first'=>$first,'wait_minutes'=>$wait,'template_id'=>$tid,'auto_dropi'=>$auto,'messages'=>$messages]);
   if(Database::one('SELECT user_id FROM whatsapp_confirm_settings WHERE user_id=?',[$owner]))Database::query('UPDATE whatsapp_confirm_settings SET settings=?::jsonb,updated_at=now() WHERE user_id=?',[$value,$owner]);
   else Database::query('INSERT INTO whatsapp_confirm_settings(user_id,settings) VALUES(?,?::jsonb)',[$owner,$value]);
@@ -97,11 +97,9 @@ final class WhatsAppOrderConfirm {
 
  // ---- Sending ----
 
- private static function code(string $owner): string {
-  for($i=0;$i<10;$i++){$c='';for($j=0;$j<6;$j++)$c.=self::CODE_CHARS[random_int(0,strlen(self::CODE_CHARS)-1)];
-   if(!Database::one('SELECT id FROM whatsapp_order_confirmations WHERE user_id=? AND code=?',[$owner,$c]))return $c;}
-  throw new \RuntimeException('No se pudo generar el código de confirmación.');
- }
+ /** The confirmation code is the order number without the prefix and dashes (TB-7KQ2-MX9P → 7KQ2MX9P). */
+ private static function codeOf(string $number): string {return str_replace(['TB-','-'],'',$number);}
+ private static function numberOf(string $code): string {return 'TB-'.substr($code,0,4).'-'.substr($code,4);}
  /**
   * Queues the confirmation of a new landing order (inside the lead transaction). Cheap: the worker sends it.
   * Returns null when off, or the wa.me link for the success popup (null link when the customer-first step is off).
@@ -111,12 +109,12 @@ final class WhatsAppOrderConfirm {
   $owner=(string)$order['user_id'];$act=self::active($owner);if(!$act)return null;
   $code=null;$link=null;$wait=0;
   if($act['phone']){
-   $code=self::code($owner);$link='https://wa.me/'.$act['phone'].'?text='.rawurlencode('Hola, quiero confirmar mi pedido TV-'.$code);
+   $number=Orders::displayNumber($order);$code=self::codeOf($number);$link='https://wa.me/'.$act['phone'].'?text='.rawurlencode('Hola, quiero confirmar mi pedido '.$number);
    // Without a template there is no fallback: the row waits for the customer until the summary would expire.
    $wait=$act['template']?(int)$act['settings']['wait_minutes']:1440;
   }
   Database::query("INSERT INTO whatsapp_order_confirmations(id,user_id,order_id,status,origin,code,send_after) VALUES(?,?,?,'queued','landing',?,now()+(? * interval '1 minute'))",[Support::uuid(),$owner,$order['id'],$code,$wait]);
-  return ['link'=>$link,'code'=>$code?'TV-'.$code:null];
+  return ['link'=>$link,'code'=>$code?self::numberOf($code):null];
  }
  /** Sends queued confirmations and handles the customers' replies. */
  public static function runDue(int $limit=10): array {
@@ -150,7 +148,7 @@ final class WhatsAppOrderConfirm {
    'cantidad'=>(string)(int)$r['quantity'],'precio'=>self::money((string)$r['unit_price']),'envio'=>(float)$r['shipping_price']==0.0?'Gratis':self::money((string)$r['shipping_price']),
    'total'=>self::money(self::add((string)$r['unit_price'],(string)$r['shipping_price'],(int)$r['quantity'])),
    'direccion'=>trim(($a['address']??'').' '.($a['address_details']??'')),'ciudad'=>(string)($a['city']??''),'departamento'=>(string)($a['state']??''),
-   'pedido'=>strtoupper(substr((string)$r['id'],0,8)),'tienda'=>(string)($account['verified_name']?:'nuestra tienda')];
+   'pedido'=>Orders::displayNumber($r),'tienda'=>(string)($account['verified_name']?:'nuestra tienda')];
  }
  private static function quoteValid(array $r): bool {return $r['quote_id']!==null&&$r['quote_expires_at']!==null&&strtotime((string)$r['quote_expires_at'])>time()&&$r['shipping_price']!==null&&$r['unit_price']!==null;}
  /** Fills {{key}} variables of a text with the order values. */
@@ -213,9 +211,10 @@ final class WhatsAppOrderConfirm {
 
  /**
   * Called inside the inbound transaction. Returns true when the message is the customer's tap on a confirmation
-  * button (the AI must not answer it). Free text while a confirmation waits in an AI chat goes to an advisor.
+  * button or their order number (the AI must not answer it); ['status'=>order id] when the number asks for the order
+  * status (answered after the commit). Free text while a confirmation waits in an AI chat goes to an advisor.
   */
- public static function inbound(string $owner,array $conv,array $m,string $type,string $messageId,string $wamid): bool {
+ public static function inbound(string $owner,array $conv,array $m,string $type,string $messageId,string $wamid): bool|array {
   // Template quick reply (button.payload) or interactive reply button (interactive.button_reply.id).
   $id=$type==='button'?($m['button']['payload']??null):($type==='interactive'?($m['interactive']['button_reply']['id']??null):null);
   if(preg_match(self::PAYLOAD_RE,is_string($id)?$id:'',$p)){
@@ -226,20 +225,29 @@ final class WhatsAppOrderConfirm {
     return true;
    }
   }
-  // The code from the success popup: the customer wrote first, so the summary goes out now without a template.
-  if($type==='text'&&preg_match(self::CODE_RE,is_string($m['text']['body']??null)?$m['text']['body']:'',$p)){
-   $row=Database::one("SELECT id FROM whatsapp_order_confirmations WHERE user_id=? AND code=? AND status='queued' FOR UPDATE",[$owner,strtoupper($p[1])]);
+  // The order number: from the success popup or the email, the customer wrote first, so the summary goes out now
+  // without a template; otherwise the customer is asking for the order, which is answered with its status.
+  if($type==='text'&&preg_match(self::NUMBER_IN_TEXT,is_string($m['text']['body']??null)?$m['text']['body']:'',$p)&&($number=Orders::normalizeNumber($p[0]))){
+   $row=Database::one("SELECT id FROM whatsapp_order_confirmations WHERE user_id=? AND code=? AND status='queued' FOR UPDATE",[$owner,self::codeOf($number)]);
    if($row){
     Database::query("UPDATE whatsapp_order_confirmations SET conversation_id=?,send_after=now(),updated_at=now() WHERE id=?",[$conv['id'],$row['id']]);
     return true;
    }
+   if($o=Database::one('SELECT id FROM orders WHERE order_number=? AND user_id=?',[$number,$owner]))return ['status'=>(string)$o['id']];
   }
   if($conv['owner_mode']==='ai'&&($w=Database::one("SELECT order_id FROM whatsapp_order_confirmations WHERE conversation_id=? AND user_id=? AND status='sent' LIMIT 1",[$conv['id'],$owner]))){
-   $reason='Respondió con un mensaje a la confirmación del pedido #'.strtoupper(substr((string)$w['order_id'],0,8));
+   $reason='Respondió con un mensaje a la confirmación del pedido '.self::ref((string)$w['order_id']);
    Database::query("UPDATE whatsapp_conversations SET owner_mode='human',handoff_reason=?,version=version+1,updated_at=now() WHERE id=?",[$reason,$conv['id']]);
    Notifications::notify($owner,'order_change','Un cliente respondió a la confirmación de su pedido',$reason,'/panel/whatsapp/'.$conv['id'],(string)$conv['id']);
   }
   return false;
+ }
+ private static function ref(string $orderId): string {$o=Database::one('SELECT id,order_number FROM orders WHERE id=?',[$orderId]);return $o?Orders::displayNumber($o):strtoupper(substr($orderId,0,8));}
+ /** Answer to a customer who sent their order number: status, product, total and delivery address, plus the look-up page. */
+ public static function statusReply(string $owner,string $conversationId,string $orderId): void {
+  $o=Database::one('SELECT * FROM orders WHERE id=? AND user_id=?',[$orderId,$owner]);if(!$o)return;
+  $c=WhatsAppInbox::conversation($owner,$conversationId);$account=Database::one('SELECT * FROM whatsapp_accounts WHERE id=? AND user_id=?',[$c['account_id'],$owner]);
+  if($account&&WhatsAppInbox::windowOpen($c['last_customer_at']))WhatsAppInbox::sendText($account,$c,OrderLookup::text($o)."\n\nConsúltalo cuando quieras: ".OrderLookup::url($owner,Orders::displayNumber($o)),'system',null);
  }
  private static function handoff(array $c,string $reason): void {
   Database::query("UPDATE whatsapp_conversations SET owner_mode='human',handoff_reason=?,version=version+1,updated_at=now() WHERE id=?",[mb_substr($reason,0,200),$c['id']]);
@@ -254,7 +262,7 @@ final class WhatsAppOrderConfirm {
   $row=Database::one('SELECT * FROM whatsapp_order_confirmations WHERE id=?',[$id]);$owner=(string)$row['user_id'];
   $c=WhatsAppInbox::conversation($owner,(string)$row['conversation_id']);
   $account=Database::one('SELECT * FROM whatsapp_accounts WHERE id=? AND user_id=?',[$c['account_id'],$owner]);
-  $s=self::settings($owner);$ref='#'.strtoupper(substr((string)$row['order_id'],0,8));$who=WhatsAppAgent::who($c);$link='/panel/pedidos/'.$row['order_id'];
+  $s=self::settings($owner);$ref=self::ref((string)$row['order_id']);$who=WhatsAppAgent::who($c);$link='/panel/pedidos/'.$row['order_id'];
   if($row['reply']==='change'){
    $o=Database::one('SELECT * FROM orders WHERE id=? AND user_id=?',[$row['order_id'],$owner]);
    if($row['status']!=='confirmed')self::finish($row,'change',null);
@@ -307,7 +315,7 @@ final class WhatsAppOrderConfirm {
   $row=Database::one('SELECT status,code FROM whatsapp_order_confirmations WHERE order_id=? AND user_id=?',[$orderId,$owner]);
   if(!$row||!in_array($row['status'],['queued','sending','sent'],true))return null;
   $a=WhatsAppAccount::ofUser($owner);$phone=$a?self::businessPhone($a):null;if(!$phone)return null;
-  if($row['status']!=='sent'&&$row['code'])return ['link'=>'https://wa.me/'.$phone.'?text='.rawurlencode('Hola, quiero confirmar mi pedido TV-'.$row['code']),'code'=>'TV-'.$row['code'],'sent'=>false];
+  if($row['status']!=='sent'&&$row['code'])return ['link'=>'https://wa.me/'.$phone.'?text='.rawurlencode('Hola, quiero confirmar mi pedido '.self::numberOf($row['code'])),'code'=>self::numberOf($row['code']),'sent'=>false];
   return $row['status']==='sent'?['link'=>'https://wa.me/'.$phone,'code'=>null,'sent'=>true]:null;
  }
 
@@ -324,12 +332,12 @@ final class WhatsAppOrderConfirm {
   $hint=match(true){
    !$active=>'Activa la confirmación por WhatsApp en Ventas WhatsApp → Confirmaciones.',
    !$editable=>null,
-   $customer=>'Esperando que el cliente escriba por WhatsApp con su código TV-'.$row['code'].'. '.($active['template']?'Si no escribe, se le envía la plantilla a las '.$at.'.':'Sin plantilla aprobada, si no escribe no se le envía nada.'),
+   $customer=>'Esperando que el cliente escriba por WhatsApp con su número de pedido '.self::numberOf((string)$row['code']).'. '.($active['template']?'Si no escribe, se le envía la plantilla a las '.$at.'.':'Sin plantilla aprobada, si no escribe no se le envía nada.'),
    !self::quoteValid($r)=>'Guarda una cotización vigente para enviar el resumen por WhatsApp.',
    $current=>'El cliente ya tiene este resumen. Espera su respuesta en el chat.',
    $waiting=>'Envío en curso.',
    default=>null};
-  return ['enabled'=>$active!==null,'status'=>$row['status']??null,'origin'=>$row['origin']??null,'error'=>$row['error']??null,'reply'=>$row['reply']??null,'conversation_id'=>$row['conversation_id']??null,'channel'=>$row['channel']??null,'code'=>isset($row['code'])?'TV-'.$row['code']:null,'waiting_customer'=>$customer,
+  return ['enabled'=>$active!==null,'status'=>$row['status']??null,'origin'=>$row['origin']??null,'error'=>$row['error']??null,'reply'=>$row['reply']??null,'conversation_id'=>$row['conversation_id']??null,'channel'=>$row['channel']??null,'code'=>isset($row['code'])?self::numberOf((string)$row['code']):null,'waiting_customer'=>$customer,
    'sent_at'=>$row['sent_at']??null,'replied_at'=>$row['replied_at']??null,'can_send'=>$active!==null&&$editable&&self::quoteValid($r)&&!$current&&!$waiting,'hint'=>$hint];
  }
  /** Sends (or resends) the summary of the current quote from the order detail. */

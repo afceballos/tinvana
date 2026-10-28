@@ -21,7 +21,7 @@ export function AgentSettingsForm({value,catalog,onChange,idPrefix='agent'}:{val
   <fieldset><legend>Pasar a un asesor cuando…</legend>
    <div className="wa-checklist">{MOTIVES.map(([k,label])=><label key={k} className="wa-check"><input type="checkbox" checked={value.handoff[k] as boolean} onChange={e=>set({handoff:{...value.handoff,[k]:e.target.checked}})}/>{label}</label>)}</div>
    <label className="wa-check"><input type="checkbox" checked={value.handoff_notice} onChange={e=>set({handoff_notice:e.target.checked})}/>Avisar al cliente que lo pasas a un asesor</label>
-   {value.handoff_notice&&<label>Mensaje al pasar a un asesor<textarea rows={2} maxLength={300} value={value.messages.handoff} onChange={e=>set({messages:{...value.messages,handoff:e.target.value}})}/><span className="small muted">Es lo único que recibe el cliente en ese momento; la IA no escribe nada más. A ti te llega un aviso en Tinvana.</span></label>}
+   {value.handoff_notice&&<label>Mensaje al pasar a un asesor<textarea rows={2} maxLength={300} value={value.messages.handoff} onChange={e=>set({messages:{...value.messages,handoff:e.target.value}})}/><span className="small muted">Es lo único que recibe el cliente en ese momento; la IA no escribe nada más. A ti te llega un aviso en Tinbana.</span></label>}
    <label>Otros motivos <span className="muted">(opcional)</span><textarea rows={2} maxLength={400} value={value.handoff.custom} onChange={e=>set({handoff:{...value.handoff,custom:e.target.value}})} placeholder="Ej. Pedidos de más de 5 unidades o clientes de otros países"/></label>
   </fieldset>
   <fieldset><legend>Horario de atención</legend>

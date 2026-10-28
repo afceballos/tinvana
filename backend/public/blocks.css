@@ -1,4 +1,4 @@
-/* Tinvana landing design system (2026-10-24).
+/* Tinbana landing design system (2026-10-24).
    One stylesheet for every block and the three styles (data-theme: modern | warm | bold).
    The seller's colors arrive as --primary/--paper with their readable text colors (--on-primary, --ink-on-paper),
    computed on the server. Motion is CSS-only and switches off with prefers-reduced-motion. */

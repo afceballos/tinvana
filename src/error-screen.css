@@ -1,4 +1,4 @@
-/* Error page (404 and other server statuses): Tinvana paper palette, an origami bird orbiting the middle digit,
+/* Error page (404 and other server statuses): Tinbana paper palette, an origami bird orbiting the middle digit,
    a dashed flight trail and drifting paper scraps. Everything stops under prefers-reduced-motion. */
 .err-screen{--err-bg:#FFF8F1;--err-ink:#1E1E1E;--err-muted:#75665c;--err-accent:#FF6A00;--err-soft:#FFE0CD;--err-card:#ffffffcc;
  position:relative;min-height:100dvh;display:flex;flex-direction:column;align-items:center;overflow:hidden;padding:28px 16px;background:var(--err-bg);color:var(--err-ink);font-family:Montserrat,sans-serif;isolation:isolate}

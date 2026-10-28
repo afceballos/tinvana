@@ -37,7 +37,7 @@ export function WhatsAppTemplatesPage(){
  const has=(name:string)=>view.templates.some(t=>t.name===name&&t.status!=='DELETED');
  return <>
   <WhatsAppTabs/>
-  <p className="muted">WhatsApp solo deja escribir primero, o después de 24 horas sin respuesta del cliente, con plantillas aprobadas por Meta. Tinvana las crea y las envía a revisión; Meta cobra cada conversación que inicias con una plantilla.</p>
+  <p className="muted">WhatsApp solo deja escribir primero, o después de 24 horas sin respuesta del cliente, con plantillas aprobadas por Meta. Tinbana las crea y las envía a revisión; Meta cobra cada conversación que inicias con una plantilla.</p>
   <section className="panel webhook-current tpl-list-card">
    <div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name="mail"/></span><div><span className="eyebrow">Aprobadas por Meta</span><h2>Plantillas</h2></div><button className="secondary" disabled={busy} onClick={()=>void run(()=>post<View>('/api/whatsapp/templates/sync'))}><Icon name="refresh"/>Actualizar estados</button></div>
    <ul className="tpl-list">{view.templates.map(t=><li key={t.id}>

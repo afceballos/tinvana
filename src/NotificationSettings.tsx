@@ -21,7 +21,7 @@ export function NotificationSettings(){
  const toggle=(group:'events'|'channels',k:string)=>setDraft({...draft,[group]:{...draft[group],[k]:!draft[group][k]}});
  return <>
   <div className="section-heading"><div><span className="eyebrow">Tu cuenta</span><h1>Notificaciones</h1></div></div>
-  <p className="muted">Elige qué te avisa Tinvana y por dónde. Por ahora los avisos vienen de Ventas por WhatsApp: cuando un chat necesita a una persona de tu equipo.</p>
+  <p className="muted">Elige qué te avisa Tinbana y por dónde. Por ahora los avisos vienen de Ventas por WhatsApp: cuando un chat necesita a una persona de tu equipo.</p>
   <section className="panel narrow webhook-current">
    <div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name="bell"/></span><div><span className="eyebrow">Qué te avisamos</span><h2>Eventos</h2></div></div>
    <div className="notify-options">{Object.entries(view.events).map(([k,label])=><label key={k} className="wa-check"><input type="checkbox" checked={draft.events[k]} onChange={()=>toggle('events',k)}/>{label}</label>)}</div>
@@ -33,7 +33,7 @@ export function NotificationSettings(){
    {draft.channels.browser&&<div className="notify-permission"><p className="small"><strong>Notificaciones del navegador:</strong> {permission==='unsupported'?'Este navegador no las admite':permissionText[permission]}.</p>
     {permission==='default'&&<button type="button" className="secondary" onClick={()=>void Notification.requestPermission().then(p=>{setPermission(p);if(p==='granted')setNotice('Listo: este navegador te mostrará los avisos aunque estés en otra pestaña.');})}>Permitir en este navegador</button>}</div>}
    {draft.channels.email&&<label>Correo para los avisos<input type="email" maxLength={254} value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} placeholder={view.account_email}/><span className="small muted">Déjalo vacío para usar el correo de tu cuenta ({view.account_email}). Se envía con el mismo sistema de correos de los pedidos.</span></label>}
-   <p className="small muted">El sonido y la notificación del navegador funcionan mientras Tinvana esté abierto en alguna pestaña. El correo llega aunque no estés en Tinvana.</p>
+   <p className="small muted">El sonido y la notificación del navegador funcionan mientras Tinbana esté abierto en alguna pestaña. El correo llega aunque no estés en Tinbana.</p>
   </section>
   <div className="row"><button className="primary" disabled={busy||!dirty} onClick={()=>{setBusy(true);api<View>('/api/notifications/settings',{method:'PUT',body:JSON.stringify(draft)}).then(v=>{setView(v);setDraft(v.settings);setNotice('Notificaciones guardadas.');}).catch(e=>setError((e as Error).message)).finally(()=>setBusy(false));}}>{busy?'Guardando…':'Guardar notificaciones'}</button>{dirty&&<button className="secondary" disabled={busy} onClick={()=>setDraft(view.settings)}>Descartar cambios</button>}</div>
  </>;

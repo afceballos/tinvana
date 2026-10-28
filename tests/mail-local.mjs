@@ -29,8 +29,8 @@ try{
  check('diagnose delivers the test message and never prints secrets',ok.ok===true&&ok.lines.some(l=>/Envío de prueba a admin@tinbana\.test: aceptado/.test(l))&&!ok.lines.join('\n').includes('test-only-password'));
  check('exactly one message reached the SMTP server',messages.length===1);
  const mail=decode(messages[0]);
- check('sender name and subject use the Tinvana brand',/From: Tinvana <admin@tinbana\.test>/.test(mail)&&/Subject: (=\?UTF-8\?[BQ]\?[^?]+\?=|Correo de prueba · Tinvana)/.test(mail));
- check('HTML body is branded, has the call to action and no Zenzales leftovers',/Tinvana · Ideas que toman vuelo/.test(mail)&&/#ff6a00/i.test(mail)&&/Abrir Tinvana/.test(mail)&&!/Zenzales/i.test(mail));
+ check('sender name and subject use the Tinbana brand',/From: Tinbana <admin@tinbana\.test>/.test(mail)&&/Subject: (=\?UTF-8\?[BQ]\?[^?]+\?=|Correo de prueba · Tinbana)/.test(mail));
+ check('HTML body is branded, has the call to action and no Zenzales leftovers',/Tinbana · Ideas que toman vuelo/.test(mail)&&/#ff6a00/i.test(mail)&&/Abrir Tinbana/.test(mail)&&!/Zenzales/i.test(mail));
  check('logo is embedded as an inline image',/Content-ID: <tinvana-logo>/.test(messages[0])&&/Content-Type: image\/png/.test(messages[0]));
  check('plain-text alternative is present',/Content-Type: text\/plain/.test(messages[0])&&/mensaje de prueba/.test(mail));
  rejectRecipient=true;

@@ -134,8 +134,8 @@ Se usaron las skills `ui-ux-pro-max` (patrón de conversión con el llamado a la
 - Los recursos llevan `?v=` con la fecha de modificación, para que un despliegue no quede oculto tras la caché.
 
 **Otros cambios:**
-- El pie de página dice «Página creada con Tinvana».
-- El logo por defecto del encabezado es el de Tinvana, sin parches en el navegador.
+- El pie de página dice «Página creada con Tinbana».
+- El logo por defecto del encabezado es el de Tinbana, sin parches en el navegador.
 - Los testimonios muestran estrellas.
 - El formulario de compra toma los colores de la landing.
 

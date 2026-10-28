@@ -1,4 +1,4 @@
-# Contexto y continuidad de Tinvana
+# Contexto y continuidad de Tinbana
 
 Antes de trabajar, leer [docs/CONTEXTO-PROYECTO.md](docs/CONTEXTO-PROYECTO.md). Es el documento maestro del estado actual; después consultar las guías específicas que enlaza. Contrastar siempre el estado descrito con el código y las migraciones.
 
@@ -21,6 +21,6 @@ Después de cada cambio funcional, de configuración o despliegue relevante:
 - No afirmar que un servicio externo funciona sin haberlo probado. Una confirmación local no crea una orden Dropi; un HTTP 2xx del webhook no acredita ejecución comercial en GHL.
 - No reintentar a ciegas la creación de una orden externa con resultado desconocido.
 - Preservar cambios ajenos existentes en el workspace; revisar el alcance antes de editar.
-- El rediseño Tinvana fue visual. Las ampliaciones posteriores expresamente autorizadas incluyen eliminación segura de medios y las etapas de pedidos, correcciones y ofertas por cantidad; no interpretar la restricción histórica de frontend como prohibición general de esas ampliaciones.
+- El rediseño Tinbana fue visual. Las ampliaciones posteriores expresamente autorizadas incluyen eliminación segura de medios y las etapas de pedidos, correcciones y ofertas por cantidad; no interpretar la restricción histórica de frontend como prohibición general de esas ampliaciones.
 
 Estas instrucciones no sustituyen las instrucciones del usuario ni las del entorno.

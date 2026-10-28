@@ -21,7 +21,7 @@ final class LandingHeader {
  }
  public static function render(array $content,bool $preview=false):string {
   $h=$content['header'];$entries=self::entries($h,$content['blocks']);$e=fn($v)=>Support::escape($v);$links='';foreach($entries as $entry)$links.='<li><a href="#section-'.$e($entry['id']).'" data-section-link>'.$e($entry['label']).'</a></li>';
-  $logo=$h['logo']?:'/brand/tinvana-light.svg';$alt=$h['logo']?($h['logoAlt']?:'Logo de la tienda'):'Tinvana';$home='#landing-top';foreach($content['blocks'] as $block)if($block['visible']&&$block['type']!=='divider'){$home='#section-'.$block['id'];break;}
+  $logo=$h['logo']?:'/brand/tinvana-light.svg';$alt=$h['logo']?($h['logoAlt']?:'Logo de la tienda'):'Tinbana';$home='#landing-top';foreach($content['blocks'] as $block)if($block['visible']&&$block['type']!=='divider'){$home='#section-'.$block['id'];break;}
   $menu=$links?'<nav class="landing-desktop-nav" aria-label="Secciones de la página"><ul>'.$links.'</ul></nav><details class="landing-menu"><summary>Menú<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></summary><nav aria-label="Secciones de la página"><ul>'.$links.'</ul></nav></details>':'';
   return '<header id="landing-top" class="landing-header'.($h['sticky']?' is-sticky':'').(count($entries)>6?' dense-menu':'').'" style="--header-bg:'.$e($h['backgroundColor']).'"><div class="landing-header-inner"><a class="landing-header-logo" href="'.$e($home).'" aria-label="Volver al inicio"><img src="'.$e($logo).'" alt="'.$e($alt).'" width="160" height="80"></a>'.$menu.($preview?'<span class="landing-preview-badge">Vista privada</span>':'').'</div></header>';
  }

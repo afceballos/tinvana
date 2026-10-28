@@ -61,7 +61,7 @@ final class DropiShipping {
   if(Support::env('HTTP_CA_BUNDLE')!=='')curl_setopt($c,CURLOPT_CAINFO,Support::env('HTTP_CA_BUNDLE'));
   $res=curl_exec($c);$status=(int)curl_getinfo($c,CURLINFO_RESPONSE_CODE);curl_close($c);
   $json=$res===false?null:json_decode((string)$res,true);
-  if($status<200||$status>=300||!is_array($json)||($json['isSuccess']??false)!==true||!is_array($json['objects']??null)){error_log('Tinvana shipping quote failed status='.$status);return null;}
+  if($status<200||$status>=300||!is_array($json)||($json['isSuccess']??false)!==true||!is_array($json['objects']??null)){error_log('Tinbana shipping quote failed status='.$status);return null;}
   $list=self::normalize($json['objects']);
   if(!is_dir(dirname($file)))@mkdir(dirname($file),0700,true);
   @file_put_contents($file,Support::json(['carriers'=>$list]),LOCK_EX);

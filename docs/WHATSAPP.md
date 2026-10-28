@@ -1,6 +1,6 @@
 # Ventas por WhatsApp
 
-Módulo propio de Tinvana para vender por WhatsApp con la **API oficial de WhatsApp Cloud (Meta)**, sin GHL ni n8n. Requisitos completos en [PROMPT-MODULO-WHATSAPP.md](PROMPT-MODULO-WHATSAPP.md). Se construye por etapas; cada etapa se entrega con pruebas locales aprobadas.
+Módulo propio de Tinbana para vender por WhatsApp con la **API oficial de WhatsApp Cloud (Meta)**, sin GHL ni n8n. Requisitos completos en [PROMPT-MODULO-WHATSAPP.md](PROMPT-MODULO-WHATSAPP.md). Se construye por etapas; cada etapa se entrega con pruebas locales aprobadas.
 
 | Etapa | Contenido | Estado |
 |---|---|---|
@@ -15,7 +15,7 @@ Módulo propio de Tinvana para vender por WhatsApp con la **API oficial de Whats
 **Ampliaciones pedidas por el propietario (2026-10-26), para después de la etapa 4:**
 - **Nuevo chat**: escribir a un número que no ha escrito, solo con plantilla aprobada por Meta. **Implementado (2026-10-27).**
 - **Confirmación de pedidos de landings por WhatsApp**: resumen cotizado con Dropi, botones «Confirmar pedido» y «Cambiar algo»; la confirmación queda registrada con evidencia del mensaje. Por defecto el pedido queda para **revisión manual**; cada tienda puede activar «Enviar a Dropi automáticamente al confirmar». **Implementado (2026-10-27).**
-- **Plantillas creadas por Tinvana** y enviadas a Meta para aprobación desde el panel. **Implementado (2026-10-27).**
+- **Plantillas creadas por Tinbana** y enviadas a Meta para aprobación desde el panel. **Implementado (2026-10-27).**
 - **Aviso visible** en el formulario de las landings: «Te enviaremos la confirmación de tu pedido por WhatsApp». **Implementado (2026-10-27).**
 
 Fuera de alcance: Embedded Signup (registro guiado con Facebook) y registro como proveedor tecnológico de Meta. El botón «Conectar con Meta» aparece deshabilitado como «Próximamente».
@@ -40,7 +40,7 @@ Fuera de alcance: Embedded Signup (registro guiado con Facebook) y registro como
 ### Servidor
 
 - `WhatsAppGraph`: cliente HTTPS de Meta (TLS verificado, sin redirecciones, tiempo límite). Solo fuera de producción admite `WHATSAPP_GRAPH_URL=https://127.0.0.1:<puerto>/` para el simulador de pruebas.
-- `WhatsAppAccount`: guardar, probar y eliminar el número. El token se cifra con `Crypto` (contexto `id:usuario`) y nunca se devuelve. Al cambiar credenciales el estado vuelve a «Sin probar». Eliminar el número borra sus conversaciones y mensajes en Tinvana (no en Meta).
+- `WhatsAppAccount`: guardar, probar y eliminar el número. El token se cifra con `Crypto` (contexto `id:usuario`) y nunca se devuelve. Al cambiar credenciales el estado vuelve a «Sin probar». Eliminar el número borra sus conversaciones y mensajes en Tinbana (no en Meta).
 - `WhatsAppWebhook` en `GET|POST /whatsapp/webhook` (público, sin sesión, antes de `Auth::start`):
   - firma inválida o ausente → 401 y no se guarda nada; más de 3 MB → 413;
   - el dueño se identifica por `phone_number_id` **y** el `waba_id` de la entrada;
@@ -53,7 +53,7 @@ Fuera de alcance: Embedded Signup (registro guiado con Facebook) y registro como
 Cada tienda puede conectar un número que esté en **su propia app de Meta**:
 
 - En Conexión pega, además de sus credenciales, la **clave secreta de su app** (opcional; cifrada y nunca devuelta).
-- Tinvana le genera un **token de verificación propio** (`tv…`), que solo ve esa cuenta, para configurar el webhook de su app con la misma URL `/whatsapp/webhook`.
+- Tinbana le genera un **token de verificación propio** (`tv…`), que solo ve esa cuenta, para configurar el webhook de su app con la misma URL `/whatsapp/webhook`.
 - Al recibir una entrega, la firma se valida con la clave de la plataforma o con la de las cuentas nombradas en la entrega. La app de la plataforma puede hablar por cualquier número conectado; la app de una tienda, solo por el número de esa tienda. Si una entrega mezcla números, se guardan solo los del firmante; si ninguno es suyo, se responde 401.
 - «Dejar de usar mi propia app» borra la clave y desactiva su token de verificación.
 
@@ -122,7 +122,7 @@ Meta solo envía los mensajes reales al webhook si la app está suscrita a la cu
 - Tokens: se guardan por mensaje y por conversación.
 
 ### Ajustes del agente
-Tono (cercano, profesional, entusiasta), instrucciones adicionales, largo (breve por defecto), motivos para pasar a un asesor (cuatro activables y otros en texto libre), horario (días, desde, hasta y qué hacer fuera de horario: «responde igual», el predeterminado, o «avisar y pasar a un asesor») y tres mensajes automáticos. Capas: valores de Tinvana ← predeterminados del superusuario (`app_settings` `whatsapp_agent_defaults`, en Administración → Valores globales, auditado) ← ajustes propios de la tienda (`whatsapp_agent_settings`; «Usar los predeterminados» los borra).
+Tono (cercano, profesional, entusiasta), instrucciones adicionales, largo (breve por defecto), motivos para pasar a un asesor (cuatro activables y otros en texto libre), horario (días, desde, hasta y qué hacer fuera de horario: «responde igual», el predeterminado, o «avisar y pasar a un asesor») y tres mensajes automáticos. Capas: valores de Tinbana ← predeterminados del superusuario (`app_settings` `whatsapp_agent_defaults`, en Administración → Valores globales, auditado) ← ajustes propios de la tienda (`whatsapp_agent_settings`; «Usar los predeterminados» los borra).
 
 ### Permisos y límites (superusuario)
 - Función `whatsapp_ai` («Agente de IA en WhatsApp»), por plan o por cuenta.
@@ -145,7 +145,7 @@ Resumen, qué puede decir, precio y promociones que puede mencionar, hasta 12 pr
 Estructura del `referral` confirmada en la documentación oficial el 2026-10-26: `source_url`, `source_id`, `source_type` (`ad`), `body`, `headline`, `media_type`, `image_url` (anuncio de imagen), `video_url` y `thumbnail_url` (anuncio de video), `ctwa_clid` (no viene en anuncios de Estados) y `welcome_message.text`.
 
 ### Ofertas (`whatsapp_offers`)
-Una oferta es un producto, sus unidades (combos) y su regla de precio: los **tramos por cantidad** del producto (versión vigente de `ProductOffers`; si no hay tramos vigentes, «precio pendiente» y el agente no habla de precio) o un **precio fijo**. Cada oferta tiene un código `TV-XXXX` (automático o propio, único por tienda) y su mensaje predeterminado para pegar en el anuncio: «Hola, quiero {nombre} ({código})». Una oferta por producto puede marcarse para el **botón de WhatsApp de las landings**; ese enlace lleva el código con una firma HMAC de 4 caracteres (`TV-PICA1-K7Q2`). Archivar una oferta la retira de anuncios y landings sin borrar el historial.
+Una oferta es un producto, sus unidades (combos) y su regla de precio: los **tramos por cantidad** del producto (versión vigente de `ProductOffers`; si no hay tramos vigentes, «precio pendiente» y el agente no habla de precio) o un **precio fijo**. Cada oferta tiene un código `TB-XXXX` (automático o propio, único por tienda; los `TV-` anteriores al cambio de marca siguen funcionando) y su mensaje predeterminado para pegar en el anuncio: «Hola, quiero {nombre} ({código})». Una oferta por producto puede marcarse para el **botón de WhatsApp de las landings**; ese enlace lleva el código con una firma HMAC de 4 caracteres (`TB-PICA1-K7Q2`). Archivar una oferta la retira de anuncios y landings sin borrar el historial.
 
 ### Anuncios (`whatsapp_ads`) y entradas (`whatsapp_entries`)
 - Un anuncio que llega por primera vez se crea **sin asignar**, con el título, el texto y la imagen que envía Meta, y aparece primero en la tabla para elegir su oferta. También se puede agregar antes pegando su identificador. Un anuncio pausado no asigna su oferta.
@@ -168,7 +168,7 @@ Pestaña **Anuncios** (`/panel/whatsapp/anuncios`): tabla de anuncios (sin asign
 ## Aviso al cliente y notificaciones de la tienda (pedido del propietario, 2026-10-26)
 
 - **Mensaje al pasar a un asesor**: ajuste `handoff_notice` (activo por defecto) y texto `messages.handoff` («Te paso con un asesor para continuar. En un momento te escribe. 🙌»), personalizable por tienda y como predeterminado del superusuario. Cuando la IA pasa el chat (motivos configurados o cliente listo para comprar), el cliente recibe **solo ese mensaje**, no el texto de la IA; con el aviso apagado se envía la respuesta de la IA como antes. También se envía al pasar el chat por límite mensual, falta de fichas, IA no disponible o archivos repetidos. Si la IA falla se usa el mensaje de falla, y fuera de horario el de fuera de horario. Los ajustes guardados antes de existir este campo toman su valor predeterminado.
-- **Notificaciones** (`notifications`, `notification_settings`; PostgreSQL `024`, MySQL `039`–`040`): eventos `handoff`, `ai_failure`, `limit`, `off_hours` y `new_chat` (chat nuevo sin IA disponible), con título, motivo y enlace al chat. Canales: campanita en el panel con contador y lista, sonido y notificación del navegador mientras Tinvana está abierto (la notificación del navegador solo con la pestaña en segundo plano y permiso concedido), y correo con la plantilla de Tinvana, enviado por el cron `mail:work` con hasta 5 intentos. Todo activo por defecto; el correo va al de la cuenta o al que se elija. Ajustes en `/panel/notificaciones`.
+- **Notificaciones** (`notifications`, `notification_settings`; PostgreSQL `024`, MySQL `039`–`040`): eventos `handoff`, `ai_failure`, `limit`, `off_hours` y `new_chat` (chat nuevo sin IA disponible), con título, motivo y enlace al chat. Canales: campanita en el panel con contador y lista, sonido y notificación del navegador mientras Tinbana está abierto (la notificación del navegador solo con la pestaña en segundo plano y permiso concedido), y correo con la plantilla de Tinbana, enviado por el cron `mail:work` con hasta 5 intentos. Todo activo por defecto; el correo va al de la cuenta o al que se elija. Ajustes en `/panel/notificaciones`.
 - La campanita consulta cada 20 s (60 s en segundo plano) con `X-Session-Probe`, así que no renueva la sesión; `errors-session.mjs` lo confirma.
 - API: `GET /api/notifications?stamp=`, `POST /api/notifications/read {ids|all}`, `GET|PUT /api/notifications/settings`.
 - Comprobado (local): `whatsapp-notify.mjs` 27 (mensaje predeterminado y personalizado, aviso apagado, avisos de cada evento, ajustes y validación, correo según canal y dirección, lista y marcado, aislamiento, campanita, sonido y notificación del navegador simulados, página de ajustes, móvil); MariaDB 5.
@@ -179,7 +179,7 @@ Documentación oficial consultada el 2026-10-27:
 - Listar: `GET /{WABA_ID}/message_templates?fields=name,language,status,category,id,components&limit=100` con paginación por cursor `after`.
 - Eliminar: `DELETE /{WABA_ID}/message_templates?hsm_id=…&name=…`.
 - Enviar: `POST /{PHONE_NUMBER_ID}/messages` con `type: template`, `template.name`, `template.language.code` y `components` (parámetros del cuerpo y `payload` de los botones de respuesta rápida). Al tocar un botón llega un mensaje `button` con `payload`, `text` y `context.id` del mensaje de la plantilla.
-- La forma exacta de la respuesta al crear no está documentada: Tinvana guarda `id` y `status` si vienen y, en cualquier caso, el estado real se lee con «Actualizar estados».
+- La forma exacta de la respuesta al crear no está documentada: Tinbana guarda `id` y `status` si vienen y, en cualquier caso, el estado real se lee con «Actualizar estados».
 
 Funcionamiento (`WhatsAppTemplates`, tabla `whatsapp_templates`; PostgreSQL `025`, MySQL `041`):
 - Pestaña **Plantillas** (`/panel/whatsapp/plantillas`): dos sugeridas (`confirmacion_pedido`, utilidad, con «Confirmar pedido» y «Cambiar algo»; `saludo_nuevo_chat`, marketing), editor propio con variables legibles (`{{nombre}}`, `{{producto}}`…), que se convierten a `{{1}}`, `{{2}}` al enviarlas a Meta, ejemplos obligatorios, pie, hasta 3 botones y vista previa. Idiomas en español (`es_CO` por defecto).
@@ -206,7 +206,7 @@ Servicio `WhatsAppOrderConfirm`; tablas `whatsapp_confirm_settings` y `whatsapp_
 
 Documentación oficial consultada el 2026-10-27 (mensajes interactivos con botones de respuesta): `type: interactive`, `interactive.type: button`, `body.text` hasta 1024, `footer.text` hasta 60, hasta 3 botones `reply` con `id` hasta 256 y `title` hasta 20 caracteres únicos. El toque llega como `type: interactive`, `interactive.type: button_reply` con `button_reply.id`/`title` y `context.id` del mensaje original. Solo se puede enviar con la ventana de 24 h abierta.
 - Ajuste «Primero invitar al cliente a escribirte» (activo por defecto) y espera antes de la plantilla (5, 10, 15, 30, 60 o 120 min; 15 por defecto). La plantilla pasa a ser respaldo opcional. Necesita el número que guarda «Probar conexión».
-- Cada pedido recibe un código `TV-XXXXXX` (6 caracteres sin 0/O/1/I/L, único por tienda). La respuesta del formulario trae `whatsapp: {link, code}` y el popup muestra «Confirmar por WhatsApp» (abre `https://wa.me/{número}?text=Hola, quiero confirmar mi pedido TV-…` en otra pestaña), el código y «Ahora no».
+- Cada pedido usa su número de pedido `TB-XXXX-XXXX` (ver [ORDERS.md](ORDERS.md)) como código. La respuesta del formulario trae `whatsapp: {link, code}` y el popup muestra «Confirmar por WhatsApp» (abre `https://wa.me/{número}?text=Hola, quiero confirmar mi pedido TV-…` en otra pestaña), el código y «Ahora no».
 - Un mensaje de texto con un código en espera asocia la confirmación a ese chat y la envía al instante como mensaje interactivo (texto de la plantilla elegida o el resumen predeterminado, pie «Pago contra entrega»), al número que escribió. La IA no responde ese mensaje. Repetir el código después no envía nada.
 - Si el cliente no escribe, a la hora fijada sale la plantilla (cron `whatsapp:work`); sin plantilla queda «No enviada» con el motivo. Desde el pedido se puede enviar ya («Enviar el resumen ahora») después de cotizar; con el chat abierto sale con botones, si no con la plantilla.
 - Comprobado (local): `whatsapp-confirm.mjs` 59 (enlace y código, nada antes de que escriba, mensaje interactivo al número que escribió, código repetido, contexto ajeno, confirmación por botón interactivo, respaldo con plantilla, envío inmediato desde el pedido, sin plantilla, popup y «Ahora no»).
@@ -221,11 +221,11 @@ Documentación oficial consultada el 2026-10-27 (mensajes interactivos con boton
 ### Configuración en Meta (cuando se autorice el piloto real)
 
 1. En la app de Meta: WhatsApp → Configuración → Webhook: URL `https://<dominio>/whatsapp/webhook` y el mismo `WHATSAPP_VERIFY_TOKEN` del servidor; suscribir el campo `messages`.
-2. En Tinvana: pegar Phone Number ID, WhatsApp Business Account ID y el token permanente de un usuario del sistema con `whatsapp_business_messaging` y `whatsapp_business_management`; pulsar «Probar conexión».
+2. En Tinbana: pegar Phone Number ID, WhatsApp Business Account ID y el token permanente de un usuario del sistema con `whatsapp_business_messaging` y `whatsapp_business_management`; pulsar «Probar conexión».
 
 ### Comprobaciones
 
 - `node tests/whatsapp-connection.mjs` (servidor de pruebas con las variables de WhatsApp de prueba y un simulador HTTPS de Graph en 8446): 38 comprobaciones, incluidas las de app propia (clave nunca devuelta, token por cuenta, firma de la app propia, intento de inyectar mensajes en otro número y entrega mixta). Cubre CSRF, validación, token nunca devuelto, prueba solo de lectura, token rechazado, aislamiento entre usuarios, número duplicado, permiso del plan, verificación del webhook, firma ausente o inválida, guardado, 10 entregas repetidas = 1 evento, estados deduplicados, números ajenos ignorados sin contenido, límite de 3 MB, panel en escritorio, modo oscuro y móvil. No contacta a Meta.
 - Prueba de humo MySQL en MariaDB 10.11.19 local aislada (127.0.0.1:33307): `schema.sql` + migraciones hasta 030 aplicadas e idempotentes; guardar y cifrar, número duplicado, firma, guardado, deduplicación, JSON con unicode, número ajeno y eliminación (11 comprobaciones).
 - MariaDB local: migración 031 aplicada y 4 comprobaciones de app propia.
-- **Comprobado por el propietario el 2026-10-26 (no por el asistente):** número de prueba de Meta conectado en producción (Probar conexión correcta), webhook verificado en Meta con la app de la plataforma y mensaje de prueba escrito al número. La recepción en Tinvana no puede verse hasta la etapa 2.
+- **Comprobado por el propietario el 2026-10-26 (no por el asistente):** número de prueba de Meta conectado en producción (Probar conexión correcta), webhook verificado en Meta con la app de la plataforma y mensaje de prueba escrito al número. La recepción en Tinbana no puede verse hasta la etapa 2.

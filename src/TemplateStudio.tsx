@@ -6,7 +6,7 @@ import type {Visual,LandingTheme,LandingFont,ShareChannel} from './types';
 import './template-studio.css';
 
 const presets:{name:string;primaryColor:string;backgroundColor:string}[]=[
- {name:'Naranja Tinvana',primaryColor:'#ff6a00',backgroundColor:'#fff8f1'},
+ {name:'Naranja Tinbana',primaryColor:'#ff6a00',backgroundColor:'#fff8f1'},
  {name:'Naranja intenso',primaryColor:'#c24e00',backgroundColor:'#fff8f1'},
  {name:'Océano',primaryColor:'#0b62c4',backgroundColor:'#f1f7ff'},
  {name:'Bosque',primaryColor:'#1b7a50',backgroundColor:'#f3fbf6'},
@@ -23,7 +23,7 @@ export const themes:{value:LandingTheme;name:string;text:string;font:LandingFont
 ];
 export const fonts:{value:LandingFont;name:string;text:string}[]=[
  {value:'rubik',name:'Rubik',text:'Redondeada y comercial'},
- {value:'montserrat',name:'Montserrat',text:'Geométrica, la de Tinvana'},
+ {value:'montserrat',name:'Montserrat',text:'Geométrica, la de Tinbana'},
  {value:'fraunces',name:'Fraunces',text:'Editorial con serifa'},
  {value:'grotesk',name:'Space Grotesk',text:'Técnica y con carácter'}
 ];

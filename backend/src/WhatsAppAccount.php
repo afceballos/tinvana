@@ -63,7 +63,7 @@ final class WhatsAppAccount {
   try{
    $current=Database::one('SELECT * FROM whatsapp_accounts WHERE user_id=? FOR UPDATE',[$owner]);
    $other=Database::one('SELECT user_id FROM whatsapp_accounts WHERE phone_number_id=?',[$phone]);
-   if($other&&$other['user_id']!==$owner)throw new HttpError(409,'Ese número ya está conectado a otra cuenta de Tinvana.');
+   if($other&&$other['user_id']!==$owner)throw new HttpError(409,'Ese número ya está conectado a otra cuenta de Tinbana.');
    $token=array_key_exists('token',$b)&&$b['token']!==''&&$b['token']!==null?self::tokenInput($b['token']):null;
    $secret=isset($b['app_secret'])&&$b['app_secret']!==''?self::secretInput($b['app_secret']):null;
    if(!$current){

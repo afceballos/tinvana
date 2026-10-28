@@ -61,13 +61,13 @@ Pruebas: `npm test` sobre el entorno local aislado; después `php backend/tests/
 
 ## Pendiente: siguientes etapas
 
-La creación de órdenes en Dropi está implementada (ver [DROPI-ORDERS.md](DROPI-ORDERS.md)). Siguen pendientes la consulta automática de cobertura/fletes, guías, sincronización de estados, pagos y cancelaciones desde Tinvana.
+La creación de órdenes en Dropi está implementada (ver [DROPI-ORDERS.md](DROPI-ORDERS.md)). Siguen pendientes la consulta automática de cobertura/fletes, guías, sincronización de estados, pagos y cancelaciones desde Tinbana.
 
 Tampoco están implementados todavía empresa con miembros y roles, combos, múltiples partidas, ofertas públicas en landings, atribución de anuncios, webhooks entrantes autenticados de GHL ni agente de WhatsApp. Las ofertas versionadas sí están disponibles para cotización interna. La IA del editor sigue generando contenido de landings. El módulo añadido no usa ni revela credenciales externas.
 
 ## Detalle del pedido (rediseño 2026-10-23)
 
-`src/Orders.tsx` (`OrderDetail`) y `src/order-detail.css`, inspirados en la referencia Kofra que aportó el usuario y adaptados a la marca Tinvana:
+`src/Orders.tsx` (`OrderDetail`) y `src/order-detail.css`, inspirados en la referencia Kofra que aportó el usuario y adaptados a la marca Tinbana:
 
 - **Cabecera:** número corto del pedido, fecha y estados de venta y Dropi.
 - **Barra de avance:** Borrador → Cotizado → Aceptado → En Dropi.
@@ -82,3 +82,10 @@ Conserva las clases y los textos que usan las pruebas.
 **Envío sugerido:** el detalle devuelve `shipping_hint`, sacado del texto de envío de la landing publicada (`commerce.shipping` o el campo «Costo de envío» del bloque de envíos). «Gratis», «Incluido» o «Sin costo» dan 0; si no, se toma el primer monto de al menos 1.000. Si el pedido no tiene flete guardado, el campo de la cotización se rellena con ese valor y lo indica. Solo se guarda al guardar la cotización. El catálogo de Dropi no trae un flete por producto. Prueba: `php backend/tests/shipping-hint.php` (9 comprobaciones).
 
 **Historial alineado (2026-10-23):** `.order-history` añadía 20 px de margen y el punto no tenía `box-sizing` fijo, así que los puntos quedaban a la derecha de la línea. Ahora la línea y los puntos comparten el centro, a 11 px del borde (`compact.css`). Medido en el navegador: diferencia de 0 px en escritorio, móvil y modo oscuro. `compact.mjs` 27 y `modern.mjs` 17 siguen pasando.
+
+## Número de pedido y consulta del comprador (2026-10-28)
+
+- **Número:** cada pedido nace con `orders.order_number` = `TB-XXXX-XXXX` (8 caracteres aleatorios sin 0/O/1/I/L, índice único; migración PostgreSQL 030 / MySQL 047). Los pedidos anteriores reciben uno al abrirse. Se acepta escrito con o sin guiones, espacios o minúsculas (`Orders::normalizeNumber`).
+- **Dónde aparece:** fila de la lista y cabecera del detalle; búsqueda por número o parte de él (`GET /api/orders?q=`); popup de éxito de la landing con «Consultar mi pedido»; correos (asunto, resumen y enlace de consulta); variable `{{pedido}}` de la plantilla de WhatsApp; nota de la orden en Dropi («Tinbana TB-…»). Es también el código para confirmar por WhatsApp (reemplaza el código aparte).
+- **Consulta** (`OrderLookup`): página pública `/pedido?numero=` (en el subdominio de la tienda solo encuentra pedidos de esa tienda; `noindex`; 30 consultas por hora por IP) y respuesta automática por WhatsApp cuando el cliente escribe su número (si no hay una confirmación esperando). Muestra estado (Recibido, Confirmado, En preparación, En camino, Entregado; cancelado, devuelto o con novedad), producto, variante, cantidad, total, dirección completa, transportadora y guía; nombre, teléfono y correo solo en parte (`La••• Pé•••`, `+57 300 ••• ••67`, `la•••@gm•••.com`).
+- **Pruebas:** `tests/order-lookup.mjs`; `backend/tests/run.php` (formato, enmascarado y estados).

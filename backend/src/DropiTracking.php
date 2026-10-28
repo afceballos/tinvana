@@ -5,7 +5,7 @@ namespace App;
 /**
  * Dropi order tracking, read-only: GET orders/myorders/{id} (contract confirmed with dropi:order-probe on 2026-10-23).
  * Stores status, carrier, guide, Dropi freight, novelty and the status history; never changes the order in Dropi
- * (PUT on that route generates the guide and is not used). Status changes are also written to the Tinvana history.
+ * (PUT on that route generates the guide and is not used). Status changes are also written to the Tinbana history.
  */
 final class DropiTracking {
  public const URL='https://api.dropi.co/integrations/orders/myorders/';
@@ -18,7 +18,7 @@ final class DropiTracking {
  }
  /** Delivered, cancelled or returned orders are not polled again. */
  public static function final(?string $status): bool {return $status!==null&&(bool)preg_match('/ENTREGAD|CANCELAD|DEVOLUCI|DEVUELT|RECHAZAD/i',$status);}
- /** Tinvana logistics state for a Dropi status; null for statuses we do not recognise (the raw status is still shown). */
+ /** Tinbana logistics state for a Dropi status; null for statuses we do not recognise (the raw status is still shown). */
  public static function logistics(?string $status,?string $novelty=null): ?string {
   if($status===null)return null;$u=strtoupper(str_replace('_',' ',$status));
   return match(true){
@@ -60,7 +60,7 @@ final class DropiTracking {
   if(Support::env('HTTP_CA_BUNDLE')!=='')curl_setopt($c,CURLOPT_CAINFO,Support::env('HTTP_CA_BUNDLE'));
   $res=curl_exec($c);$status=(int)curl_getinfo($c,CURLINFO_RESPONSE_CODE);curl_close($c);
   $json=$res===false?null:json_decode((string)$res,true);
-  if($status<200||$status>=300||!is_array($json)||($json['isSuccess']??false)!==true||!is_array($json['objects']??null)){error_log('Tinvana Dropi tracking failed status='.$status);return null;}
+  if($status<200||$status>=300||!is_array($json)||($json['isSuccess']??false)!==true||!is_array($json['objects']??null)){error_log('Tinbana Dropi tracking failed status='.$status);return null;}
   $o=$json['objects'];if(array_is_list($o))$o=$o[0]??null;
   return is_array($o)&&(string)($o['id']??'')===$dropiId?$o:null;
  }
@@ -78,7 +78,7 @@ final class DropiTracking {
    // The note typed in Dropi with a status change travels in the latest history entry of that status.
    $note=null;foreach(array_reverse($t['history']) as $h)if($h['status']===$t['status']){$note=$h['note'];break;}
    if($t['status']!==null&&$t['status']!==($r['dropi_status']??null))Orders::event($r,'dropi_status_changed',['from'=>$r['dropi_status']??null,'to'=>$t['status'],'guide'=>$t['guide'],'carrier'=>$t['carrier'],'note'=>$note],null);
-   // Mirror Dropi in Tinvana: logistics follows the Dropi status; a cancellation in Dropi cancels the sale here too.
+   // Mirror Dropi in Tinbana: logistics follows the Dropi status; a cancellation in Dropi cancels the sale here too.
    $logistics=self::logistics($t['status'],$t['novelty']);
    if($logistics!==null&&$logistics!==$r['logistics_status'])Database::query('UPDATE orders SET logistics_status=? WHERE id=?',[$logistics,$order['id']]);
    if($logistics==='cancelled'&&$r['sale_status']!=='cancelled'){
@@ -93,7 +93,7 @@ final class DropiTracking {
  public static function syncDue(int $limit=40): array {
   $rows=Database::all("SELECT * FROM orders WHERE integration_status='sent' AND dropi_order_id IS NOT NULL AND (dropi_synced_at IS NULL OR dropi_synced_at<now()-interval '10 minutes') AND (dropi_status IS NULL OR (dropi_status NOT LIKE '%ENTREGAD%' AND dropi_status NOT LIKE '%CANCELAD%' AND dropi_status NOT LIKE '%DEVOLUCI%' AND dropi_status NOT LIKE '%DEVUELT%' AND dropi_status NOT LIKE '%RECHAZAD%')) ORDER BY dropi_synced_at IS NOT NULL, dropi_synced_at LIMIT ".max(1,min(200,$limit)));
   $ok=0;$failed=0;
-  foreach($rows as $r){try{self::sync($r)?$ok++:$failed++;}catch(\Throwable $e){error_log('Tinvana Dropi tracking: '.get_class($e));$failed++;}}
+  foreach($rows as $r){try{self::sync($r)?$ok++:$failed++;}catch(\Throwable $e){error_log('Tinbana Dropi tracking: '.get_class($e));$failed++;}}
   return ['synced'=>$ok,'failed'=>$failed];
  }
  /** Manual refresh from the order detail. */

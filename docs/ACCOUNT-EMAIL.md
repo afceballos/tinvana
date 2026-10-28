@@ -86,7 +86,7 @@ Los correos de cuenta no salen en la solicitud: se encolan y los envía el cron 
 4. **Probar.** Con Terminal: `php ~/tinvana/bin/console.php mail:test admin@tinbana.com`. Sin Terminal, el script de un solo uso de la guía de despliegue llama a `App\AccountMail::diagnose()`. Imprime qué variables faltan (sin sus valores), si el servidor SMTP responde, si su certificado es válido, el resultado de un envío de prueba y el estado de la cola; termina con código 1 si algo falla.
 5. **Si un envío de la cola falla**, el motivo queda en el `error_log` de PHP como `Zenzales mail: Clase: mensaje`, sin direcciones, enlaces ni credenciales. La base solo guarda un texto genérico.
 
-Los mensajes usan la marca Tinvana (logo `backend/public/brand/tinvana-mail.png`, incrustado en SMTP y enlazado desde `APP_URL` con Resend). `.cpanel.yml` copia ese logo a `~/tinvana/public/brand`.
+Los mensajes usan la marca Tinbana (logo `backend/public/brand/tinvana-mail.png`, incrustado en SMTP y enlazado desde `APP_URL` con Resend). `.cpanel.yml` copia ese logo a `~/tinvana/public/brand`.
 
 ### Comprobaciones añadidas
 
@@ -105,7 +105,7 @@ No requiere buzón ni SMTP, y usa HTTPS (puerto 443) hacia `api.resend.com`.
 
 ## Correos de pedidos (2026-10-23)
 
-`OrderMail` envía cuatro correos con la misma plantilla de Tinvana (`AccountMail::layout`) y el mismo transporte (`AccountMail::deliver`, Resend o SMTP):
+`OrderMail` envía cuatro correos con la misma plantilla de Tinbana (`AccountMail::layout`) y el mismo transporte (`AccountMail::deliver`, Resend o SMTP):
 
 | Correo | Destinatario | Cuándo |
 |---|---|---|

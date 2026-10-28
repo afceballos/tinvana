@@ -19,7 +19,7 @@ No hay documentación oficial pública de la API de órdenes. El contrato se tom
 - `supplier_id`: el `user_id` del producto en Dropi. Si el producto no lo tiene, hay que actualizar sus datos desde Dropi.
 - Respuesta: `isSuccess` y `objects.id` con el número de orden de Dropi.
 - `state` y `city`: el plugin envía el código de departamento de WooCommerce (`ANT`, `CUN`, `VAC`…) y el nombre del municipio de su propia lista. `backend/resources/geo/dropi-co.json` traduce los códigos DANE a esos valores: 1015 de 1122 municipios. Bogotá se envía como `CUN`/`Bogota`. Los municipios sin equivalencia se envían con el nombre DANE.
-- `notes` lleva la referencia `Tinvana xxxxxxxx` y la variante. Las notas internas del pedido no se envían.
+- `notes` lleva la referencia `Tinbana xxxxxxxx` y la variante. Las notas internas del pedido no se envían.
 
 Desde este equipo no se ha llamado a ese endpoint. La primera orden real confirmará el formato de ciudades y la respuesta.
 
@@ -54,7 +54,7 @@ Migración `015_dropi_order_submission` en PostgreSQL (`backend/migrations`) y M
 
 - [ ] Primera orden real de prueba en producción, con autorización del usuario: comprobar que Dropi la acepta, que departamento y ciudad quedan bien y que se puede confirmar o cancelar desde su panel.
 - [ ] Sincronizar estados, guía y novedades desde Dropi. El plugin no lo hace; hay que encontrar el endpoint o webhook.
-- [ ] Cancelación desde Tinvana, varias partidas por pedido y aprobación automática por chatbot.
+- [ ] Cancelación desde Tinbana, varias partidas por pedido y aprobación automática por chatbot.
 - [ ] Pago anticipado (`SIN RECAUDO`) si se necesita.
 
 ## Fuentes revisadas
@@ -65,7 +65,7 @@ Migración `015_dropi_order_submission` en PostgreSQL (`backend/migrations`) y M
 
 ## Descubrimiento del estado de las órdenes (2026-10-23)
 
-El usuario confirma que los pedidos ya llegan a Dropi. Para mostrar en Tinvana el estado, la guía y el historial hay que confirmar primero cómo se consultan. Copias no oficiales de la documentación mencionan `GET /orders/myorders` (lista, con `result_number` y `start`) y consultas por ID y por guía. También mencionan `PUT /orders/myorders/{id}`, que **cambia el estado** (genera la guía) y nunca debe usarse para consultar.
+El usuario confirma que los pedidos ya llegan a Dropi. Para mostrar en Tinbana el estado, la guía y el historial hay que confirmar primero cómo se consultan. Copias no oficiales de la documentación mencionan `GET /orders/myorders` (lista, con `result_number` y `start`) y consultas por ID y por guía. También mencionan `PUT /orders/myorders/{id}`, que **cambia el estado** (genera la guía) y nunca debe usarse para consultar.
 
 Comando de solo lectura: `php bin/console.php dropi:order-probe [orden_dropi]`. Usa el último pedido enviado (o el indicado) y su integración, y hace dos `GET`: `orders/myorders/{id}` y `orders/myorders?result_number=3&start=0`. Muestra los nombres de los campos y solo los valores de estado, guía, transportadora, novedad, historial e ID; nunca datos del comprador ni el token.
 
@@ -76,18 +76,18 @@ Comando de solo lectura: `php bin/console.php dropi:order-probe [orden_dropi]`. 
 **Implementado (`DropiTracking`, migración 017; en MySQL, 018):**
 
 - **Datos guardados:** `orders.dropi_status`, `dropi_tracking` (estado, transportadora, guía, flete de Dropi, novedad, historial con fechas en ISO -05:00) y `dropi_synced_at`. Se descartan los datos del comprador que trae la respuesta.
-- **Historial de Tinvana:** cada cambio de estado añade el evento `dropi_status_changed` (de → a). El estado de Dropi no modifica automáticamente la venta en Tinvana.
+- **Historial de Tinbana:** cada cambio de estado añade el evento `dropi_status_changed` (de → a). El estado de Dropi no modifica automáticamente la venta en Tinbana.
 - **Cron:** `php bin/console.php dropi:sync [40]` cada 10 minutos. Consulta los pedidos enviados sin estado final (entregado, cancelado, devolución o rechazado) y no consultados en los últimos 10 minutos. Un fallo de Dropi conserva el último estado conocido.
 - **Panel:** en la tarjeta «Envío a Dropi» aparecen estado, transportadora, guía, flete de Dropi frente a envío cobrado (diferencia), novedades, historial de estados y **Actualizar desde Dropi** (`POST /api/orders/{id}/dropi/sync`, 30 por 10 minutos). La lista de pedidos muestra «Dropi: ESTADO».
 - **Solo lectura:** se usa únicamente GET; nunca el `PUT` que genera la guía.
 
 Pruebas: `php backend/tests/dropi-tracking.php` (8) y `node tests/dropi-tracking.mjs` (19, con un Dropi simulado en 8445). Requiere el servidor con `DROPI_TRACKING_URL=https://127.0.0.1:8445/integrations/orders/myorders/` y `HTTP_CA_BUNDLE`; esa variable solo se acepta fuera de producción y en `127.0.0.1`.
 
-### Estados de Dropi reflejados en Tinvana (2026-10-23)
+### Estados de Dropi reflejados en Tinbana (2026-10-23)
 
 Cada sincronización traduce el estado de Dropi a `orders.logistics_status` (migración 018; en MySQL, 019):
 
-| Estado de Dropi | Logística en Tinvana |
+| Estado de Dropi | Logística en Tinbana |
 |---|---|
 | PENDIENTE, PENDIENTE CONFIRMACION, preparación | `pending` · Pendiente en Dropi |
 | GUIA GENERADA | `guide_generated` · Guía generada |
@@ -98,7 +98,7 @@ Cada sincronización traduce el estado de Dropi a `orders.logistics_status` (mig
 | CANCELADO, RECHAZADO | `cancelled` · Cancelado en Dropi |
 
 - **Estados desconocidos:** se muestran tal cual y no cambian la logística.
-- **Cancelación en Dropi:** cancela la venta en Tinvana una sola vez, con el evento `cancelled` (`source=dropi`), y encola el correo «Tu pedido fue cancelado» si está activo.
+- **Cancelación en Dropi:** cancela la venta en Tinbana una sola vez, con el evento `cancelled` (`source=dropi`), y encola el correo «Tu pedido fue cancelado» si está activo.
 - **Barra de avance:** suma el paso «Entregado» y la tarjeta oscura muestra la logística.
 
 Pruebas: `dropi-tracking.php` 11 y `dropi-tracking.mjs` 26.

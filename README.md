@@ -1,4 +1,4 @@
-# Tinvana
+# Tinbana
 
 **Para retomar el proyecto:** leer [el documento maestro de contexto y checklist](docs/CONTEXTO-PROYECTO.md). Incluye funcionalidades, arquitectura, estado de pruebas, dependencias y la fase independiente de pedidos/WhatsApp. Las instrucciones para mantenerlo actualizado están en [AGENTS.md](AGENTS.md).
 

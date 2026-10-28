@@ -11,13 +11,13 @@ export function LoadingScreen({leaving=false}:{leaving?:boolean}){
  useEffect(()=>{if(leaving)return;const rotate=setInterval(()=>setIndex(i=>(i+1)%messages.length),2200);const timer=setTimeout(()=>setSlow(true),7000);return()=>{clearInterval(rotate);clearTimeout(timer);};},[leaving]);
  const message=slow?'La conexión está tardando un poco más. Seguimos verificando tu sesión.':messages[index];
  return <main className={'tv-preload'+(leaving?' is-leaving':'')} aria-hidden={leaving||undefined}><div className="pl-grid" aria-hidden="true"/>
-  <div className="pl-brand"><img className="on-light" src="/brand/tinvana-dark.svg" width="170" height="41" alt="Tinvana"/><img className="on-dark" src="/brand/tinvana-light.svg" width="170" height="41" alt=""/></div>
+  <div className="pl-brand"><img className="on-light" src="/brand/tinvana-dark.svg" width="170" height="41" alt="Tinbana"/><img className="on-dark" src="/brand/tinvana-light.svg" width="170" height="41" alt=""/></div>
   <section className="pl-center" role={leaving?undefined:'status'} aria-live={leaving?undefined:'polite'}>
    <div className="pl-scene" aria-hidden="true"><span className="pl-ripple"/><span className="pl-ripple r2"/>
     <svg className="pl-ring" viewBox="0 0 200 200"><circle className="track" cx="100" cy="100" r="94"/><circle className="arc" cx="100" cy="100" r="94" pathLength={100}/><circle className="arc2" cx="100" cy="100" r="80" pathLength={100}/></svg>
     {[1,2,3,4,5,6].map(n=><span key={n} className={'pl-orbit o'+n}><i/></span>)}<span className="pl-shadow"/><img className="pl-bird" src="/brand/tinvana-origami.svg" width="132" height="92" alt=""/></div>
    <h1>Tu espacio está <span>tomando vuelo</span>.</h1><p><span key={message} className="pl-msg">{message}</span></p><div className="pl-bar" aria-hidden="true"><span/></div>
-  </section><p className="pl-foot">Tinvana. Hecho para emprender.</p></main>;
+  </section><p className="pl-foot">Tinbana. Hecho para emprender.</p></main>;
 }
 
 /** Plays the take-off over the panel once it is ready, then removes itself. */

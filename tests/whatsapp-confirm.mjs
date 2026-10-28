@@ -155,7 +155,7 @@ try{
  page=await(await visitor.get('/p/'+f.slug)).text();token=page.match(/name="csrf" value="([^"]+)"/)[1];
  let res=await(await lead('3008889900','wa8@example.test')).json();const o8=await orderOf('wa8@example.test');d=await detail(o8.id);
  const code=res.whatsapp?.code;
- check('the form response brings the WhatsApp link with the order code',/^TV-[A-Z2-9]{6}$/.test(code)&&res.whatsapp.link==='https://wa.me/573000000000?text='+encodeURIComponent('Hola, quiero confirmar mi pedido '+code));
+ check('the form response brings the order number and the WhatsApp link with it',/^TB-[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(code)&&res.order_number===code&&res.tracking_url.endsWith('/pedido?numero='+encodeURIComponent(code))&&res.whatsapp.link==='https://wa.me/573000000000?text='+encodeURIComponent('Hola, quiero confirmar mi pedido '+code));
  check('the order email offers WhatsApp with the code while the customer has not written',JSON.parse(await helper('mail-info',o8.id)).code===code);
  check('nothing is sent until the customer writes',!meta.sends.some(s=>s.to==='573008889900')&&d.whatsapp.status==='queued'&&d.whatsapp.waiting_customer===true&&d.whatsapp.hint.includes(code)&&d.order.quote_id===null);
  await text('573118887766','Hola, quiero confirmar mi pedido '+code.toLowerCase());
@@ -166,7 +166,7 @@ try{
  chat=await(await owner.ctx.get('/api/whatsapp/conversations/'+d.whatsapp.conversation_id)).json();
  check('the AI did not answer the code message',!chat.messages.some(m=>m.sender==='ai'));
  const n=meta.sends.length;await text('573118887766','Hola, quiero confirmar mi pedido '+code);
- check('sending the code again does not resend the summary',meta.sends.length===n);
+ const again=meta.sends.slice(n);check('sending the number again does not resend the summary, it answers with the status',!again.some(x=>x.type==='interactive'||x.type==='template')&&again.some(x=>x.type==='text'&&x.text.body.includes('Pedido '+code)&&x.text.body.includes('/pedido?numero=')));
  await press('573118887766',inter.interactive.action.buttons[0].reply.id,'Confirmar pedido','wamid.NOT-OURS');
  check('an interactive tap with a foreign context does not confirm',(await detail(o8.id)).order.sale_status==='draft');
  await press('573118887766',inter.interactive.action.buttons[0].reply.id,'Confirmar pedido',inter.wamid);d=await detail(o8.id);
@@ -176,7 +176,8 @@ try{
  res=await(await lead('3009990000','wa9@example.test')).json();const o9=await orderOf('wa9@example.test');
  await helper('confirm-due');await poke();d=await detail(o9.id);
  check('if the customer does not write, the template goes out after the wait',templateSend('573009990000')?.template.name==='confirmacion_pedido'&&d.whatsapp.status==='sent'&&d.whatsapp.channel==='template');
- check('the old code no longer triggers anything after the template',await text('573009990000','Hola, quiero confirmar mi pedido '+res.whatsapp.code).then(()=>meta.sends.filter(s=>s.to==='573009990000').length===1));
+ await text('573009990000','Hola, cómo va mi pedido '+res.whatsapp.code.replace(/-/g,' ').toLowerCase());const statusSends=meta.sends.filter(s=>s.to==='573009990000');
+ check('after the template, the number asks for the status: masked data and the delivery address',statusSends.length===2&&statusSends[1].type==='text'&&/Recibido/.test(statusSends[1].text.body)&&statusSends[1].text.body.includes('Calle 10 # 20-30')&&!statusSends[1].text.body.includes('3009990000'));
  // The store sends now from the order while waiting for the customer
  await lead('3001010101','wa11@example.test');const o11=await orderOf('wa11@example.test');d=await detail(o11.id);
  await owner.ctx.post('/api/orders/'+o11.id+'/quote',{headers:owner.H,data:{version:d.order.version,quantity:d.order.quantity,unit_price:d.order.unit_price,shipping_price:d.order.shipping_price,notes:''}});d=await detail(o11.id);
@@ -184,7 +185,7 @@ try{
  // Without a fallback template
  v=await(await owner.ctx.get('/api/whatsapp/confirmations')).json();r=await settings({...v.settings,template_id:null});
  res=await(await lead('3002020202','wa10@example.test')).json();const o10=await orderOf('wa10@example.test');
- check('without a template the step still works and nothing else is sent',r.ok()&&(await r.json()).active===true&&/^TV-/.test(res.whatsapp.code));
+ check('without a template the step still works and nothing else is sent',r.ok()&&(await r.json()).active===true&&/^TB-/.test(res.whatsapp.code));
  await helper('confirm-due');await poke();d=await detail(o10.id);
  check('without a template, a customer who never writes gets nothing',d.whatsapp.status==='skipped'&&/no escribió/.test(d.whatsapp.error)&&!meta.sends.some(s=>s.to==='573002020202'));
  await settings({...v.settings,template_id:tpl.id});
@@ -205,13 +206,13 @@ try{
  check('the notice is visible in the purchase form',await lp.locator('#purchase-dialog .order-whatsapp-note').isVisible());
  await lp.locator('#purchase-dialog .order-whatsapp-note').screenshot({path:'test-results/whatsapp-confirm-notice.png'});
  // Success popup with the WhatsApp button (the lead request is answered by the browser route, nothing is stored).
- const wa={link:'https://wa.me/573000000000?text='+encodeURIComponent('Hola, quiero confirmar mi pedido TV-ABC234'),code:'TV-ABC234'};
+ const wa={link:'https://wa.me/573000000000?text='+encodeURIComponent('Hola, quiero confirmar mi pedido TB-AB23-4567'),code:'TB-AB23-4567'};
  await lp.route('**/lead',x=>x.fulfill({status:202,contentType:'application/json',body:JSON.stringify({saved:true,whatsapp_confirmation:true,whatsapp:wa,delivery_status:'pending',message:'Tu consulta fue guardada.'})}));
  const m=lp.locator('#purchase-dialog');await m.locator('.iti').waitFor();
  await m.locator('[name=first_name]').fill('Ana');await m.locator('[name=last_name]').fill('Popup');await m.locator('[name=email]').fill('popup@example.test');await m.locator('[name=phone]').fill('3001234567');
  await m.locator('[name=department_code]').selectOption('11');await m.locator('[name=city_code]').selectOption('11001');await m.locator('[name=address]').fill('Calle 10 # 20-30');
  await m.getByRole('button',{name:/Enviar solicitud/}).click();const pop=lp.locator('dialog.lead-success');await pop.locator('.ls-wa').waitFor();
- check('the success popup invites the customer to confirm by WhatsApp with the code',await pop.locator('.ls-wa').getAttribute('href')===wa.link&&await pop.locator('.ls-wa').getAttribute('target')==='_blank'&&(await pop.locator('.ls-code').innerText()).includes('TV-ABC234')&&await pop.getByRole('button',{name:'Ahora no'}).isVisible());
+ check('the success popup invites the customer to confirm by WhatsApp with the code',await pop.locator('.ls-wa').getAttribute('href')===wa.link&&await pop.locator('.ls-wa').getAttribute('target')==='_blank'&&(await pop.locator('.ls-code').innerText()).includes('TB-AB23-4567')&&await pop.getByRole('button',{name:'Ahora no'}).isVisible());
  await lp.waitForTimeout(1500);await pop.screenshot({path:'test-results/whatsapp-confirm-popup.png'});
  await pop.getByRole('button',{name:'Ahora no'}).click();await pop.waitFor({state:'detached'});check('«Ahora no» closes the popup',await pop.count()===0);
  check('no browser errors',errors.length===0);

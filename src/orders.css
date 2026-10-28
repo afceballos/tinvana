@@ -40,3 +40,13 @@
 .order-date-presets button{padding:8px 12px;font-size:13px}
 .order-date-presets button.is-active{border-color:var(--brand-accent);color:var(--brand-accent);background:color-mix(in srgb,var(--brand-accent) 8%,var(--surface))}
 @media (max-width:560px){.order-dates>label{flex:1 1 140px}.order-dates input[type=date]{min-width:0;width:100%}}
+
+.order-number{display:inline-block;margin-bottom:2px;font-size:11px;font-weight:700;letter-spacing:.06em;color:#c2410c;font-variant-numeric:tabular-nums}
+.order-search{display:flex;align-items:center;gap:8px;flex:1 1 260px;max-width:420px}
+.order-search label{display:flex!important;flex-direction:row!important;align-items:center;gap:8px;flex:1;margin:0;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface,#fff)}
+.order-search label .icon{width:16px;height:16px;flex:none;color:var(--muted)}
+.order-search input{flex:1;min-width:0;min-height:40px;padding:0;border:0;background:transparent;font-size:14px;letter-spacing:.03em}
+.order-search input:focus{outline:none}
+.order-search label:focus-within{border-color:var(--brand-accent,#ff6a00);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-accent,#ff6a00) 20%,transparent)}
+.order-search .secondary{min-height:44px}
+:root[data-theme=dark] .order-number{color:#fdba74}

@@ -16,7 +16,7 @@ export function ErrorScreen({status=404,message,home='/'}:{status?:number;messag
  const back=()=>{if(window.history.length>1)window.history.back();else window.location.assign(home);};
  return <main className="err-screen" aria-labelledby="err-title">
   <div className="err-sky" aria-hidden="true"><span className="err-blob a"/><span className="err-blob b"/><span className="err-blob c"/>{Array.from({length:9},(_,i)=><i key={i} className={'err-paper p'+i}/>)}</div>
-  <header className="err-top"><a href={home} aria-label="Tinvana, ir al inicio"><img className="err-logo on-light" src="/brand/tinvana-dark.svg" width="170" height="41" alt="Tinvana"/><img className="err-logo on-dark" src="/brand/tinvana-light.svg" width="170" height="41" alt=""/></a></header>
+  <header className="err-top"><a href={home} aria-label="Tinbana, ir al inicio"><img className="err-logo on-light" src="/brand/tinvana-dark.svg" width="170" height="41" alt="Tinbana"/><img className="err-logo on-dark" src="/brand/tinvana-light.svg" width="170" height="41" alt=""/></a></header>
   <section className="err-center">
    <div className="err-code" aria-hidden="true">
     <span className="err-digit">{digits[0]}</span>
@@ -30,7 +30,7 @@ export function ErrorScreen({status=404,message,home='/'}:{status?:number;messag
    {message&&message!==c.text&&!/^página no encontrada\.?$/i.test(message.trim())&&<p className="err-detail">{message}</p>}
    <div className="err-actions"><button type="button" className="primary" onClick={back}>Volver atrás</button><a className="secondary err-home" href={home}>Ir al inicio</a></div>
   </section>
-  <p className="err-foot">Tinvana · Ideas que toman vuelo.</p>
+  <p className="err-foot">Tinbana · Ideas que toman vuelo.</p>
  </main>;
 }
 

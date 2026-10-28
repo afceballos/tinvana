@@ -21,7 +21,7 @@ final class WhatsAppTemplates {
   'order_confirmation'=>['name'=>'confirmacion_pedido','category'=>'utility','language'=>'es_CO','body'=>"Hola {{nombre}}, recibimos tu pedido de {{producto}} ({{cantidad}} und.).\nTotal con envío: {{total}}.\nEntrega en {{direccion}}, {{ciudad}}.\n¿Confirmamos tu pedido?",'footer'=>'Pago contra entrega','buttons'=>['Confirmar pedido','Cambiar algo'],
    'examples'=>['nombre'=>'Laura','producto'=>'Picatodo eléctrico','cantidad'=>'1','total'=>'$68.000','direccion'=>'Cra 7 # 19-40','ciudad'=>'Pereira']],
   'greeting'=>['name'=>'saludo_nuevo_chat','category'=>'marketing','language'=>'es_CO','body'=>"Hola {{nombre}}, te escribimos de {{tienda}}. ¿Te podemos ayudar con algo?",'footer'=>'','buttons'=>['Sí, por favor','No, gracias'],
-   'examples'=>['nombre'=>'Laura','tienda'=>'Tienda Tinvana']],
+   'examples'=>['nombre'=>'Laura','tienda'=>'Tienda Tinbana']],
  ];
 
  private static function account(string $owner): array {$a=WhatsAppAccount::ofUser($owner);if(!$a)throw new HttpError(409,'Primero conecta tu número en Conexión.');return $a;}
@@ -84,7 +84,7 @@ final class WhatsAppTemplates {
     $row=Database::one('SELECT * FROM whatsapp_templates WHERE account_id=? AND name=? AND language=?',[$a['id'],$t['name'],$t['language']]);
     if($row)Database::query('UPDATE whatsapp_templates SET meta_id=?,status=?,category=?,synced_at=now(),updated_at=now() WHERE id=?',[is_scalar($t['id']??null)?(string)$t['id']:$row['meta_id'],$status,$cat,$row['id']]);
     else{
-     // Created outside Tinvana: positional variables {{n}} become var1, var2… so they can still be filled in.
+     // Created outside Tinbana: positional variables {{n}} become var1, var2… so they can still be filled in.
      preg_match_all('/\{\{\s*(\d+)\s*\}\}/',$body,$m);$n=$m[1]?max(array_map('intval',$m[1])):0;$vars=[];for($i=1;$i<=$n;$i++)$vars[]=['key'=>'var'.$i,'example'=>''];
      $friendly=preg_replace('/\{\{\s*(\d+)\s*\}\}/','{{var$1}}',$body);
      Database::query("INSERT INTO whatsapp_templates(id,user_id,account_id,meta_id,name,language,category,status,body,footer,buttons,variables,purpose,synced_at) VALUES(?,?,?,?,?,?,?,?,?,?,?::jsonb,?::jsonb,'external',now())",

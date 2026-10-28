@@ -29,7 +29,7 @@ try{
  check('logistics follows Dropi: pending',o.logistics_status==='pending');
  check('status, carrier and Dropi freight stored',o.dropi_status==='PENDIENTE CONFIRMACION'&&o.dropi_tracking.carrier==='VELOCES'&&o.dropi_tracking.shipping_amount===16450);
  check('buyer data from Dropi is not stored',!JSON.stringify(o.dropi_tracking).includes('Operador')&&!JSON.stringify(o.dropi_tracking).includes('3001234567'));
- check('first status written to the Tinvana history',d.events.some(e=>e.event_type==='dropi_status_changed'&&e.data.to==='PENDIENTE CONFIRMACION'));
+ check('first status written to the Tinbana history',d.events.some(e=>e.event_type==='dropi_status_changed'&&e.data.to==='PENDIENTE CONFIRMACION'));
  state={...state,status:'GUIA_GENERADA',guide:'240012345',history:[...state.history,['GUIA_GENERADA','2026-10-24T09:10:00']]};
  let cron=JSON.parse(await helper('dropi-sync-due'));d=await(await owner.get(path)).json();o=d.order;
  check('cron sync picks up the new status and guide',cron.synced===1&&o.dropi_status==='GUIA_GENERADA'&&o.dropi_tracking.guide==='240012345'&&o.dropi_tracking.history.length===2);
@@ -46,8 +46,8 @@ try{
  d=await(await owner.get(path)).json();check('logistics follows Dropi: delivered',d.order.logistics_status==='delivered'&&d.order.sale_status!=='cancelled');
  const second=(await(await owner.get('/api/orders')).json()).orders.find(x=>x.id!==o.id);await helper('mail-reset');await helper('dropi-mark-sent',second.id,'777002');
  d=await(await owner.post('/api/orders/'+second.id+'/dropi/sync',{headers:H,data:{}})).json();
- check('cancellation in Dropi cancels the order in Tinvana',d.order.sale_status==='cancelled'&&d.order.logistics_status==='cancelled'&&d.events.some(e=>e.event_type==='cancelled'&&e.data.source==='dropi'));
- check('Dropi cancellation note reaches the Tinvana history',d.events.some(e=>e.event_type==='cancelled'&&e.data.reason==='Cancelado en Dropi (CANCELADO): Cliente no responde llamadas')&&d.events.some(e=>e.event_type==='dropi_status_changed'&&e.data.note==='Cliente no responde llamadas')&&d.order.dropi_tracking.history.at(-1).note==='Cliente no responde llamadas');
+ check('cancellation in Dropi cancels the order in Tinbana',d.order.sale_status==='cancelled'&&d.order.logistics_status==='cancelled'&&d.events.some(e=>e.event_type==='cancelled'&&e.data.source==='dropi'));
+ check('Dropi cancellation note reaches the Tinbana history',d.events.some(e=>e.event_type==='cancelled'&&e.data.reason==='Cancelado en Dropi (CANCELADO): Cliente no responde llamadas')&&d.events.some(e=>e.event_type==='dropi_status_changed'&&e.data.note==='Cliente no responde llamadas')&&d.order.dropi_tracking.history.at(-1).note==='Cliente no responde llamadas');
  check('buyer cancellation email queued',JSON.parse(await helper('mail-queue')).some(m=>m.kind==='buyer_cancelled'));
  await owner.post('/api/orders/'+second.id+'/dropi/sync',{headers:H,data:{}});d=await(await owner.get('/api/orders/'+second.id)).json();
  check('repeated sync does not cancel twice',d.events.filter(e=>e.event_type==='cancelled').length===1);

@@ -1,6 +1,6 @@
 # Capa visual moderna: movimiento, modo oscuro y plantilla de marca
 
-Referencia de inspiración: la demo pública Kofra (`demo.codeandchill.store/kofra`), de la que se tomaron ideas de interacción, no su código ni su marca: barra lateral flotante con píldora activa deslizante, encabezado de vidrio, cambio de tema con revelado circular (View Transitions), sombras en capas, resplandor ambiental y curvas de movimiento con rebote suave. Los colores, tipografías y logos siguen siendo los de Tinvana.
+Referencia de inspiración: la demo pública Kofra (`demo.codeandchill.store/kofra`), de la que se tomaron ideas de interacción, no su código ni su marca: barra lateral flotante con píldora activa deslizante, encabezado de vidrio, cambio de tema con revelado circular (View Transitions), sombras en capas, resplandor ambiental y curvas de movimiento con rebote suave. Los colores, tipografías y logos siguen siendo los de Tinbana.
 
 Alcance: solo frontend del panel. No cambia API, autenticación, base de datos, rutas ni los textos de las landings publicadas.
 

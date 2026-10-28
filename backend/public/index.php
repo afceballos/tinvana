@@ -48,6 +48,8 @@ try {
   }
   exit;
  }
+ // Buyer's order look-up by public number; on a store subdomain only that store's orders.
+ if($path==='/pedido'){if(!in_array($method,['GET','HEAD'],true))throw new HttpError(405,'Use GET.');header('Content-Type: text/html; charset=utf-8');header('Cache-Control: no-store');header('X-Robots-Tag: noindex, nofollow');header('Referrer-Policy: no-referrer');echo App\OrderLookup::page(is_string($_GET['numero']??null)?$_GET['numero']:'',$storeOwner??null);exit;}
  // Public legal pages (privacy policy and terms), server-rendered without session.
  if($path==='/privacidad'||$path==='/terminos'){if(!in_array($method,['GET','HEAD'],true))throw new HttpError(405,'Use GET.');header('Content-Type: text/html; charset=utf-8');header('Cache-Control: public, max-age=3600');echo $path==='/privacidad'?App\LegalPages::privacy():App\LegalPages::terms();exit;}
  if($path==='/datos-geograficos'){if($method!=='GET')throw new HttpError(405,'Use GET.');header('Content-Type: text/html; charset=utf-8');echo App\GeographyAttribution::html();exit;}
@@ -118,7 +120,7 @@ try {
 }catch(HttpError $e){http_response_code($e->status);if($api||str_contains($_SERVER['CONTENT_TYPE']??'','application/json')){header('Content-Type: application/json; charset=utf-8');echo json_encode(['error'=>$e->getMessage()]+$e->details,JSON_UNESCAPED_UNICODE);}else tinvanaErrorPage($e->status,$e->getMessage());
 }catch(\PDOException $e){
  $driver='pgsql';try{$driver=Database::driver();}catch(\Throwable){}
- $state=(string)$e->getCode();error_log('Tinvana database driver='.$driver.' sqlstate='.$state);
+ $state=(string)$e->getCode();error_log('Tinbana database driver='.$driver.' sqlstate='.$state);
  $mysqlDuplicate=$driver==='mysql'&&isset($e->errorInfo[1])&&(int)$e->errorInfo[1]===1062;
  $conflict=$state==='23505'||$mysqlDuplicate;http_response_code($conflict?409:503);
  $engine=$driver==='mysql'?'MySQL':'PostgreSQL';$message=$conflict?'El slug o registro ya existe. Elige un valor único.':$engine.' no está disponible. Revisa la conexión y las migraciones.';

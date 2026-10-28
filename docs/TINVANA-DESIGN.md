@@ -1,4 +1,4 @@
-# Identidad Tinvana
+# Identidad Tinbana
 
 Cambio exclusivo de presentación. Los archivos PHP, las migraciones y `src/api.ts` se compararon byte a byte con una instantánea tomada antes del rediseño: sin cambios. Se conservaron endpoints, rutas, sesiones, contratos de mensajes del constructor, permisos y datos guardados. No se actualizó ninguna preferencia comercial existente en PostgreSQL.
 

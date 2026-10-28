@@ -1,4 +1,4 @@
-/* Tinvana preload: the same markup is in index.html (before JavaScript) and in LoadingScreen (while the session loads),
+/* Tinbana preload: the same markup is in index.html (before JavaScript) and in LoadingScreen (while the session loads),
    so the handoff is seamless. CSS-only animation: paper folds orbiting the origami bird, a spinning arc, ripples,
    a shimmering title and a progress sweep. `.is-leaving` plays the take-off when the panel is ready. */
 .tv-preload{--pl-bg:#FFF8F1;--pl-ink:#1E1E1E;--pl-muted:#75665c;--pl-accent:#FF6A00;--pl-peach:#FFB27A;--pl-soft:#FFE0CD;--pl-track:#f3dccb;

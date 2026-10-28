@@ -4,12 +4,12 @@ namespace App;
 
 /**
  * Store notifications: a feed for the panel bell (the panel adds sound and a browser notification while it is open)
- * and an optional email per notification, sent by the mail:work cron through the same transport and Tinvana layout
+ * and an optional email per notification, sent by the mail:work cron through the same transport and Tinbana layout
  * as account and order emails. Per-store settings choose which events notify and through which channels.
  */
 final class Notifications {
  public const EVENTS=['handoff'=>'La IA pasó un chat a un asesor','ai_failure'=>'La IA no pudo responder','limit'=>'Se alcanzó el límite mensual de la IA','off_hours'=>'Mensaje fuera del horario de atención','new_chat'=>'Llegó un chat nuevo sin IA disponible','order_confirmed'=>'Un cliente confirmó su pedido por WhatsApp','order_change'=>'Un cliente pidió cambios en su pedido por WhatsApp'];
- public const CHANNELS=['panel'=>'Campanita en el panel','sound'=>'Sonido mientras Tinvana está abierto','browser'=>'Notificación del navegador','email'=>'Correo'];
+ public const CHANNELS=['panel'=>'Campanita en el panel','sound'=>'Sonido mientras Tinbana está abierto','browser'=>'Notificación del navegador','email'=>'Correo'];
  private const DEFAULTS=['events'=>['handoff'=>true,'ai_failure'=>true,'limit'=>true,'off_hours'=>true,'new_chat'=>true,'order_confirmed'=>true,'order_change'=>true],'channels'=>['panel'=>true,'sound'=>true,'browser'=>true,'email'=>true],'email'=>''];
 
  private static function accountEmail(string $owner): string {return (string)(Database::one('SELECT email FROM users WHERE id=?',[$owner])['email']??'');}
@@ -63,9 +63,9 @@ final class Notifications {
  public static function render(array $n): array {
   $e=fn($v)=>Support::escape((string)$v);$url=rtrim(Support::env('APP_URL'),'/').($n['link']??'/panel');
   $body='<p style="font-size:16px;line-height:1.7;margin:0 0 22px;color:#3b3029">'.$e($n['body']).'</p>'
-   .'<table role="presentation" cellpadding="0" cellspacing="0"><tr><td bgcolor="#ff6a00" style="border-radius:12px"><a href="'.$e($url).'" style="display:inline-block;padding:16px 24px;color:#1e1e1e;font-size:15px;font-weight:bold;text-decoration:none">Abrir en Tinvana</a></td></tr></table>'
-   .'<p style="font-size:13px;line-height:1.6;margin:22px 0 0;color:#75665c">Puedes cambiar qué te avisamos en Tinvana → Notificaciones.</p>';
-  return ['subject'=>$n['title'].' · Tinvana','html'=>AccountMail::layout($n['title'],$n['body'],$body),'text'=>$n['title']."\n\n".$n['body']."\n\nAbrir en Tinvana: ".$url."\n"];
+   .'<table role="presentation" cellpadding="0" cellspacing="0"><tr><td bgcolor="#ff6a00" style="border-radius:12px"><a href="'.$e($url).'" style="display:inline-block;padding:16px 24px;color:#1e1e1e;font-size:15px;font-weight:bold;text-decoration:none">Abrir en Tinbana</a></td></tr></table>'
+   .'<p style="font-size:13px;line-height:1.6;margin:22px 0 0;color:#75665c">Puedes cambiar qué te avisamos en Tinbana → Notificaciones.</p>';
+  return ['subject'=>$n['title'].' · Tinbana','html'=>AccountMail::layout($n['title'],$n['body'],$body),'text'=>$n['title']."\n\n".$n['body']."\n\nAbrir en Tinbana: ".$url."\n"];
  }
  /** Sends pending notification emails (called by mail:work). Up to 5 attempts with backoff; nothing is resent once sent. */
  public static function work(int $max=20): array {
@@ -78,7 +78,7 @@ final class Notifications {
    catch(\Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
    $attempt=(int)$r['attempts']+1;
    try{AccountMail::deliver((string)$r['email_to'],self::render($r),'notification-'.$r['id']);Database::query("UPDATE notifications SET email_status='sent',attempts=?,locked_at=NULL WHERE id=?",[$attempt,$r['id']]);$sent++;}
-   catch(\Throwable $t){error_log('Tinvana notification mail: '.AccountMail::describe($t));
+   catch(\Throwable $t){error_log('Tinbana notification mail: '.AccountMail::describe($t));
     Database::query("UPDATE notifications SET email_status=?,attempts=?,locked_at=NULL,next_attempt_at=now()+(? * interval '1 second') WHERE id=?",[$attempt>=5?'failed':'pending',$attempt,min(900,60*2**($attempt-1)),$r['id']]);$failed++;}
   }
   return ['sent'=>$sent,'failed'=>$failed];

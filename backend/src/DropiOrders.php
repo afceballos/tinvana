@@ -45,7 +45,7 @@ final class DropiOrders {
   // Same as the plugin: shipping is folded into the unit price so the products add up to the amount collected.
   $line=$raw;$line['name']=$mapped['name']??($raw['name']??'');$line['quantity']=$qty;$line['price']=round($total/$qty/100,2);
   if($variant)$line['variation_id']=(int)$variant['id'];
-  $place=self::location($address);$ref='Tinvana '.substr($r['id'],0,8);
+  $place=self::location($address);$ref='Tinbana '.(!empty($r['order_number'])?$r['order_number']:substr($r['id'],0,8));
   return [
    'total_order'=>$total/100,
    'notes'=>trim($ref.($variant?'. Variante: '.$variant['label']:'')),

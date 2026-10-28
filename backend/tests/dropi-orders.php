@@ -22,7 +22,7 @@ check('pending confirmation and cash on delivery',$p['status']==='PENDIENTE CONF
 check('Colombian phone without country code',$p['phone']==='3001234567');
 check('address joins details',$p['dir']==='Calle 5 # 10-20 Apto 301');
 check('department and city mapped to plugin names',$p['state']==='VAC'&&$p['city']==='Cali');
-check('notes carry reference and variant, not internal notes',$p['notes']==='Tinvana 0f1e2d3c. Variante: Rojo');
+check('notes carry reference and variant, not internal notes',$p['notes']==='Tinbana 0f1e2d3c. Variante: Rojo');
 $bogota=DropiOrders::location(['department_code'=>'11','city_code'=>'11001','state'=>'Bogotá, D.C.','city'=>'Bogotá, D.C.']);
 check('Bogota mapped under Cundinamarca',$bogota===['state'=>'CUN','city'=>'Bogota']);
 $fallback=DropiOrders::location(['department_code'=>'00','city_code'=>'00000','state'=>'X','city'=>'Y']);

@@ -39,7 +39,7 @@ try{
  check('page declares style, font and readable button text',html.includes('data-theme="modern"')&&html.includes('data-font="rubik"')&&html.includes('--on-primary:#151311')&&html.includes('rel="preload" href="/landing-fonts/rubik.woff2"'));
  check('old base stylesheets no longer loaded',!html.includes('href="/landing.css"')&&!html.includes('/brand/brand.css'));
  check('real savings shown from the previous price',html.includes('Ahorras 25%'));
- check('footer is Tinvana, not the old name',html.includes('Página creada con Tinvana')&&!html.includes('Zenzales'));
+ check('footer is Tinbana, not the old name',html.includes('Página creada con Tinbana')&&!html.includes('Zenzales'));
  const runtime=await stat('backend/public/landing-assets/landing-runtime.js');const code=await readFile('backend/public/landing-assets/landing-runtime.js','utf8');
  check(`landing script is lighter and has no animation library (${Math.round(runtime.size/1024)} KB)`,runtime.size<110*1024&&!/GreenSock|gsap\.com/i.test(code));
  browser=await chromium.launch({channel:'msedge',headless:true});const errors=[];
