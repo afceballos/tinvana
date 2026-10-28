@@ -98,13 +98,19 @@ final class Orders {
   */
  public static function autoQuote(array $r): array {
   if($r['unit_price']===null)throw new HttpError(409,'El pedido no tiene el precio de la landing: cotízalo a mano.');
-  if($r['shipping_price']===null)throw new HttpError(409,'Dropi no cotizó el envío a esta ciudad: cotízalo a mano y envía la confirmación desde el pedido.');
+  // Without freight: if the landing quotes it with Dropi and Dropi did not answer, it must be quoted by hand; if the
+  // landing does not charge freight, it is the amount the landing shows, or included in the public price ($0).
+  $included=false;if($r['shipping_price']===null){
+   $l=Database::one('SELECT l.content,l.published_content FROM landing_pages l JOIN leads a ON a.landing_page_id=l.id AND a.user_id=l.user_id WHERE a.id=? AND a.user_id=?',[$r['lead_id'],$r['user_id']]);$lc=$l?json_decode((string)($l['published_content']?:$l['content']),true):null;
+   if(($lc['commerce']['dropiShipping']??false)===true)throw new HttpError(409,'Dropi no cotizó el envío a esta ciudad: cotízalo a mano y envía la confirmación desde el pedido.');
+   $hint=self::shippingHint($r);$r['shipping_price']=$hint['amount']??'0.00';$included=$hint===null;
+  }
   $product=ProductOffers::forOrder($r);$mapped=json_decode($product['mapped_data'],true);
   $variants=ProductOffers::variants($product);$chosen=json_decode((string)($r['variant_data']??'null'),true);
   if(($variants||strtoupper((string)($mapped['type']??''))==='VARIABLE')&&!in_array((string)($chosen['id']??''),array_column($variants,'id'),true))throw new HttpError(409,'El producto tiene variantes: elige la variante en el pedido y envía la confirmación desde allí.');
   $address=json_decode($r['delivery_address'],true);foreach(['country','state','city','address'] as $key)if(empty($address[$key]))throw new HttpError(409,'La dirección del pedido está incompleta: corrígela antes de confirmar.');
-  $r=Database::one("UPDATE orders SET version=version+1,quote_id=?,quote_expires_at=now()+interval '24 hours',confirmation=null,updated_at=now() WHERE id=? RETURNING *",[Support::uuid(),$r['id']]);
-  self::event($r,'auto_quoted',['quantity'=>(int)$r['quantity'],'unit_price'=>$r['unit_price'],'shipping_price'=>$r['shipping_price'],'quote_id'=>$r['quote_id'],'expires_at'=>$r['quote_expires_at'],'validation'=>'landing_price_and_dropi_shipping'],null);
+  $r=Database::one("UPDATE orders SET version=version+1,quote_id=?,quote_expires_at=now()+interval '24 hours',shipping_price=?,confirmation=null,updated_at=now() WHERE id=? RETURNING *",[Support::uuid(),$r['shipping_price'],$r['id']]);
+  self::event($r,'auto_quoted',['quantity'=>(int)$r['quantity'],'unit_price'=>$r['unit_price'],'shipping_price'=>$r['shipping_price'],'shipping_included'=>$included,'quote_id'=>$r['quote_id'],'expires_at'=>$r['quote_expires_at'],'validation'=>'landing_price_and_dropi_shipping'],null);
   return $r;
  }
  /** Records the buyer's own acceptance (WhatsApp button). Locked row, open transaction; the caller checked the quote. */

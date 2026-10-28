@@ -145,12 +145,12 @@ final class WhatsAppOrderConfirm {
  public static function values(array $r,array $account): array {
   $c=json_decode((string)$r['customer'],true);$a=json_decode((string)$r['delivery_address'],true);$p=json_decode((string)$r['product_data'],true);$v=json_decode((string)($r['variant_data']??'null'),true);
   return ['nombre'=>trim((string)($c['first_name']??'')),'apellido'=>trim((string)($c['last_name']??'')),'producto'=>(string)($p['product_name']??''),'variante'=>is_array($v)?(string)$v['label']:'Única',
-   'cantidad'=>(string)(int)$r['quantity'],'precio'=>self::money((string)$r['unit_price']),'envio'=>(float)$r['shipping_price']==0.0?'Gratis':self::money((string)$r['shipping_price']),
+   'cantidad'=>(string)(int)$r['quantity'],'precio'=>self::money((string)$r['unit_price']),'envio'=>(float)$r['shipping_price']==0.0?'Incluido':self::money((string)$r['shipping_price']),
    'total'=>self::money(self::add((string)$r['unit_price'],(string)$r['shipping_price'],(int)$r['quantity'])),
    'direccion'=>trim(($a['address']??'').' '.($a['address_details']??'')),'ciudad'=>(string)($a['city']??''),'departamento'=>(string)($a['state']??''),
    'pedido'=>Orders::displayNumber($r),'tienda'=>(string)($account['verified_name']?:'nuestra tienda')];
  }
- private static function quoteValid(array $r): bool {return $r['quote_id']!==null&&$r['quote_expires_at']!==null&&strtotime((string)$r['quote_expires_at'])>time()&&$r['shipping_price']!==null&&$r['unit_price']!==null;}
+ public static function quoteValid(array $r): bool {return $r['quote_id']!==null&&$r['quote_expires_at']!==null&&strtotime((string)$r['quote_expires_at'])>time()&&$r['shipping_price']!==null&&$r['unit_price']!==null;}
  /** Fills {{key}} variables of a text with the order values. */
  private static function fill(string $text,array $values): string {return (string)preg_replace_callback('/\{\{\s*([a-z][a-z0-9_]{0,29})\s*\}\}/',fn($m)=>$values[$m[1]]??$m[0],$text);}
  /**
@@ -198,7 +198,7 @@ final class WhatsAppOrderConfirm {
    if($o=Database::one('SELECT * FROM orders WHERE id=?',[$row['order_id']]))Orders::event($o,'whatsapp_confirmation_skipped',['reason'=>$e->getMessage()],null);
    return false;
   }catch(\Throwable $e){if($db->inTransaction())$db->rollBack();self::finish($row,'failed','No se pudo preparar la confirmación.');throw $e;}
-  if(!$c){$name=trim($values['nombre'].' '.$values['apellido']);$c=WhatsAppInbox::conversationFor($owner,$account,$phone,$name!==''?$name:null,'Confirmación del pedido #'.$values['pedido']);}
+  if(!$c){$name=trim($values['nombre'].' '.$values['apellido']);$c=WhatsAppInbox::conversationFor($owner,$account,$phone,$name!==''?$name:null,'Confirmación del pedido '.$values['pedido'],true);}
   $channel=$open?'interactive':'template';
   $sent=WhatsAppInbox::sendGraph($account,$c,$msg['graph'],$channel,$msg['text'],$open?'system':'template',null,null,0,['template'=>$open?null:$t['name'],'order_id'=>$r['id'],'confirmation_id'=>$id]);
   $ok=$sent['status']!=='failed'&&$sent['wamid']!==null;
@@ -238,26 +238,20 @@ final class WhatsAppOrderConfirm {
    if(Database::one('SELECT id FROM whatsapp_offers WHERE user_id=? AND code=?',[$owner,substr($number,0,7)]))return false;
    return ['missing'=>$number];
   }
-  if($conv['owner_mode']==='ai'&&($w=Database::one("SELECT order_id FROM whatsapp_order_confirmations WHERE conversation_id=? AND user_id=? AND status='sent' LIMIT 1",[$conv['id'],$owner]))){
-   $reason='Respondió con un mensaje a la confirmación del pedido '.self::ref((string)$w['order_id']);
-   Database::query("UPDATE whatsapp_conversations SET owner_mode='human',handoff_reason=?,version=version+1,updated_at=now() WHERE id=?",[$reason,$conv['id']]);
-   Notifications::notify($owner,'order_change','Un cliente respondió a la confirmación de su pedido',$reason,'/panel/whatsapp/'.$conv['id'],(string)$conv['id']);
-  }
+  // «1»/«2» while an order waits for confirmation in this chat.
+  if(WhatsAppOrderChat::inbound($conv,$type,is_string($m['text']['body']??null)?$m['text']['body']:($m['button']['text']??($m['interactive']['button_reply']['title']??'')),$messageId,$wamid))return ['pending'=>true];
+  // Free text while a confirmation waits is answered by the agent, which sees the customer's orders.
   return false;
  }
  private static function ref(string $orderId): string {$o=Database::one('SELECT id,order_number FROM orders WHERE id=?',[$orderId]);return $o?Orders::displayNumber($o):strtoupper(substr($orderId,0,8));}
  /** Answer to a customer who sent their order number: status, product, total and delivery address, plus the look-up page. */
- public static function statusReply(string $owner,string $conversationId,string $orderId): void {
-  $o=Database::one('SELECT * FROM orders WHERE id=? AND user_id=?',[$orderId,$owner]);if(!$o)return;
-  $c=WhatsAppInbox::conversation($owner,$conversationId);$account=Database::one('SELECT * FROM whatsapp_accounts WHERE id=? AND user_id=?',[$c['account_id'],$owner]);
-  if($account&&WhatsAppInbox::windowOpen($c['last_customer_at']))WhatsAppInbox::sendText($account,$c,OrderLookup::text($o)."\n\nConsúltalo cuando quieras: ".OrderLookup::url($owner,Orders::displayNumber($o)),'system',null);
- }
+ public static function statusReply(string $owner,string $conversationId,string $orderId): void {WhatsAppOrderChat::show($owner,$conversationId,$orderId);}
  /** Answer to a number that is not an order of this store. */
  public static function missingReply(string $owner,string $conversationId,string $number): void {
   $c=WhatsAppInbox::conversation($owner,$conversationId);$account=Database::one('SELECT * FROM whatsapp_accounts WHERE id=? AND user_id=?',[$c['account_id'],$owner]);
   if($account&&WhatsAppInbox::windowOpen($c['last_customer_at']))WhatsAppInbox::sendText($account,$c,'No encontramos un pedido con el número '.$number.'. Revísalo en tu correo o en el mensaje de confirmación y escríbelo de nuevo, por favor.','system',null);
  }
- private static function handoff(array $c,string $reason): void {
+ public static function handoff(array $c,string $reason): void {
   Database::query("UPDATE whatsapp_conversations SET owner_mode='human',handoff_reason=?,version=version+1,updated_at=now() WHERE id=?",[mb_substr($reason,0,200),$c['id']]);
  }
  private static function say(array $account,array $c,string $text): void {
@@ -304,15 +298,21 @@ final class WhatsAppOrderConfirm {
    if($account)self::say($account,$c,self::STALE);
    return true;
   }
+  if($outcome==='already'){if($account)self::say($account,$c,$s['messages']['confirmed']);return true;}
+  self::afterConfirm($owner,$r,$c,$account);
+  return true;
+ }
+ /** After the customer confirmed (button or «1»): their message, the store's notice and, if chosen, Dropi. */
+ public static function afterConfirm(string $owner,array $r,array $c,?array $account): void {
+  $s=self::settings($owner);$ref=Orders::displayNumber($r);
   if($account)self::say($account,$c,$s['messages']['confirmed']);
-  if($outcome==='already')return true;
-  Notifications::notify($owner,'order_confirmed',$who.' confirmó su pedido por WhatsApp','Pedido '.$ref.($s['auto_dropi']?'. Se envía a Dropi automáticamente.':'. Revísalo y envíalo a Dropi.'),$link,(string)$c['id']);
+  Notifications::notify($owner,'order_confirmed',WhatsAppAgent::who($c).' confirmó su pedido por WhatsApp','Pedido '.$ref.($s['auto_dropi']?'. Se envía a Dropi automáticamente.':'. Revísalo y envíalo a Dropi.'),'/panel/pedidos/'.$r['id'],(string)$c['id']);
   if($s['auto_dropi']){
    try{DropiOrders::submit($owner,(string)$r['id'],['confirm'=>true,'version'=>(int)$r['version']],true);}
    catch(HttpError $e){Orders::event($r,'whatsapp_auto_dropi_skipped',['reason'=>$e->getMessage()],null);}
   }
-  return true;
  }
+ public static function messages(string $owner): array {return self::settings($owner)['messages'];}
 
  /**
   * WhatsApp step for the «pedido recibido» email, read when the email goes out (not when it was queued): the link with

@@ -12,9 +12,9 @@ namespace App;
  * messages exactly once, also when several arrive while it is thinking.
  */
 final class WhatsAppAgent {
- public const ACTIONS=['none','ask_product','request_quote','present_summary','confirm','handoff'];
+ public const ACTIONS=['none','ask_product','request_quote','present_summary','confirm','handoff','show_order'];
  public const CAPTURE=['name'=>'Nombre','city'=>'Ciudad','department'=>'Departamento','address'=>'Dirección','neighborhood'=>'Barrio','reference'=>'Referencia','quantity'=>'Cantidad','variant'=>'Variante'];
- private const HISTORY=12;
+ private const HISTORY=20;
  private const REPLY_CHARS=['breve'=>350,'normal'=>700];
  private const MAX_TOKENS=['breve'=>400,'normal'=>800];
  private const TIMEOUT=25;
@@ -83,7 +83,7 @@ final class WhatsAppAgent {
    // No AI tokens and no advisor; if the customer already got this request, the AI takes over as usual.
    $lastIn=Database::one("SELECT type,body FROM whatsapp_messages WHERE conversation_id=? AND direction='in' ORDER BY created_at DESC,id DESC LIMIT 1",[$id]);
    $lastOut=Database::one("SELECT body FROM whatsapp_messages WHERE conversation_id=? AND direction='out' ORDER BY created_at DESC,id DESC LIMIT 1",[$id]);
-   if(($lastIn['type']??'')==='text'&&preg_match(self::ORDER_QUESTION,(string)$lastIn['body'])&&!preg_match(self::NEW_PURCHASE,(string)$lastIn['body'])&&($lastOut['body']??'')!==self::ASK_ORDER){WhatsAppInbox::sendText($account,$c,self::ASK_ORDER,'system',null);return true;}
+   if(($lastIn['type']??'')==='text'&&preg_match(self::ORDER_QUESTION,(string)$lastIn['body'])&&!preg_match(self::NEW_PURCHASE,(string)$lastIn['body'])&&($lastOut['body']??'')!==self::ASK_ORDER){if(!WhatsAppOrderChat::answerOrderQuestion($owner,$c))WhatsAppInbox::sendText($account,$c,self::ASK_ORDER,'system',null);return true;}
    $max=Entitlements::of($owner)['limits']['whatsapp_ai_conversations']??null;
    if($max!==null&&!Database::one("SELECT id FROM whatsapp_messages WHERE conversation_id=? AND sender='ai' AND created_at>=?",[$id,self::monthStart()])&&Entitlements::aiConversationsThisMonth($owner)>=$max){
     self::handoff($c,'Se alcanzó el límite mensual de conversaciones con IA','limit',$account,$s);return true;
@@ -107,7 +107,7 @@ final class WhatsAppAgent {
    $captured=json_decode((string)$c['captured'],true);$captured=is_array($captured)?$captured:[];
    $input=['store'=>$account['verified_name']?:'la tienda','now'=>(new \DateTimeImmutable('now',new \DateTimeZone('America/Bogota')))->format('Y-m-d H:i'),'in_hours'=>WhatsAppAgentSettings::inHours($s),
     'products'=>array_map(fn($p)=>['id'=>$p['id'],'name'=>$p['name']],$products),'product'=>$productId?['id'=>$productId,'name'=>$products[array_search($productId,$ids,true)]['name']]:null,
-    'sheet'=>$sheet['content']??null,'captured'=>(object)$captured,
+    'sheet'=>$sheet['content']??null,'captured'=>(object)$captured,'memory'=>(string)($c['summary']??''),'orders'=>WhatsAppOrderChat::context($owner,$c),
     'offer'=>$offer?['name'=>$offer['name'],'code'=>$offer['code'],'units'=>$offer['units'],'price_text'=>$offer['price']['text'],'certainty'=>$offer['certainty'],'came_from'=>$offer['method'],'new_entry_while_buying'=>$offer['changed']]:null,
     'history'=>array_map(fn($m)=>['from'=>$m['direction']==='in'?'cliente':'tienda','text'=>in_array($m['type'],['text','button','interactive'],true)||$m['direction']==='out'?mb_substr((string)$m['body'],0,600):'[archivo]'],$history)];
    try{$r=AiClient::structured(self::instructions($s),'whatsapp_reply',self::schema(),$input,AiConnections::credentials($owner),self::MAX_TOKENS[$s['length']],self::TIMEOUT);}
@@ -124,10 +124,17 @@ final class WhatsAppAgent {
    $newSheet=$newProduct?(WhatsAppSheets::approved($owner,$newProduct)['version']??null):null;
    // If the customer turns to another product, the ad's offer no longer applies to this chat.
    $keepOffer=$offer&&$newProduct===$offer['product']['id'];
-   Database::query('UPDATE whatsapp_conversations SET captured=?::jsonb,product_id=?,sheet_version=?,ai_tokens=ai_tokens+?,stage=?,offer_changed=0'.($offer&&!$keepOffer?',offer_id=NULL,offer_version=NULL':'').',updated_at=now() WHERE id=?',[Support::json((object)$captured),$newProduct,$newSheet,$tokens,$action==='none'?'asesorando':$action,$id]);
+   // The AI keeps a short memory of the conversation (what the customer wants, their data, where it stopped).
+   $memory=is_string($d['memory']??null)&&trim($d['memory'])!==''?mb_substr(trim($d['memory']),0,600):($c['summary']??null);
+   Database::query('UPDATE whatsapp_conversations SET captured=?::jsonb,product_id=?,sheet_version=?,ai_tokens=ai_tokens+?,stage=?,summary=?,offer_changed=0'.($offer&&!$keepOffer?',offer_id=NULL,offer_version=NULL':'').',updated_at=now() WHERE id=?',[Support::json((object)$captured),$newProduct,$newSheet,$tokens,$action==='none'?'asesorando':$action,$memory,$id]);
    // Re-check before sending: an advisor may have taken the chat while the AI was thinking.
    $mode=Database::one('SELECT owner_mode FROM whatsapp_conversations WHERE id=?',[$id])['owner_mode']??'';
    if($mode!=='ai')return true;
+   // Show an order (status, and «1 SÍ / 2 NO» if it can still be confirmed): the server writes it, never the AI.
+   if($action==='show_order'){$number=Orders::normalizeNumber(is_string($d['order_number']??null)?$d['order_number']:'');$mine=array_column(WhatsAppOrderChat::ordersFor($owner,$c),'id','order_number');
+    if($number&&isset($mine[$number])){WhatsAppOrderChat::show($owner,$id,(string)$mine[$number]);return true;}
+    if(!$number&&count($mine)>0){WhatsAppOrderChat::answerOrderQuestion($owner,$c);return true;}
+    if(!$number){WhatsAppInbox::sendText($account,$c,self::ASK_ORDER,'system',null);return true;}}
    if($reply==='')$reply=$s['messages']['fallback'];
    $reason=$action==='handoff'?(is_string($d['handoff_reason']??null)&&trim($d['handoff_reason'])!==''?'La IA pidió un asesor: '.trim($d['handoff_reason']):'La IA pidió un asesor'):(in_array($action,['request_quote','present_summary','confirm'],true)?self::BUYING:null);
    // With the handoff notice on, the customer receives only the store's custom message, not the AI text.
@@ -142,8 +149,8 @@ final class WhatsAppAgent {
 
  public static function schema(): array {
   $captured=[];foreach(self::CAPTURE as $k=>$_)$captured[$k]=['type'=>'string'];
-  return ['type'=>'object','additionalProperties'=>false,'required'=>['reply','intent','product_id','captured','action','handoff_reason'],'properties'=>[
-   'reply'=>['type'=>'string'],'intent'=>['type'=>'string'],'product_id'=>['type'=>'string'],
+  return ['type'=>'object','additionalProperties'=>false,'required'=>['reply','intent','product_id','captured','action','handoff_reason','order_number','memory'],'properties'=>[
+   'reply'=>['type'=>'string'],'intent'=>['type'=>'string'],'product_id'=>['type'=>'string'],'order_number'=>['type'=>'string'],'memory'=>['type'=>'string'],
    'captured'=>['type'=>'object','additionalProperties'=>false,'required'=>array_keys(self::CAPTURE),'properties'=>$captured],
    'action'=>['type'=>'string','enum'=>self::ACTIONS],'handoff_reason'=>['type'=>'string']]];
  }
@@ -159,7 +166,8 @@ final class WhatsAppAgent {
   return 'Eres el asesor de ventas por WhatsApp de la tienda indicada en "store", en Colombia. Tono: '.$tone.'. '.$length."\n"
    .'Responde siempre en español. Usa solo la información de la ficha aprobada ("sheet"); no inventes características, garantías ni tiempos.'."\n"
    .'Nunca digas ni calcules precios, costos de envío, totales, descuentos, tiempos de entrega ni disponibilidad, salvo el texto exacto de "offer.price_text" o de "sheet.price_note" si existen.'."\n"
-   .'Si el cliente pregunta por un pedido que ya hizo (estado, cuándo llega, dónde va), no pases a un asesor: pídele su número de pedido, que empieza por TB (por ejemplo TB-7KQ2-MX9P) y está en el correo o en el mensaje de confirmación; el sistema le responde el estado cuando lo envíe. Pasa a un asesor solo si reporta un problema con el pedido.'."\n"
+   .'En "orders" están los pedidos de este cliente (número, producto, total, estado y si falta confirmarlo). No inventes estados ni datos de pedidos. Si pregunta por un pedido, quiere confirmarlo o ver su información, usa action "show_order" con su número en "order_number" (o "" si tiene varios y no sabes cuál): el sistema le muestra el pedido y, si falta confirmarlo, le pregunta «1 SÍ / 2 NO». No digas que un pedido quedó confirmado: eso lo hace el sistema. Si no tiene pedidos en "orders", pídele su número de pedido, que empieza por TB. No pases a un asesor por preguntas sobre pedidos; solo si reporta un problema.'."\n"
+   .'En "memory" está lo que ya sabes de esta conversación; devuelve en "memory" un resumen breve y actualizado (qué quiere el cliente, sus datos, pedidos mencionados y en qué quedó), máximo 400 caracteres. Si "order_number" no aplica, déjalo en "".'."\n"
    .'No creas pedidos ni confirmes compras. Cuando el cliente quiera comprar, pide los datos que falten (nombre, ciudad y departamento, dirección, barrio, referencia, cantidad y variante si aplica), uno o dos a la vez; cuando los tengas, usa action "request_quote".'."\n"
    .'Si "product" es null y hay varios productos en "products", pregunta cuál le interesa (action "ask_product"). Cuando lo identifiques, devuelve su id exacto en "product_id"; si no, deja "product_id" en "".'."\n"
    .'Si hay "offer", el cliente llegó por esa oferta: preséntala por su nombre y puedes decir exactamente "offer.price_text" (es el precio que calculó la tienda). Si "offer.certainty" es "media", confirma primero que le interesa esa oferta. Si "offer.new_entry_while_buying" es true, pregunta si quiere continuar la compra que ya tenía o empezar con esta oferta.'."\n"

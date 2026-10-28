@@ -841,6 +841,13 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado (local):** `whatsapp-agent.mjs` 53, `whatsapp-confirm.mjs` 63, `whatsapp-ads` 30, `order-lookup` 18, `preload` 25, `legal-pages` 17; `errors-session` pasa las comprobaciones de modo y errores y se detiene en la de duración de la sesión, que necesita `SESSION_LIFETIME=8` (no configurado en el servidor aislado).
 - **Datos reales:** ninguno; IA simulada.
 
+### 2026-10-28 · Agente tipo chatbot: memoria, pedidos en el chat y «1 SÍ / 2 NO»; envío incluido
+- **Pedido del usuario:** que la IA retome conversaciones, tenga contexto de lo hablado y de los pedidos, confirme pedidos con «1 SÍ / 2 NO» y no dependa tanto de un asesor; un pedido confirmado por chat no se actualizaba en Pedidos (hoy solo el botón confirmaba); si la landing no calcula envío, que salga del precio público.
+- **Cambio:** memoria y paso pendiente por conversación (migración PostgreSQL 031 / MySQL 048), pedidos del cliente en el contexto de la IA, acción `show_order`, respuesta automática a «mi pedido», confirmación escrita «1/2» que actualiza Pedidos y sigue el camino del botón, chats de confirmación con IA. Cotización automática: si la landing no cobra envío, se usa el monto de envío que muestra la landing o se incluye en el precio ($0); si la calcula con Dropi y Dropi no responde, no se inventa. Detalle en [WHATSAPP.md](WHATSAPP.md).
+- **Comprobado (local, IA y Meta simulados):** `whatsapp-agent.mjs` 64 (11 nuevas), `whatsapp-confirm.mjs` 64 (envío incluido y Dropi sin respuesta), `whatsapp-inbox` 43, `whatsapp-ads` 30, `whatsapp-notify` 27, `whatsapp-templates` 32, `order-lookup` 18, `orders` 38, `order-editing` 52, `landing-variants` 40, `dropi-shipping` 20, `landing-stock` 24, `run.php` 86.
+- **Datos reales:** ninguno.
+- **Siguiente paso:** instrucciones generales y «aprendizajes» desde superadmin; luego la etapa 5 (crear el pedido desde el chat).
+
 ### Plantilla para la próxima actualización
 
 ```text

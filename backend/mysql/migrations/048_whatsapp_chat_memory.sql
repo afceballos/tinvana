@@ -1,0 +1,1 @@
+ALTER TABLE whatsapp_conversations ADD COLUMN summary TEXT NULL, ADD COLUMN pending JSON NULL

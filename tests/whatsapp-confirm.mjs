@@ -27,14 +27,14 @@ const graph=createServer(tls,(req,res)=>{let raw='';req.on('data',c=>raw+=c);req
  if(req.method==='POST'&&url.pathname==='/'+PHONE+'/messages'){const b=JSON.parse(raw);meta.sends.push(b);if(metaDown)return send(400,{error:{message:'(#131026) Message undeliverable',code:131026}});b.wamid='wamid.OUT'+(++seq);return send(200,{messaging_product:'whatsapp',contacts:[{input:b.to,wa_id:b.to}],messages:[{id:b.wamid}]});}
  send(400,{error:{message:'Unsupported',code:100}});
 });});
-const quotes=createServer(tls,(req,res)=>{let body='';req.on('data',c=>body+=c);req.on('end',()=>{res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({isSuccess:true,status:200,objects:[{transportadora:'ENVIA',transportadora_id:2,objects:{precioEnvio:16164}}]}));});});
+let quoteDown=false;const quotes=createServer(tls,(req,res)=>{let body='';req.on('data',c=>body+=c);req.on('end',()=>{if(quoteDown){res.writeHead(502,{'Content-Type':'text/html'});return res.end('<html>down</html>');}res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({isSuccess:true,status:200,objects:[{transportadora:'ENVIA',transportadora_id:2,objects:{precioEnvio:16164}}]}));});});
 const dropiOrders=[];const dropi=createServer(tls,(req,res)=>{let body='';req.on('data',c=>body+=c);req.on('end',()=>{dropiOrders.push(JSON.parse(body));res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({isSuccess:true,objects:{id:880000+dropiOrders.length}}));});});
 await Promise.all([new Promise(r=>graph.listen(Number(process.env.WA_GRAPH_PORT||8446),'127.0.0.1',r)),new Promise(r=>quotes.listen(Number(process.env.DROPI_QUOTE_PORT||8444),'127.0.0.1',r)),new Promise(r=>dropi.listen(Number(process.env.DROPI_ORDERS_PORT||8443),'127.0.0.1',r))]);
 async function login(email){const ctx=await request.newContext({baseURL:base});const s=await(await ctx.get('/api/auth/session')).json();await ctx.post('/api/auth/login',{headers:{'X-CSRF-Token':s.csrf},data:{email,password:f.password}});return {ctx,H:{'X-CSRF-Token':(await(await ctx.get('/api/auth/session')).json()).csrf}};}
 let owner,other,metaCtx,visitor,token;
 const hook=value=>{const body=JSON.stringify({object:'whatsapp_business_account',entry:[{id:WABA,changes:[{field:'messages',value:{messaging_product:'whatsapp',metadata:{display_phone_number:'15551550926',phone_number_id:PHONE},...value}}]}]});return metaCtx.post('/whatsapp/webhook',{headers:{'Content-Type':'application/json','X-Hub-Signature-256':'sha256='+createHmac('sha256',SECRET).update(body).digest('hex')},data:body});};
 const tap=(from,payload,text,context,id='wamid.IN'+randomUUID())=>hook({contacts:[{profile:{name:'Ana Pedido'},wa_id:from}],messages:[{from,id,timestamp:String(Math.floor(Date.now()/1000)),type:'button',button:{payload,text},context:{from:'15551550926',id:context}}]});
-const lead=(phone,email)=>visitor.post('/p/'+f.slug+'/lead',{headers:{'X-CSRF-Token':token},data:{csrf:token,idempotency_key:randomUUID(),first_name:'Ana',last_name:'Pedido',email,phone,phone_country:'CO',country_code:'CO',department_code:'05',city_code:'05001',address:'Calle 10 # 20-30',quantity:2,website:''}});
+const lead=(phone,email,extra={})=>visitor.post('/p/'+f.slug+'/lead',{headers:{'X-CSRF-Token':token},data:{csrf:token,idempotency_key:randomUUID(),first_name:'Ana',last_name:'Pedido',email,phone,phone_country:'CO',country_code:'CO',department_code:'05',city_code:'05001',address:'Calle 10 # 20-30',quantity:2,website:'',...extra}});
 const settings=data=>owner.ctx.put('/api/whatsapp/confirmations',{headers:owner.H,data});
 const detail=async id=>(await owner.ctx.get('/api/orders/'+id)).json();
 const orderOf=async email=>{const l=(await(await owner.ctx.get('/api/leads')).json()).leads.find(x=>x.email===email);return (await(await owner.ctx.get('/api/orders')).json()).orders.find(o=>o.lead_id===l.id);};
@@ -131,9 +131,11 @@ try{
  check('with automatic submission the confirmed order goes to Dropi pending confirmation',d.order.integration_status==='sent'&&d.order.dropi_order_id==='880001'&&dropiOrders.length===1&&dropiOrders[0].status==='PENDIENTE CONFIRMACION'&&started.data.automatic===true);
 
  // 7. Skipped without Dropi freight, and Meta refusing the template
- await orders('shipping-setup','off');await lead('3005556677','wa5@example.test');const o5=await orderOf('wa5@example.test');
+ quoteDown=true;await lead('3005556677','wa5@example.test',{department_code:'11',city_code:'11001'});quoteDown=false;const o5=await orderOf('wa5@example.test');
  d=await detail(o5.id);
- check('without a Dropi freight nothing is invented: the summary is not sent',d.whatsapp.status==='skipped'&&/envío/.test(d.whatsapp.error)&&!templateSend('573005556677')&&!d.whatsapp.can_send&&d.order.quote_id===null);
+ check('if the landing quotes freight with Dropi and Dropi does not answer, nothing is invented: the summary is not sent',d.whatsapp.status==='skipped'&&/envío/.test(d.whatsapp.error)&&!templateSend('573005556677')&&!d.whatsapp.can_send&&d.order.quote_id===null);
+ await orders('shipping-setup','off');await lead('3005550000','wa5b@example.test');const o5b=await orderOf('wa5b@example.test');const d5b=await detail(o5b.id);
+ check('if the landing does not charge freight, it is included in the public price and the summary goes out',d5b.order.shipping_price==='0.00'&&d5b.whatsapp.status==='sent'&&!!templateSend('573005550000'));
  metaDown=true;await orders('shipping-setup','on');await lead('3006667788','wa6@example.test');metaDown=false;const o6=await orderOf('wa6@example.test');d=await detail(o6.id);
  check('a template refused by Meta is reported and not retried by itself',d.whatsapp.status==='failed'&&/destinatario/.test(d.whatsapp.error)&&meta.sends.filter(s=>s.to==='573006667788').length===1&&d.whatsapp.can_send===true);
 
@@ -166,7 +168,7 @@ try{
  chat=await(await owner.ctx.get('/api/whatsapp/conversations/'+d.whatsapp.conversation_id)).json();
  check('the AI did not answer the code message',!chat.messages.some(m=>m.sender==='ai'));
  const n=meta.sends.length;await text('573118887766','Hola, quiero confirmar mi pedido '+code);
- const again=meta.sends.slice(n);check('sending the number again does not resend the summary, it answers with the status',!again.some(x=>x.type==='interactive'||x.type==='template')&&again.some(x=>x.type==='text'&&x.text.body.includes('Pedido '+code)&&x.text.body.includes('/pedido?numero=')));
+ const again=meta.sends.slice(n);check('sending the number again does not resend the summary, it answers with the status',!again.some(x=>x.type==='interactive'||x.type==='template')&&again.some(x=>x.type==='text'&&x.text.body.includes('Pedido '+code)&&(x.text.body.includes('/pedido?numero=')||x.text.body.includes('Responde *1*'))));
  await press('573118887766',inter.interactive.action.buttons[0].reply.id,'Confirmar pedido','wamid.NOT-OURS');
  check('an interactive tap with a foreign context does not confirm',(await detail(o8.id)).order.sale_status==='draft');
  await press('573118887766',inter.interactive.action.buttons[0].reply.id,'Confirmar pedido',inter.wamid);d=await detail(o8.id);

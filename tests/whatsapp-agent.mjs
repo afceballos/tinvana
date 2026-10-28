@@ -27,6 +27,7 @@ const openai=createServer(tls,(req,res)=>{let raw='';req.on('data',c=>raw+=c);re
  const empty={name:'',city:'',department:'',address:'',neighborhood:'',reference:'',quantity:'',variant:''};
  const pid=input.products[0]?.id||'';
  if(/falla/i.test(last))return reply({},500);
+ if(/qué pedidos tengo/i.test(last))return reply({reply:'Te muestro tu pedido.',intent:'pedido',product_id:'',captured:empty,action:'show_order',handoff_reason:'',order_number:'',memory:'Clienta Nora; preguntó por sus pedidos.'});
  if(/hablar con alguien/i.test(last))return reply({reply:'Claro, te comunico con un asesor.',intent:'asesor',product_id:'',captured:empty,action:'handoff',handoff_reason:'el cliente pidió una persona'});
  if(/lo quiero/i.test(last))return reply({reply:'¡Perfecto, Laura! Ya tengo tus datos.',intent:'comprar',product_id:pid,captured:{...empty,name:'Laura Gómez',city:'Pereira',department:'Risaralda',quantity:'2'},action:'request_quote',handoff_reason:''});
  if(/detalles/i.test(last))return reply({reply:'Te cuento. '+'Es un picatodo muy práctico para tu cocina y te ayuda a preparar todo más rápido. '.repeat(12),intent:'info',product_id:pid,captured:empty,action:'none',handoff_reason:''});
@@ -140,6 +141,36 @@ try{
  await say('573007770001','Nora Vélez','Hola, quiero hacer mi pedido del picatodo');
  check('wanting to place a new order is not taken as a question about an order',ai.length===a5+1);
  check('the agent is told that asking about an order is not a problem to hand over',JSON.stringify(ai.at(-1).payload).includes('empieza por TB')&&JSON.stringify(ai.at(-1).payload).includes('no es un problema'));
+  // Orders in the chat: status, «1 SÍ / 2 NO» and memory
+ const land=(await(await owner.ctx.get('/api/landings/'+f.landing)).json()).landing;await owner.ctx.put('/api/landings/'+f.landing,{headers:owner.H,data:{slug:land.slug,content:{...land.content,publicPrice:59900}}});await owner.ctx.post('/api/landings/'+f.landing+'/publish',{headers:owner.H});
+ const lpage=await(await meta.get('/p/'+f.slug)).text();const tk=lpage.match(/name="csrf" value="([^"]+)"/)[1];
+ const leadFor=(phone,email)=>meta.post('/p/'+f.slug+'/lead',{headers:{'X-CSRF-Token':tk},data:{csrf:tk,idempotency_key:randomUUID(),first_name:'Nora',last_name:'Vélez',email,phone,phone_country:'CO',country_code:'CO',department_code:'05',city_code:'05001',address:'Calle 8 # 10-20',quantity:1,website:''}});
+ const orderByEmail=async email=>{const l=(await(await owner.ctx.get('/api/leads')).json()).leads.find(x=>x.email===email);return (await(await owner.ctx.get('/api/orders')).json()).orders.find(o=>o.lead_id===l.id);};
+ check('a landing order for this phone',(await leadFor('3007770001','nora1@example.test')).status()===202);
+ let o1=await orderByEmail('nora1@example.test');const a7=ai.length;
+ await say('573007770001','Nora Vélez','¿Cómo va mi pedido?');
+ let last=sends.at(-1).text.body;
+ check('asking about «my order» shows the order of this phone and asks 1 SÍ / 2 NO, without AI',ai.length===a7&&last.includes(o1.order_number)&&last.includes('Responde *1*')&&(await detail(nora.id)).conversation.pending.type==='confirm_order');
+ const o1d=(await(await owner.ctx.get('/api/orders/'+o1.id)).json()).order;
+ check('without freight configured, the shipping is included in the public price',o1d.shipping_price==='0.00'&&o1d.quote_id!==null);
+ await say('573007770001','Nora Vélez','1');
+ const o1c=(await(await owner.ctx.get('/api/orders/'+o1.id)).json()).order;
+ check('answering 1 confirms the order in Pedidos with the message as evidence',o1c.sale_status==='confirmed'&&o1c.confirmation.method==='whatsapp_text'&&/«1»/.test(o1c.confirmation.evidence)&&ai.length===a7&&!(await detail(nora.id)).conversation.pending);
+ check('the customer gets the confirmed message',/confirmado/i.test(sends.at(-1).text.body));
+ check('a second landing order for the same phone',(await leadFor('3007770001','nora2@example.test')).status()===202);
+ const o2=await orderByEmail('nora2@example.test');
+ await say('573007770001','Nora Vélez','Quiero saber el estado de mi pedido');
+ last=sends.at(-1).text.body;
+ check('with several orders the customer gets the list to choose from',last.includes(o1.order_number)&&last.includes(o2.order_number)&&/Escríbeme el número/.test(last));
+ await say('573007770001','Nora Vélez','Es el '+o2.order_number);
+ check('sending the number shows that order and asks to confirm it',sends.at(-1).text.body.includes(o2.order_number)&&sends.at(-1).text.body.includes('Responde *1*'));
+ await say('573007770001','Nora Vélez','no');
+ const n2=(await detail(nora.id)).conversation;const o2c=(await(await owner.ctx.get('/api/orders/'+o2.id)).json()).order;
+ check('answering 2 (no) keeps the order in draft and passes the chat to an advisor',o2c.sale_status==='draft'&&n2.owner_mode==='human'&&/cambiar/.test(n2.handoff_reason));
+ await owner.ctx.post('/api/whatsapp/conversations/'+nora.id+'/release',{headers:owner.H,data:{version:n2.version}});
+ const a8=ai.length;await say('573007770001','Nora Vélez','Hola, qué pedidos tengo');
+ check('the AI sees the customer\'s orders (number, status, whether to confirm) and its memory',ai.length===a8+1&&ai.at(-1).input.orders.length===2&&ai.at(-1).input.orders.some(x=>x.number===o2.order_number&&x.needs_confirmation===true)&&'memory' in ai.at(-1).input);
+ check('the AI action «show_order» is answered by the server with the orders, and the memory is kept',sends.at(-1).text.body.includes(o2.order_number)&&(await detail(nora.id)).conversation.memory==='Clienta Nora; preguntó por sus pedidos.');
  // Monthly limit
  v=await agent();await helper('override',JSON.stringify({limits:{whatsapp_ai_conversations:v.status.used_this_month}}));
  const a4=ai.length;await say('573003334455','Pedro Paz','Hola');const pedro=await convOf('573003334455');

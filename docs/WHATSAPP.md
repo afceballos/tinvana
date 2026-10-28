@@ -225,6 +225,15 @@ Documentación oficial consultada el 2026-10-27 (mensajes interactivos con boton
 - Cuando el cliente envía un número `TB-…`: si es de la tienda, recibe el estado; si no existe, «No encontramos un pedido con el número…»; si coincide con un código de oferta con firma (`TB-CEP2-K7Q2`), lo procesan las ofertas.
 
 
+### Pedidos dentro del chat y memoria (2026-10-28, PostgreSQL `031`, MySQL `048`)
+
+- **Memoria:** la IA devuelve en cada respuesta un resumen breve de la conversación (`whatsapp_conversations.summary`) y lo recibe en la siguiente, además de los últimos 20 mensajes. El paso pendiente se guarda en `whatsapp_conversations.pending`. La Bandeja muestra «En qué quedó» y «Lo que recuerda la IA».
+- **Pedidos del cliente en el contexto** (`WhatsAppOrderChat`): los del mismo teléfono en la tienda (o enlazados al chat por una confirmación), con número, producto, total, estado y si falta confirmarlos; sin datos de contacto. La IA usa la acción `show_order` (con `order_number` o vacío) y el servidor escribe la respuesta; nunca dice que un pedido quedó confirmado.
+- **Preguntar por «mi pedido»:** si el teléfono tiene un pedido, se muestra; si tiene varios, la lista para elegir; si no tiene, se pide el número TB. Sin IA y sin asesor.
+- **«1 SÍ / 2 NO»:** al mostrar un pedido en borrador se cotiza si hace falta (precio de la landing y envío de Dropi, o envío incluido) y se pregunta «¿Lo confirmamos? Responde 1 para SÍ o 2 para NO». «1», «sí», «confirmo», «dale», «ok» o «listo» confirman (método `whatsapp_text`, evidencia con el texto y el `wamid`) si la cotización y la versión siguen iguales, y siguen el mismo camino que el botón (mensaje, aviso y envío automático a Dropi si está activo); si cambió, se muestra de nuevo. «2» o «no» deja el pedido en borrador y pasa a un asesor. Solo cuentan respuestas escritas; los botones mantienen su verificación de contexto.
+- **Chats abiertos por la confirmación de pedido** empiezan con la IA cuando está disponible (antes, con un asesor). Ya no se pasa a un asesor cuando el cliente escribe mientras espera la confirmación.
+
+
 ### Configuración en Meta (cuando se autorice el piloto real)
 
 1. En la app de Meta: WhatsApp → Configuración → Webhook: URL `https://<dominio>/whatsapp/webhook` y el mismo `WHATSAPP_VERIFY_TOKEN` del servidor; suscribir el campo `messages`.
