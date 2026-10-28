@@ -47,9 +47,6 @@
 :root[data-theme=dark] .wa-guide-here{background:#123222;color:#86efac}
 @media (max-width:640px){.wa-guide-tabs{justify-self:stretch}.wa-guide-tabs button{flex:1}}
 
-.wa-guide-cta{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;max-width:760px;padding:12px 16px;border:1px solid color-mix(in srgb,var(--brand-accent,#ff6a00) 30%,var(--line));border-radius:16px;background:var(--surface,#fff)}
-.wa-guide-cta>.icon{flex:none;width:18px;height:18px;color:#c2410c}
-.wa-guide-cta>span{flex:1 1 260px;font-size:14px;line-height:1.5}
 /* Side panel without backdrop: the page stays usable to copy and paste while reading (same shape as the lead detail). */
 .wa-guide-drawer{position:fixed;top:0;right:0;z-index:60;display:flex;flex-direction:column;width:min(460px,100vw);height:100dvh;border-left:1px solid var(--line);border-radius:26px 0 0 26px;background:var(--surface,#fff);box-shadow:-18px 0 48px rgba(30,30,30,.12);animation:cx-drawer-in .5s var(--ease-out,ease-out)}
 .wa-guide-drawer>header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 24px;border-bottom:1px solid var(--line)}
@@ -60,7 +57,10 @@
 @media (prefers-reduced-motion:reduce){.wa-guide-drawer{animation:none}.wa-guide-open .panel-main{transition:none}}
 :root[data-theme=dark] .wa-guide-drawer{box-shadow:-18px 0 48px rgba(0,0,0,.45)}
 :root[data-theme=dark] .wa-guide-body .wa-guide-steps>li{background:var(--surface-2,#1b1f25)}
-:root[data-theme=dark] .wa-guide-cta>.icon{color:#fdba74}
 
-.wa-inline-link{display:inline;min-height:0;padding:0;border:0;background:none;color:#c2410c;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
-:root[data-theme=dark] .wa-inline-link{color:#fdba74}
+
+/* Entry to the guide at the end of the «Conectar tu número» card, apart from the form. */
+.wa-guide-entry{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 16px;margin-top:8px;padding-top:18px;border-top:1px solid var(--line)}
+.wa-guide-entry>span{display:grid;gap:2px;min-width:0}
+.wa-guide-entry strong{font-size:14px}
+.wa-guide-entry .secondary{min-height:36px;padding:4px 14px;font-size:13px}

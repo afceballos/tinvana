@@ -918,6 +918,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado (local):** `whatsapp-connection.mjs` 56 (con el panel abierto se llena el formulario; Escape lo cierra) y revisión de la captura.
 - **Datos reales:** ninguno.
 
+### 2026-10-28 · Entrada al paso a paso dentro de la tarjeta
+- **Pedido del usuario:** la franja y el botón no tenían buen espaciado; mejor un botón más pequeño al final de la tarjeta «Conectar tu número», separado por una línea.
+- **Cambio:** se quitan la franja y el enlace del texto; queda una sola entrada al final del formulario (pregunta corta, ayuda y botón pequeño).
+- **Comprobado (local):** `whatsapp-connection.mjs` 57 y revisión de la captura.
+- **Datos reales:** ninguno.
+
 ### Plantilla para la próxima actualización
 
 ```text
