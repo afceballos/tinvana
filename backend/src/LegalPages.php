@@ -79,7 +79,6 @@ final class LegalPages {
  }
  private static function css(): string {
   return ':root{--o:#FF6A00;--ink:#1E1E1E;--muted:#5d5550;--bg:#FFF8F1;--card:#fff;--line:#FFE0CD;--soft:#fff1e5;color-scheme:light}'
-  .'@media (prefers-color-scheme:dark){:root{--ink:#f4ede7;--muted:#b9aea6;--bg:#161210;--card:#1f1a17;--line:#3a2c24;--soft:#2a1f19;color-scheme:dark}.legal-logo img{content:url(/brand/tinvana-light.svg)}}'
   .'*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:84px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 Montserrat,system-ui,sans-serif;-webkit-font-smoothing:antialiased}'
   .'a{color:var(--o);text-underline-offset:3px}a:focus-visible{outline:2px solid var(--o);outline-offset:2px;border-radius:4px}'
   .'.legal-wrap{max-width:1120px;margin:0 auto;padding:0 20px}'

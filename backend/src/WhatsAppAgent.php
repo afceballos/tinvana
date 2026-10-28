@@ -18,6 +18,11 @@ final class WhatsAppAgent {
  private const REPLY_CHARS=['breve'=>350,'normal'=>700];
  private const MAX_TOKENS=['breve'=>400,'normal'=>800];
  private const TIMEOUT=25;
+ /** Asked when the customer wants to know about an order they already placed and did not send its number. */
+ public const ASK_ORDER='Con gusto te ayudo con tu pedido. Escríbeme tu número de pedido: empieza por TB, por ejemplo TB-7KQ2-MX9P. Lo encuentras en el correo o en el mensaje de confirmación.';
+ // «mi pedido», «mi orden», «dónde está mi…», «estado de…», «seguimiento», «rastrear», but not a new purchase («hacer mi pedido»).
+ private const ORDER_QUESTION='/\b(mis?\s+(pedidos?|[oó]rden(es)?|compras?|paquetes?|env[ií]os?)|estado\s+de\s+(mi|la|el)|d[oó]nde\s+(est[aá]|va|viene)\s+mi|seguimiento|rastre(ar|o))\b/iu';
+ private const NEW_PURCHASE='/\b(hacer|realizar|enviar|crear|quiero)\s+(mi|el|un)\s+(pedido|orden|compra)\b/iu';
  private const BUYING='El cliente quiere comprar: revisa sus datos y cierra la venta (la cotización automática llega en la etapa 5).';
 
  /** Why the agent cannot answer this store's chats, or null when it can. */
@@ -74,6 +79,11 @@ final class WhatsAppAgent {
    if(!$c||!$account||!WhatsAppInbox::windowOpen($c['last_customer_at']))return true;
    $s=WhatsAppAgentSettings::forUser($owner)['settings'];
    if($why=self::unavailable($owner)){self::handoff($c,$why,'handoff',$account,$s);return true;}
+   // A question about an order already placed: ask for its number (the inbox answers the number with the status).
+   // No AI tokens and no advisor; if the customer already got this request, the AI takes over as usual.
+   $lastIn=Database::one("SELECT type,body FROM whatsapp_messages WHERE conversation_id=? AND direction='in' ORDER BY created_at DESC,id DESC LIMIT 1",[$id]);
+   $lastOut=Database::one("SELECT body FROM whatsapp_messages WHERE conversation_id=? AND direction='out' ORDER BY created_at DESC,id DESC LIMIT 1",[$id]);
+   if(($lastIn['type']??'')==='text'&&preg_match(self::ORDER_QUESTION,(string)$lastIn['body'])&&!preg_match(self::NEW_PURCHASE,(string)$lastIn['body'])&&($lastOut['body']??'')!==self::ASK_ORDER){WhatsAppInbox::sendText($account,$c,self::ASK_ORDER,'system',null);return true;}
    $max=Entitlements::of($owner)['limits']['whatsapp_ai_conversations']??null;
    if($max!==null&&!Database::one("SELECT id FROM whatsapp_messages WHERE conversation_id=? AND sender='ai' AND created_at>=?",[$id,self::monthStart()])&&Entitlements::aiConversationsThisMonth($owner)>=$max){
     self::handoff($c,'Se alcanzó el límite mensual de conversaciones con IA','limit',$account,$s);return true;
@@ -142,13 +152,14 @@ final class WhatsAppAgent {
   $length=$s['length']==='breve'?'Responde en 1 o 2 frases cortas (máximo 300 caracteres), directo a lo que preguntó el cliente. Sin saludos largos, sin repetir lo que ya dijiste y con un emoji como máximo.':'Responde en máximo 4 frases claras, sin relleno.';
   $h=$s['handoff'];$motives=[];
   if($h['customer_asks'])$motives[]='el cliente pide hablar con una persona o un asesor';
-  if($h['complaint'])$motives[]='el cliente tiene un reclamo, una queja o un problema con un pedido';
+  if($h['complaint'])$motives[]='el cliente tiene un reclamo, una queja o un problema con un pedido (preguntar cómo va o dónde está su pedido no es un problema)';
   if($h['unknown'])$motives[]='el cliente pregunta algo que no está en la ficha';
   if($h['no_sheet'])$motives[]='el cliente pregunta por un producto que no está en "products"';
   if($h['custom']!=='')$motives[]=$h['custom'];
   return 'Eres el asesor de ventas por WhatsApp de la tienda indicada en "store", en Colombia. Tono: '.$tone.'. '.$length."\n"
    .'Responde siempre en español. Usa solo la información de la ficha aprobada ("sheet"); no inventes características, garantías ni tiempos.'."\n"
    .'Nunca digas ni calcules precios, costos de envío, totales, descuentos, tiempos de entrega ni disponibilidad, salvo el texto exacto de "offer.price_text" o de "sheet.price_note" si existen.'."\n"
+   .'Si el cliente pregunta por un pedido que ya hizo (estado, cuándo llega, dónde va), no pases a un asesor: pídele su número de pedido, que empieza por TB (por ejemplo TB-7KQ2-MX9P) y está en el correo o en el mensaje de confirmación; el sistema le responde el estado cuando lo envíe. Pasa a un asesor solo si reporta un problema con el pedido.'."\n"
    .'No creas pedidos ni confirmes compras. Cuando el cliente quiera comprar, pide los datos que falten (nombre, ciudad y departamento, dirección, barrio, referencia, cantidad y variante si aplica), uno o dos a la vez; cuando los tengas, usa action "request_quote".'."\n"
    .'Si "product" es null y hay varios productos en "products", pregunta cuál le interesa (action "ask_product"). Cuando lo identifiques, devuelve su id exacto en "product_id"; si no, deja "product_id" en "".'."\n"
    .'Si hay "offer", el cliente llegó por esa oferta: preséntala por su nombre y puedes decir exactamente "offer.price_text" (es el precio que calculó la tienda). Si "offer.certainty" es "media", confirma primero que le interesa esa oferta. Si "offer.new_entry_while_buying" es true, pregunta si quiere continuar la compra que ya tenía o empezar con esta oferta.'."\n"

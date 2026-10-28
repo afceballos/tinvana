@@ -234,6 +234,9 @@ final class WhatsAppOrderConfirm {
     return true;
    }
    if($o=Database::one('SELECT id FROM orders WHERE order_number=? AND user_id=?',[$number,$owner]))return ['status'=>(string)$o['id']];
+   // A short offer code with its landing signature (TB-CEP2-K7Q2) looks like an order number: offers handle it.
+   if(Database::one('SELECT id FROM whatsapp_offers WHERE user_id=? AND code=?',[$owner,substr($number,0,7)]))return false;
+   return ['missing'=>$number];
   }
   if($conv['owner_mode']==='ai'&&($w=Database::one("SELECT order_id FROM whatsapp_order_confirmations WHERE conversation_id=? AND user_id=? AND status='sent' LIMIT 1",[$conv['id'],$owner]))){
    $reason='Respondió con un mensaje a la confirmación del pedido '.self::ref((string)$w['order_id']);
@@ -248,6 +251,11 @@ final class WhatsAppOrderConfirm {
   $o=Database::one('SELECT * FROM orders WHERE id=? AND user_id=?',[$orderId,$owner]);if(!$o)return;
   $c=WhatsAppInbox::conversation($owner,$conversationId);$account=Database::one('SELECT * FROM whatsapp_accounts WHERE id=? AND user_id=?',[$c['account_id'],$owner]);
   if($account&&WhatsAppInbox::windowOpen($c['last_customer_at']))WhatsAppInbox::sendText($account,$c,OrderLookup::text($o)."\n\nConsúltalo cuando quieras: ".OrderLookup::url($owner,Orders::displayNumber($o)),'system',null);
+ }
+ /** Answer to a number that is not an order of this store. */
+ public static function missingReply(string $owner,string $conversationId,string $number): void {
+  $c=WhatsAppInbox::conversation($owner,$conversationId);$account=Database::one('SELECT * FROM whatsapp_accounts WHERE id=? AND user_id=?',[$c['account_id'],$owner]);
+  if($account&&WhatsAppInbox::windowOpen($c['last_customer_at']))WhatsAppInbox::sendText($account,$c,'No encontramos un pedido con el número '.$number.'. Revísalo en tu correo o en el mensaje de confirmación y escríbelo de nuevo, por favor.','system',null);
  }
  private static function handoff(array $c,string $reason): void {
   Database::query("UPDATE whatsapp_conversations SET owner_mode='human',handoff_reason=?,version=version+1,updated_at=now() WHERE id=?",[mb_substr($reason,0,200),$c['id']]);

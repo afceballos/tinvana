@@ -218,6 +218,13 @@ Documentación oficial consultada el 2026-10-27 (mensajes interactivos con boton
 - Requisitos para ver el botón del popup y el aviso del formulario: confirmaciones activas en Ventas WhatsApp → Confirmaciones, «Primero invitar al cliente a escribirte» encendido y el número guardado con «Probar conexión».
 
 
+### Preguntas por un pedido ya hecho (2026-10-28)
+
+- Si el cliente pregunta por su pedido («mi pedido», «mi orden», «dónde está mi…», «estado de…», «seguimiento», «rastrear»; no «hacer mi pedido») sin enviar el número, el agente responde sin IA y sin pasar a un asesor: «Con gusto te ayudo con tu pedido. Escríbeme tu número de pedido: empieza por TB…» (`WhatsAppAgent::ASK_ORDER`). Si ya se le pidió, la IA continúa normalmente.
+- Las instrucciones de la IA dicen que preguntar por el estado de un pedido no es un problema y que pida el número; solo pasa a un asesor si el cliente reporta un problema.
+- Cuando el cliente envía un número `TB-…`: si es de la tienda, recibe el estado; si no existe, «No encontramos un pedido con el número…»; si coincide con un código de oferta con firma (`TB-CEP2-K7Q2`), lo procesan las ofertas.
+
+
 ### Configuración en Meta (cuando se autorice el piloto real)
 
 1. En la app de Meta: WhatsApp → Configuración → Webhook: URL `https://<dominio>/whatsapp/webhook` y el mismo `WHATSAPP_VERIFY_TOKEN` del servidor; suscribir el campo `messages`.

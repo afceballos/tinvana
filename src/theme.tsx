@@ -6,7 +6,8 @@ export type Theme='light'|'dark';
 const KEY='tinvana-theme';
 
 function stored():Theme|null{try{const v=localStorage.getItem(KEY);return v==='light'||v==='dark'?v:null;}catch{return null;}}
-function preferred():Theme{return stored()??(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');}
+// Light by default for everyone; dark only when the person chooses it with the button (it is remembered).
+function preferred():Theme{return stored()??'light';}
 function apply(theme:Theme){document.documentElement.dataset.theme=theme;document.documentElement.style.colorScheme=theme;document.querySelector('meta[name=theme-color]')?.setAttribute('content',theme==='dark'?'#14120f':'#fff8f1');}
 
 // Runs before React renders so the first paint already has the right theme.
@@ -24,8 +25,6 @@ export function initPointerGlow(){
 
 export function useTheme(){
  const [theme,setTheme]=useState<Theme>(()=>document.documentElement.dataset.theme==='dark'?'dark':'light');
- // Follow the operating system until the person chooses explicitly.
- useEffect(()=>{const media=window.matchMedia('(prefers-color-scheme: dark)');const change=()=>{if(stored())return;const next=media.matches?'dark':'light';apply(next);setTheme(next);};media.addEventListener('change',change);return()=>media.removeEventListener('change',change);},[]);
  function toggle(origin?:{x:number;y:number}){
   const next:Theme=theme==='dark'?'light':'dark';
   const commit=()=>{apply(next);setTheme(next);try{localStorage.setItem(KEY,next);}catch{/* private mode */}};

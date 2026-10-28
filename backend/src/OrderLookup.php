@@ -95,7 +95,6 @@ final class OrderLookup {
  }
  private static function css(string $color): string {
   return ':root{--o:'.$color.';--on-o:'.LandingRenderer::onColor($color).';--ink:#1e1e1e;--muted:#5d5550;--bg:#fff8f1;--card:#fff;--line:#ffe0cd;--soft:#fff1e5;color-scheme:light}'
-  .'@media (prefers-color-scheme:dark){:root{--ink:#f4ede7;--muted:#b9aea6;--bg:#161210;--card:#1f1a17;--line:#3a2c24;--soft:#2a1f19;color-scheme:dark}}'
   .'*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 Montserrat,system-ui,sans-serif;-webkit-font-smoothing:antialiased}'
   .'.ol-wrap{max-width:680px;margin:0 auto;padding:40px 16px 32px}.ol-top{margin-bottom:20px}.ol-store{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--o)}'
   .'.ol-top h1{margin:6px 0 8px;font-size:clamp(28px,6vw,40px);line-height:1.1;letter-spacing:-.03em}.ol-top p{margin:0;color:var(--muted)}'

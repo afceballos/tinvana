@@ -834,6 +834,13 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Pendiente:** los logos (SVG del panel y PNG del correo) aún dibujan «TINVANA»; el propietario enviará los nuevos. El nombre de remitente guardado en Correos no cambia solo.
 - **Comprobado (local):** `run.php` 86, `dropi-orders.php` 29, `dropi-tracking.php` 12, `account-resend.php`, `blocks.php` 101; `landing-design` 40, `order-mail` 23, `order-lookup` 18, `whatsapp-ads` 30, `whatsapp-confirm` 62, `lead-success` 12, `dropi-orders` 36, `builder`; `tinvana-ui` pasa las comprobaciones de marca y luego se detiene al tocar el menú móvil del panel (no relacionado con el texto; no se comprobó si ya fallaba). `dropi-tracking.mjs` no se pudo validar con el servidor en otros puertos (su proceso auxiliar usa el 8445 fijo).
 
+### 2026-10-28 · La IA pide el número de pedido; modo claro por defecto
+- **Reportes del usuario:** al preguntar «quiero saber acerca de mi pedido» la IA pasaba el chat a un asesor; la consulta de pedidos (y el sitio) debía verse en modo claro por defecto.
+- **Causa:** el motivo «reclamo o problema con un pedido» y «preguntas fuera de la ficha» llevaban a pasar a un asesor; el panel, las páginas legales y la consulta seguían el modo oscuro del sistema operativo.
+- **Cambio:** pregunta por un pedido sin número → mensaje fijo pidiendo el número TB (sin IA ni asesor); instrucciones de la IA ajustadas; número inexistente con respuesta clara (ver [WHATSAPP.md](WHATSAPP.md)). Modo claro por defecto en el panel, la pantalla de carga, la consulta de pedidos y las páginas legales; el modo oscuro solo cuando la persona lo elige con el botón (se recuerda).
+- **Comprobado (local):** `whatsapp-agent.mjs` 53, `whatsapp-confirm.mjs` 63, `whatsapp-ads` 30, `order-lookup` 18, `preload` 25, `legal-pages` 17; `errors-session` pasa las comprobaciones de modo y errores y se detiene en la de duración de la sesión, que necesita `SESSION_LIFETIME=8` (no configurado en el servidor aislado).
+- **Datos reales:** ninguno; IA simulada.
+
 ### Plantilla para la próxima actualización
 
 ```text

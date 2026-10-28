@@ -99,7 +99,8 @@ final class WhatsAppInbox {
     [$newer($conv['last_customer_at'])?$at:Database::timestamp((string)$conv['last_customer_at']),$newer($conv['last_message_at'])?$at:Database::timestamp((string)$conv['last_message_at']),$conv['id']]);
    if($confirmation)Database::query('UPDATE whatsapp_conversations SET ai_seq=customer_seq WHERE id=?',[$conv['id']]);
    $db->commit();
-   if(is_array($confirmation))WhatsAppOrderConfirm::statusReply($owner,(string)$conv['id'],$confirmation['status']);
+   if(isset($confirmation['status']))WhatsAppOrderConfirm::statusReply($owner,(string)$conv['id'],$confirmation['status']);
+   elseif(isset($confirmation['missing']))WhatsAppOrderConfirm::missingReply($owner,(string)$conv['id'],$confirmation['missing']);
   }catch(\Throwable $t){if($db->inTransaction())$db->rollBack();throw $t;}
   return 'done';
  }

@@ -134,6 +134,12 @@ try{
  const a3=ai.length;await say('573002221100','Marta Ríos','Hola');const marta=await convOf('573002221100');
  check('outside the schedule (with that option) it sends the off-hours message and hands the chat over, without AI',ai.length===a3&&sends.at(-1).text.body===v.settings.messages.off_hours&&marta.owner_mode==='human'&&marta.handoff_reason.includes('horario'));
  await owner.ctx.delete('/api/whatsapp/agent',{headers:owner.H});
+ // Questions about an order already placed: ask for the TB number, without AI or advisor
+ const a5=ai.length;await say('573007770001','Nora Vélez','Hola, quiero saber acerca de mi pedido');const nora=await convOf('573007770001');
+ check('asking about an order gets a request for the TB number, without AI or advisor',ai.length===a5&&sends.at(-1).text.body.includes('empieza por TB')&&nora.owner_mode==='ai');
+ await say('573007770001','Nora Vélez','Hola, quiero hacer mi pedido del picatodo');
+ check('wanting to place a new order is not taken as a question about an order',ai.length===a5+1);
+ check('the agent is told that asking about an order is not a problem to hand over',JSON.stringify(ai.at(-1).payload).includes('empieza por TB')&&JSON.stringify(ai.at(-1).payload).includes('no es un problema'));
  // Monthly limit
  v=await agent();await helper('override',JSON.stringify({limits:{whatsapp_ai_conversations:v.status.used_this_month}}));
  const a4=ai.length;await say('573003334455','Pedro Paz','Hola');const pedro=await convOf('573003334455');

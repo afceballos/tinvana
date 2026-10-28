@@ -172,6 +172,8 @@ try{
  await press('573118887766',inter.interactive.action.buttons[0].reply.id,'Confirmar pedido',inter.wamid);d=await detail(o8.id);
  check('after confirming the email no longer asks for it',(await helper('mail-info',o8.id)).trim()==='null');
  check('the interactive «Confirmar pedido» confirms the order with that evidence',d.order.sale_status==='confirmed'&&d.order.confirmation.method==='whatsapp_button'&&d.order.confirmation.template_wamid===inter.wamid&&/confirmado/.test(lastText('573118887766')));
+ await text('573118887766','Mi pedido es el TB-2222-3333');
+ check('a TB number that is not an order of the store gets a clear answer',(lastText('573118887766')||'').includes('No encontramos un pedido con el número TB-2222-3333'));
  // Fallback: the customer does not write
  res=await(await lead('3009990000','wa9@example.test')).json();const o9=await orderOf('wa9@example.test');
  await helper('confirm-due');await poke();d=await detail(o9.id);
