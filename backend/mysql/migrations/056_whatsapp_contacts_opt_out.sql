@@ -1,0 +1,1 @@
+ALTER TABLE whatsapp_contacts ADD COLUMN opted_out_at DATETIME(6) NULL

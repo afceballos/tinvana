@@ -80,7 +80,9 @@ final class DropiTracking {
    if($t['status']!==null&&$t['status']!==($r['dropi_status']??null))Orders::event($r,'dropi_status_changed',['from'=>$r['dropi_status']??null,'to'=>$t['status'],'guide'=>$t['guide'],'carrier'=>$t['carrier'],'note'=>$note],null);
    // Mirror Dropi in Tinbana: logistics follows the Dropi status; a cancellation in Dropi cancels the sale here too.
    $logistics=self::logistics($t['status'],$t['novelty']);
-   if($logistics!==null&&$logistics!==$r['logistics_status'])Database::query('UPDATE orders SET logistics_status=? WHERE id=?',[$logistics,$order['id']]);
+   if($logistics!==null&&$logistics!==$r['logistics_status']){Database::query('UPDATE orders SET logistics_status=? WHERE id=?',[$logistics,$order['id']]);
+    // Stage 6A: the customer hears about the new state by email and WhatsApp (OrderStatusNotices).
+    OrderStatusNotices::queue($r,$logistics,$t);}
    if($logistics==='cancelled'&&$r['sale_status']!=='cancelled'){
     $c=Database::one("UPDATE orders SET sale_status='cancelled',quote_id=null,quote_expires_at=null,version=version+1,updated_at=now() WHERE id=? RETURNING *",[$order['id']]);
     Orders::event($c,'cancelled',['reason'=>'Cancelado en Dropi ('.$t['status'].')'.($note?': '.$note:'.'),'source'=>'dropi'],null);OrderMail::queue($c,'buyer_cancelled');

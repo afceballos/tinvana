@@ -1,0 +1,1 @@
+ALTER TABLE whatsapp_templates DROP CONSTRAINT whatsapp_templates_purpose_ck, ADD CONSTRAINT whatsapp_templates_purpose_v2_ck CHECK (purpose IN ('custom','order_confirmation','greeting','external','order_status'))

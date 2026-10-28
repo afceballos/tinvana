@@ -1,0 +1,1 @@
+ALTER TABLE order_mail DROP CONSTRAINT order_mail_kind_ck, ADD CONSTRAINT order_mail_kind_v2_ck CHECK (kind IN ('buyer_received','owner_new_order','buyer_confirmed','buyer_cancelled','buyer_guide','buyer_in_transit','buyer_novelty','buyer_delivered'))

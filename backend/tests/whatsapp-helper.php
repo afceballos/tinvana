@@ -22,6 +22,8 @@ if($op==='reset'){
  Database::query('DELETE FROM whatsapp_agent_settings WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_order_confirmations WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_knowledge WHERE user_id IN (?,?) OR user_id IS NULL',$ids);
+ Database::query('DELETE FROM whatsapp_status_notices WHERE user_id IN (?,?)',$ids);
+ Database::query('DELETE FROM whatsapp_notice_settings WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_confirm_settings WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_product_sheets WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM ai_connections WHERE user_id IN (?,?)',$ids);
@@ -56,6 +58,12 @@ if($op==='close-age'){
  if($d!==null)Database::query('UPDATE whatsapp_messages SET created_at=now()-make_interval(hours=>?) WHERE conversation_id=? AND user_id=?',[$h,$id,$fixture['owner']]);
  echo 'ok';exit;
 }
+if($op==='status-notice'){
+ // A Dropi logistics change for one order of the owner: argv[2]=order, argv[3]=state, argv[4]=JSON with guide/carrier/novelty.
+ $o=Database::one('SELECT * FROM orders WHERE id=? AND user_id=?',[$argv[2]??'',$fixture['owner']]);if(!$o)throw new RuntimeException('Order not found.');
+ $db=Database::connection();$db->beginTransaction();App\OrderStatusNotices::queue($o,(string)($argv[3]??''),json_decode($argv[4]??'{}',true)?:[]);$db->commit();echo 'ok';exit;
+}
+if($op==='order-mails'){echo Support::json(array_column(Database::all('SELECT kind FROM order_mail WHERE order_id=? AND user_id=? ORDER BY created_at',[$argv[2]??'',$fixture['owner']]),'kind'));exit;}
 if($op==='housekeeping'){echo Support::json(App\WhatsAppInbox::housekeeping());exit;}
 if($op==='superadmin'){
  // Temporarily makes the second fixture account a superadmin for the Administración checks.

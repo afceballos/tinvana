@@ -8,8 +8,9 @@ namespace App;
  * `mail:work` cron through AccountMail::deliver. Settings live in users.mail_settings.
  */
 final class OrderMail {
- public const KINDS=['buyer_received','owner_new_order','buyer_confirmed','buyer_cancelled'];
- public const MESSAGES=['buyer_received','buyer_confirmed','buyer_cancelled'];
+ public const STATUS=['buyer_guide','buyer_in_transit','buyer_novelty','buyer_delivered'];
+ public const KINDS=['buyer_received','owner_new_order','buyer_confirmed','buyer_cancelled','buyer_guide','buyer_in_transit','buyer_novelty','buyer_delivered'];
+ public const MESSAGES=['buyer_received','buyer_confirmed','buyer_cancelled','buyer_guide','buyer_in_transit','buyer_novelty','buyer_delivered'];
 
  private static function user(string $owner): array {
   $u=Database::one('SELECT id,email,profile,mail_settings FROM users WHERE id=?',[$owner]);if(!$u)throw new HttpError(404,'Usuario no encontrado.');return $u;
@@ -54,14 +55,17 @@ final class OrderMail {
    'address'=>trim((string)($a['address']??'').' '.(string)($a['address_details']??'')),'city'=>trim((string)($a['city']??'').', '.(string)($a['state']??''),', '),
    'store'=>$settings['sender_name'],'reply_to'=>$settings['reply_to'],'panel_url'=>rtrim(Support::env('APP_URL'),'/').'/panel/pedidos/'.$order['id']];
  }
- /** Queue one email for an order unless the owner disabled it; duplicates per order version are ignored. */
- public static function queue(array $order,string $kind): void {
+ /**
+  * Queue one email for an order unless the owner disabled it; duplicates per order version are ignored. Status emails
+  * (OrderStatusNotices) carry the guide, carrier and novelty in $status and go once per order and state.
+  */
+ public static function queue(array $order,string $kind,?array $status=null): void {
   if(!in_array($kind,self::KINDS,true)||!Entitlements::allows((string)$order['user_id'],'mail'))return;
   $settings=self::settings((string)$order['user_id']);if(!$settings['enabled'][$kind])return;
   $data=self::snapshot($order,$settings);$to=$kind==='owner_new_order'?$settings['owner_email']:$data['email'];
   if(!filter_var($to,FILTER_VALIDATE_EMAIL))return;
-  $data['to']=$to;$data['message']=$settings['messages'][$kind]??'';$id=Support::uuid();
-  $key=$order['id'].':'.$kind.':'.(in_array($kind,['buyer_received','owner_new_order'],true)?'created':(string)$order['version']);
+  $data['to']=$to;$data['message']=$settings['messages'][$kind]??'';$id=Support::uuid();if($status!==null)$data['status']=$status;
+  $key=$order['id'].':'.$kind.':'.(in_array($kind,['buyer_received','owner_new_order'],true)?'created':(in_array($kind,self::STATUS,true)?'once':(string)$order['version']));
   Database::query('INSERT INTO order_mail(id,user_id,order_id,kind,dedupe_key,payload_ciphertext) VALUES(?,?,?,?,?,?) ON CONFLICT(dedupe_key) DO NOTHING',[$id,$order['user_id'],$order['id'],$kind,$key,Crypto::encrypt(Support::json($data),'order-mail:'.$id)]);
  }
 
@@ -72,6 +76,10 @@ final class OrderMail {
    'buyer_received'=>['Recibimos tu pedido',$hello.', gracias por tu pedido en '.$store.'. Te contactaremos pronto para confirmar los detalles y el envío.'],
    'buyer_confirmed'=>['Tu pedido está confirmado',$hello.', confirmamos tu pedido y lo estamos preparando para el envío. Te avisaremos si necesitamos algo más.'],
    'buyer_cancelled'=>['Tu pedido fue cancelado',$hello.', tu pedido '.$ref.' fue cancelado. Si crees que es un error o quieres hacer un nuevo pedido, responde a este correo.'],
+   'buyer_guide'=>['Tu pedido ya tiene guía',$hello.', tu pedido '.$ref.' '.OrderStatusNotices::phrase('guide_generated',(array)($d['status']??[])).'. Pronto sale hacia tu dirección.'],
+   'buyer_in_transit'=>['Tu pedido va en camino',$hello.', tu pedido '.$ref.' '.OrderStatusNotices::phrase('in_transit',(array)($d['status']??[])).'. Ten a mano el valor exacto si pagas contra entrega.'],
+   'buyer_novelty'=>['Hay una novedad con tu pedido',$hello.', tu pedido '.$ref.' '.OrderStatusNotices::phrase('novelty',(array)($d['status']??[])).'. Te contactaremos para resolverlo; también puedes responder este correo.'],
+   'buyer_delivered'=>['Tu pedido fue entregado',$hello.', tu pedido '.$ref.' fue entregado. ¡Gracias por comprar en '.$store.'! Si tienes alguna pregunta, responde este correo.'],
    'owner_new_order'=>['Nuevo pedido recibido',trim($d['first_name'].' '.$d['last_name']).' pidió '.$d['quantity'].' × '.$d['product'].'. Revísalo, cotiza el envío y registra la aceptación.'],
   ][$kind];
   [$title,$intro]=$copy;$owner=$kind==='owner_new_order';
@@ -106,7 +114,7 @@ final class OrderMail {
  public static function sample(string $owner): array {
   $s=self::settings($owner);
   return ['ref'=>'TB-7KQ2-MX9P','tracking_url'=>OrderLookup::url($owner,'TB-7KQ2-MX9P'),'order_id'=>'00000000-0000-4000-8000-000000000000','first_name'=>'Ana','last_name'=>'Pérez','email'=>'cliente@ejemplo.com','phone'=>'+573001234567','product'=>'Producto de ejemplo','variant'=>'','quantity'=>2,'unit_price'=>59900.0,'shipping'=>17000.0,'total'=>136800.0,
-   'address'=>'Calle 10 # 20-30 Apto 301','city'=>'Bogotá, D.C., Bogotá, D.C.','store'=>$s['sender_name'],'reply_to'=>$s['reply_to'],'panel_url'=>rtrim(Support::env('APP_URL'),'/').'/panel/pedidos','message'=>''];
+   'address'=>'Calle 10 # 20-30 Apto 301','city'=>'Bogotá, D.C., Bogotá, D.C.','store'=>$s['sender_name'],'reply_to'=>$s['reply_to'],'panel_url'=>rtrim(Support::env('APP_URL'),'/').'/panel/pedidos','message'=>'','status'=>['guide'=>'240012345678','carrier'=>'Servientrega','novelty'=>'Dirección incompleta']];
  }
  public static function preview(string $owner,string $kind,?array $settings=null): array {
   if(!in_array($kind,self::KINDS,true))throw new HttpError(404,'Correo no disponible.');

@@ -46,7 +46,7 @@ final class WhatsAppInbox {
    }
   }
   // Order confirmations go before the agent: a confirmation tap must never be answered by the AI.
-  return $out+['confirmations'=>WhatsAppOrderConfirm::runDue(),'agent'=>WhatsAppAgent::runDue($agentLimit),'housekeeping'=>self::housekeeping()];
+  return $out+['confirmations'=>WhatsAppOrderConfirm::runDue(),'agent'=>WhatsAppAgent::runDue($agentLimit),'notices'=>OrderStatusNotices::runDue(),'housekeeping'=>self::housekeeping()];
  }
 
  /** @return array{0:string,1:string} type and visible text of an incoming message */
@@ -99,6 +99,11 @@ final class WhatsAppInbox {
     [$messageId=Support::uuid(),$owner,$conv['id'],$type,$body,Support::json($m),$wamid,$shown]);
    // A tap on an order confirmation button is handled by WhatsAppOrderConfirm, never by the AI.
    $confirmation=WhatsAppOrderConfirm::inbound($owner,$conv,$m,$type,$messageId,$wamid);
+   if(!$confirmation&&$type==='text'){
+    $out=Database::one('SELECT opted_out_at FROM whatsapp_contacts WHERE id=?',[$contact])['opted_out_at']??null;
+    if(preg_match(self::OPT_OUT,$body)){Database::query('UPDATE whatsapp_contacts SET opted_out_at=COALESCE(opted_out_at,now()),updated_at=now() WHERE id=?',[$contact]);$confirmation=['consent'=>'out'];}
+    elseif($out!==null&&preg_match(self::OPT_IN,$body)){Database::query('UPDATE whatsapp_contacts SET opted_out_at=NULL,updated_at=now() WHERE id=?',[$contact]);$confirmation=['consent'=>'in'];}
+   }
    // Ad or offer code of this entry (stage 4); every entry is recorded separately.
    WhatsAppOffers::resolveEntry($owner,$conv,$body,$referral,$at);
    $newer=fn(?string $current)=>$current===null||strtotime($current)<strtotime($at);
@@ -109,6 +114,7 @@ final class WhatsAppInbox {
    if(isset($confirmation['status']))WhatsAppOrderConfirm::statusReply($owner,(string)$conv['id'],$confirmation['status']);
    elseif(isset($confirmation['missing']))WhatsAppOrderConfirm::missingReply($owner,(string)$conv['id'],$confirmation['missing']);
    elseif(isset($confirmation['pending']))WhatsAppOrderChat::answer($owner,(string)$conv['id']);
+   elseif(isset($confirmation['consent'])){$c=self::owned($owner,(string)$conv['id']);self::sendText($account,$c,$confirmation['consent']==='out'?self::OPT_OUT_REPLY:self::OPT_IN_REPLY,'system',null);}
   }catch(\Throwable $t){if($db->inTransaction())$db->rollBack();throw $t;}
   return 'done';
  }
@@ -153,9 +159,14 @@ final class WhatsAppInbox {
  public static function conversation(string $owner,string $id): array {return self::owned($owner,$id);}
  private static function owned(string $owner,string $id,bool $lock=false): array {
   if(!Support::isUuid($id))throw new HttpError(404,'Conversación no encontrada.');
-  $c=Database::one('SELECT c.*,ct.phone,ct.profile_name,ct.first_origin,ct.created_at AS contact_since FROM whatsapp_conversations c JOIN whatsapp_contacts ct ON ct.id=c.contact_id AND ct.user_id=c.user_id WHERE c.id=? AND c.user_id=?'.($lock?' FOR UPDATE':''),[$id,$owner]);
+  $c=Database::one('SELECT c.*,ct.phone,ct.profile_name,ct.first_origin,ct.opted_out_at,ct.created_at AS contact_since FROM whatsapp_conversations c JOIN whatsapp_contacts ct ON ct.id=c.contact_id AND ct.user_id=c.user_id WHERE c.id=? AND c.user_id=?'.($lock?' FOR UPDATE':''),[$id,$owner]);
   if(!$c)throw new HttpError(404,'Conversación no encontrada.');return $c;
  }
+ // Voluntary opt-out (stage 6A): it stops automatic sales messages and reminders, not the notices of the customer's orders.
+ private const OPT_OUT='/^\s*(stop|baja|darme de baja|dar de baja|no me (escriban|escribas|env[ií]en|manden|contacten)\b.*|no (quiero|deseo) (recibir )?m[aá]s mensajes.*|cancelar (suscripci[oó]n|mensajes))\s*[.!]*\s*$/iu';
+ private const OPT_IN='/^\s*(alta|reactivar|start)\s*[.!]*\s*$/iu';
+ public const OPT_OUT_REPLY='Listo, no te enviaremos más mensajes automáticos ni recordatorios. Solo te avisaremos sobre los pedidos que hagas. Si quieres volver a recibirlos, escribe ALTA.';
+ public const OPT_IN_REPLY='¡Listo! Volverás a recibir nuestros mensajes. ¿En qué te ayudo?';
  public const CLOSE_IDLE_HOURS=24;
  public const PURGE_DAYS=30;
  public const CLOSE_REASONS=['customer_done'=>'El cliente no tenía más preguntas','idle'=>'Sin mensajes en 24 horas'];
@@ -195,7 +206,7 @@ final class WhatsAppInbox {
  public static function windowOpen(?string $lastCustomer): bool {return $lastCustomer!==null&&strtotime($lastCustomer)>time()-self::WINDOW_SECONDS;}
  private static function summary(array $c,?array $last): array {
   return ['id'=>$c['id'],'name'=>$c['profile_name'],'phone'=>$c['phone'],'owner_mode'=>$c['owner_mode'],'handoff_reason'=>$c['handoff_reason'],'unread'=>(int)$c['unread'],'stage'=>$c['stage'],
-   'last_message_at'=>$c['last_message_at'],'last_customer_at'=>$c['last_customer_at'],'closed_at'=>$c['closed_at']??null,'closed_reason'=>isset($c['closed_reason'])?(self::CLOSE_REASONS[$c['closed_reason']]??$c['closed_reason']):null,'window_open'=>self::windowOpen($c['last_customer_at']),
+   'last_message_at'=>$c['last_message_at'],'last_customer_at'=>$c['last_customer_at'],'closed_at'=>$c['closed_at']??null,'opted_out_at'=>$c['opted_out_at']??null,'closed_reason'=>isset($c['closed_reason'])?(self::CLOSE_REASONS[$c['closed_reason']]??$c['closed_reason']):null,'window_open'=>self::windowOpen($c['last_customer_at']),
    'window_closes_at'=>$c['last_customer_at']?gmdate('Y-m-d\TH:i:s\Z',strtotime((string)$c['last_customer_at'])+self::WINDOW_SECONDS):null,'version'=>(int)$c['version'],
    'last'=>$last?['body'=>mb_substr((string)$last['body'],0,140),'type'=>$last['type'],'sender'=>$last['sender'],'direction'=>$last['direction'],'status'=>$last['status']]:null];
  }
@@ -209,7 +220,7 @@ final class WhatsAppInbox {
   $where=['c.user_id=?','c.purged_at IS NULL'];$args=[$owner];
   if($filter==='ai')$where[]="c.owner_mode='ai'";elseif($filter==='human')$where[]="c.owner_mode='human'";elseif($filter==='unread')$where[]='c.unread>0';
   if($search!==''){$like='%'.strtr($search,['\\'=>'\\\\','%'=>'\%','_'=>'\_']).'%';$where[]='(ct.profile_name ILIKE ? OR ct.phone LIKE ?)';$args[]=$like;$args[]=$like;}
-  $rows=Database::all('SELECT c.*,ct.phone,ct.profile_name FROM whatsapp_conversations c JOIN whatsapp_contacts ct ON ct.id=c.contact_id AND ct.user_id=c.user_id WHERE '.implode(' AND ',$where).' ORDER BY c.last_message_at DESC,c.updated_at DESC,c.id LIMIT 100',$args);
+  $rows=Database::all('SELECT c.*,ct.phone,ct.profile_name,ct.opted_out_at FROM whatsapp_conversations c JOIN whatsapp_contacts ct ON ct.id=c.contact_id AND ct.user_id=c.user_id WHERE '.implode(' AND ',$where).' ORDER BY c.last_message_at DESC,c.updated_at DESC,c.id LIMIT 100',$args);
   $last=[];
   if($rows){
    $ids=array_column($rows,'id');

@@ -49,7 +49,7 @@ export function WhatsAppTemplatesPage(){
   {!form&&<section className="panel webhook-current">
    <div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name="automation"/></span><div><span className="eyebrow">Listas para enviar a revisión</span><h2>Plantillas sugeridas</h2></div></div>
    <div className="tpl-presets">{Object.entries(view.presets).map(([purpose,p])=><div key={purpose} className="tpl-preset">
-    <strong>{purpose==='order_confirmation'?'Confirmación de pedido':'Saludo para nuevo chat'}</strong><span className="small muted">{view.categories[p.category]}</span>
+    <strong>{purpose==='order_confirmation'?'Confirmación de pedido':purpose==='order_status'?'Aviso de estado del pedido':'Saludo para nuevo chat'}</strong><span className="small muted">{view.categories[p.category]}</span>
     <TemplatePreview body={p.body} footer={p.footer} buttons={p.buttons} values={p.examples}/>
     <button className="secondary" disabled={busy||has(p.name)} onClick={()=>usePreset(purpose,p)}>{has(p.name)?'Ya la tienes':'Usar y revisar'}</button>
    </div>)}</div>

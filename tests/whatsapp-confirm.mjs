@@ -198,10 +198,34 @@ try{
  await settings({...v.settings,template_id:tpl.id});
 
  // 10. Panel
+ // Stage 6A: order status notices (email and WhatsApp) and voluntary opt-out
+ const ns=await(await owner.ctx.get('/api/whatsapp/notices')).json();
+ check('status notices are on by default: WhatsApp for the four states and the status emails',Object.values(ns.settings.whatsapp).every(Boolean)&&Object.keys(ns.states).length===4&&(await(await owner.ctx.get('/api/mail-settings')).json()).settings.enabled.buyer_in_transit===true);
+ check('the suggested template «aviso_estado_pedido» is offered',(await(await owner.ctx.get('/api/whatsapp/templates')).json()).presets.order_status?.name==='aviso_estado_pedido');
+ await helper('status-notice',o.id,'in_transit',JSON.stringify({guide:'240012345678',carrier:'Servientrega'}));await poke();
+ check('«en camino» reaches the customer by WhatsApp inside the window, with the guide and the lookup link',/va en camino con Servientrega \(guía 240012345678\)/.test(lastText('573001112233'))&&/Consúltalo aquí: http/.test(lastText('573001112233')));
+ check('and the status email is queued',JSON.parse(await helper('order-mails',o.id)).includes('buyer_in_transit'));
+ const sendsN=meta.sends.length;await helper('status-notice',o.id,'in_transit','{}');await poke();
+ check('the same state is not notified twice',meta.sends.length===sendsN&&JSON.parse(await helper('order-mails',o.id)).filter(k=>k==='buyer_in_transit').length===1);
+ await helper('status-notice',o.id,'novelty',JSON.stringify({novelty:'Dirección incompleta'}));await poke();
+ const nc=(await(await owner.ctx.get('/api/whatsapp/conversations/'+c.conversation_id)).json()).conversation;
+ check('a novelty reaches the customer, hands the chat to an advisor and notifies the store',/novedad en la entrega: Dirección incompleta/.test(lastText('573001112233'))&&nc.owner_mode==='human'&&(await notifications()).some(n=>n.kind==='order_novelty'));
+ check('only the store can change the notices',(await other.ctx.get('/api/whatsapp/notices')).ok()&&(await(await other.ctx.get('/api/whatsapp/notices')).json()).recent.length===0);
+ await owner.ctx.put('/api/whatsapp/notices',{headers:owner.H,data:{whatsapp:{...ns.settings.whatsapp,delivered:false},template_id:null}});
+ const sendsD=meta.sends.length;await helper('status-notice',o.id,'delivered','{}');await poke();
+ check('a state turned off is not sent by WhatsApp, but its email still goes',meta.sends.length===sendsD&&JSON.parse(await helper('order-mails',o.id)).includes('buyer_delivered'));
+ await helper('age-window');await helper('status-notice',o2.id,'guide_generated','{}');await poke();
+ const nv=await(await owner.ctx.get('/api/whatsapp/notices')).json();
+ check('outside the 24-hour window and without a template the WhatsApp notice is skipped with the reason; the email goes',nv.recent.some(r=>r.order_id===o2.id&&r.status==='skipped'&&/plantilla/.test(r.error||''))&&JSON.parse(await helper('order-mails',o2.id)).includes('buyer_guide'));
+ await text('573001112233','No me escriban más');let oc=(await(await owner.ctx.get('/api/whatsapp/conversations/'+c.conversation_id)).json()).conversation;
+ check('«no me escriban más» registers the opt-out and confirms it',/no te enviaremos más mensajes automáticos/.test(lastText('573001112233'))&&!!oc.opted_out_at);
+ await text('573001112233','ALTA');oc=(await(await owner.ctx.get('/api/whatsapp/conversations/'+c.conversation_id)).json()).conversation;
+ check('«ALTA» reactivates it',/Volverás a recibir/.test(lastText('573001112233'))&&!oc.opted_out_at);
  browser=await chromium.launch({channel:'msedge',headless:true});const ctx=await browser.newContext({viewport:{width:1280,height:900},reducedMotion:'reduce'});
  const st=await owner.ctx.storageState();await ctx.addCookies(st.cookies);const p=await ctx.newPage();const errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.goto(base+'/panel/whatsapp/confirmaciones');await p.getByRole('heading',{name:'Confirmaciones enviadas'}).waitFor();
  check('the Confirmaciones tab shows the settings and the latest sends',await p.getByRole('link',{name:'Confirmaciones'}).getAttribute('aria-current')==='page'&&await p.locator('.wc-list li').count()>=6&&await p.getByText('Confirmado por el cliente').first().isVisible());
+ check('the page also shows the status notices with the latest sends',await p.getByRole('heading',{name:'Avisos de estado del pedido'}).isVisible()&&await p.getByRole('heading',{name:'Avisos por WhatsApp'}).isVisible());
  await p.screenshot({path:'test-results/whatsapp-confirm-settings.png',fullPage:true});
  await p.goto(base+'/panel/pedidos/'+o2.id);await p.getByRole('heading',{name:'Confirmación por WhatsApp'}).waitFor();
  check('the order shows the WhatsApp confirmation with the chat link',await p.locator('.od-chip',{hasText:'Pidió cambios'}).isVisible()&&await p.getByRole('link',{name:'Abrir chat'}).isVisible()&&await p.getByRole('button',{name:'Enviar nuevo resumen'}).isVisible());

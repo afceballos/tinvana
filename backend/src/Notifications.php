@@ -8,9 +8,9 @@ namespace App;
  * as account and order emails. Per-store settings choose which events notify and through which channels.
  */
 final class Notifications {
- public const EVENTS=['handoff'=>'La IA pasó un chat a un asesor','ai_failure'=>'La IA no pudo responder','limit'=>'Se alcanzó el límite mensual de la IA','off_hours'=>'Mensaje fuera del horario de atención','new_chat'=>'Llegó un chat nuevo sin IA disponible','order_confirmed'=>'Un cliente confirmó su pedido por WhatsApp','order_change'=>'Un cliente pidió cambios en su pedido por WhatsApp','chat_order'=>'Un cliente armó un pedido en el chat de WhatsApp'];
+ public const EVENTS=['handoff'=>'La IA pasó un chat a un asesor','ai_failure'=>'La IA no pudo responder','limit'=>'Se alcanzó el límite mensual de la IA','off_hours'=>'Mensaje fuera del horario de atención','new_chat'=>'Llegó un chat nuevo sin IA disponible','order_confirmed'=>'Un cliente confirmó su pedido por WhatsApp','order_change'=>'Un cliente pidió cambios en su pedido por WhatsApp','chat_order'=>'Un cliente armó un pedido en el chat de WhatsApp','order_novelty'=>'Un pedido tiene una novedad en la entrega (Dropi)'];
  public const CHANNELS=['panel'=>'Campanita en el panel','sound'=>'Sonido mientras Tinbana está abierto','browser'=>'Notificación del navegador','email'=>'Correo'];
- private const DEFAULTS=['events'=>['handoff'=>true,'ai_failure'=>true,'limit'=>true,'off_hours'=>true,'new_chat'=>true,'order_confirmed'=>true,'order_change'=>true,'chat_order'=>true],'channels'=>['panel'=>true,'sound'=>true,'browser'=>true,'email'=>true],'email'=>''];
+ private const DEFAULTS=['events'=>['handoff'=>true,'ai_failure'=>true,'limit'=>true,'off_hours'=>true,'new_chat'=>true,'order_confirmed'=>true,'order_change'=>true,'chat_order'=>true,'order_novelty'=>true],'channels'=>['panel'=>true,'sound'=>true,'browser'=>true,'email'=>true],'email'=>''];
 
  private static function accountEmail(string $owner): string {return (string)(Database::one('SELECT email FROM users WHERE id=?',[$owner])['email']??'');}
  public static function settings(string $owner): array {

@@ -13,7 +13,9 @@ try{
  let s=await(await owner.get('/api/auth/session')).json();await owner.post('/api/auth/login',{headers:{'X-CSRF-Token':s.csrf},data:{email:f.email,password:f.password}});
  const csrf=(await(await owner.get('/api/auth/session')).json()).csrf;const H={'X-CSRF-Token':csrf};
  let v=await(await owner.get('/api/mail-settings')).json();
- check('all four emails enabled by default',Object.values(v.settings.enabled).length===4&&Object.values(v.settings.enabled).every(Boolean));
+ check('all eight emails (four of them about the Dropi status) enabled by default',Object.values(v.settings.enabled).length===8&&Object.values(v.settings.enabled).every(Boolean));
+ const st=await(await owner.post('/api/mail-settings/preview/buyer_in_transit',{headers:H,data:{}})).json();
+ check('the «en camino» email shows the carrier and the guide',/va en camino/.test(st.subject)&&st.html.includes('Servientrega')&&st.html.includes('240012345678'));
  check('reply-to and owner email default to the account email',v.settings.reply_to===f.email&&v.settings.owner_email===f.email&&v.account_email===f.email);
  const draft={...v.settings,sender_name:'Mi Tienda "Pro" <x>',messages:{...v.settings.messages,buyer_received:'Despachamos <b>lunes</b> a sábado.'}};
  check('settings require CSRF',(await owner.put('/api/mail-settings',{headers:{'X-CSRF-Token':'bad'},data:{settings:draft}})).status()===419);
@@ -45,7 +47,7 @@ try{
  browser=await chromium.launch({channel:'msedge',headless:true});const ctx=await browser.newContext({storageState:await owner.storageState(),viewport:{width:1440,height:1000},reducedMotion:'reduce'});const page2=await ctx.newPage();const errors=[];page2.on('pageerror',e=>errors.push(e.message));
  await page2.goto(base+'/panel/perfil');await page2.locator('.account-trigger').click();await page2.getByRole('link',{name:'Correos de pedidos'}).click();await page2.waitForURL('**/panel/correos');
  await page2.getByRole('heading',{name:'Correos de pedidos',level:1}).waitFor();
- check('four email switches rendered',await page2.locator('.mail-kind').count()===4&&await page2.locator('.mail-switch input:checked').count()===3);
+ check('eight email switches rendered',await page2.locator('.mail-kind').count()===8&&await page2.locator('.mail-switch input:checked').count()===7);
  await page2.screenshot({path:'test-results/order-mail-settings.png',fullPage:true});
  await page2.locator('.mail-kind').first().getByRole('button',{name:'Vista previa'}).click();const dlg=page2.getByRole('dialog',{name:'Pedido recibido'});await dlg.waitFor();
  check('preview dialog shows the rendered email',await dlg.locator('iframe').count()===1&&(await dlg.innerText()).includes('Asunto: Recibimos tu pedido'));

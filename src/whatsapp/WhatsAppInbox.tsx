@@ -11,7 +11,7 @@ import {useAllowed} from '../access';
 import {LearnDialog} from './KnowledgeEditor';
 
 type Last={body:string;type:string;sender:string;direction:'in'|'out';status:string};
-type Summary={id:string;name:string|null;phone:string;owner_mode:'ai'|'human';handoff_reason:string|null;unread:number;stage:string;last_message_at:string|null;last_customer_at:string|null;window_open:boolean;window_closes_at:string|null;version:number;last:Last|null;closed_at?:string|null;closed_reason?:string|null};
+type Summary={id:string;name:string|null;phone:string;owner_mode:'ai'|'human';handoff_reason:string|null;unread:number;stage:string;last_message_at:string|null;last_customer_at:string|null;window_open:boolean;window_closes_at:string|null;version:number;last:Last|null;closed_at?:string|null;closed_reason?:string|null;opted_out_at?:string|null};
 type Message={id:string;direction:'in'|'out';type:string;body:string;status:string;sender:string;error:string|null;created_at:string;status_at:string|null;supported:boolean;local?:'sending'|'unconfirmed'};
 type ListView={unchanged?:boolean;stamp:string;conversations?:Summary[];counts?:{total:number;today:number;ai:number;human:number;unread:number};connected?:boolean};
 type DetailView={unchanged?:boolean;stamp:string;conversation?:Summary&{contact_since:string;has_referral:boolean;product:{id:string;name:string;sheet_version:number|null}|null;captured:{key:string;label:string;value:string}[];ai_tokens:number;memory?:string|null;pending?:{type:string;order_id:string}|null;entry:{method:string;method_label:string;certainty:string|null;ad:{name:string;ad_id:string}|null;offer:{name:string;code:string;label:string;version:number|null}|null}|null};messages?:Message[]};
@@ -89,7 +89,7 @@ export function WhatsAppInbox(){
       <span className="wa-avatar" aria-hidden="true">{initials(c)}</span>
       <span className="wa-item-main"><span className="wa-item-top"><strong>{display(c)}</strong><time dateTime={c.last_message_at||undefined}>{shortTime(c.last_message_at)}</time></span>
        <span className="wa-item-preview">{preview(c.last)}</span>
-       <span className="wa-item-tags">{c.closed_at?<span className="wa-tag is-closed">Cerrada</span>:<span className={'wa-tag '+(c.owner_mode==='ai'?'is-ai':'is-human')}>{c.owner_mode==='ai'?'IA':'Asesor'}</span>}{!c.window_open&&<span className="wa-tag is-muted">Ventana cerrada</span>}{c.unread>0&&<span className="wa-unread" aria-label={c.unread+' sin leer'}>{c.unread}</span>}</span>
+       <span className="wa-item-tags">{c.closed_at?<span className="wa-tag is-closed">Cerrada</span>:<span className={'wa-tag '+(c.owner_mode==='ai'?'is-ai':'is-human')}>{c.owner_mode==='ai'?'IA':'Asesor'}</span>}{!c.window_open&&<span className="wa-tag is-muted">Ventana cerrada</span>}{c.opted_out_at&&<span className="wa-tag is-optout">Dado de baja</span>}{c.unread>0&&<span className="wa-unread" aria-label={c.unread+' sin leer'}>{c.unread}</span>}</span>
       </span>
      </Link></li>)}
      {!items.length&&<li className="wa-empty">{search||filter!=='all'?'No hay conversaciones con ese filtro.':'Todavía no hay conversaciones. Aparecerán aquí cuando un cliente escriba a tu número.'}</li>}
@@ -142,6 +142,7 @@ function Conversation({id,onChange,onBack,onError}:{id:string;onChange:()=>void;
     {human?<button type="button" className="secondary" disabled={busy} onClick={()=>void act('release')}>Devolver a la IA</button>:<button type="button" className="primary" disabled={busy} onClick={()=>void act('take')}>Tomar conversación</button>}
    </header>
    {!human&&<p className="wa-banner" role="note">El agente de IA atiende este chat. Si quieres responder tú, pulsa «Tomar conversación»: la IA dejará de escribir aquí.</p>}
+   {c.opted_out_at&&<p className="wa-banner is-closed" role="note"><strong>Dado de baja</strong> desde el {new Date(c.opted_out_at).toLocaleDateString('es-CO',{timeZone:tz,day:'numeric',month:'short'})}: no recibe recordatorios ni mensajes automáticos de venta. Sí le llegan los avisos de sus pedidos, y puedes responderle cuando escriba. Se reactiva si escribe ALTA.</p>}
    {c.closed_at&&<p className="wa-banner is-closed" role="note"><strong>Conversación cerrada</strong> el {new Date(c.closed_at).toLocaleString('es-CO',{timeZone:tz,day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}{c.closed_reason?' · '+c.closed_reason:''}. Si el cliente vuelve a escribir, se abre de nuevo. Los mensajes se borran 30 días después del cierre.</p>}
    {!c.closed_at&&human&&c.handoff_reason&&c.handoff_reason!=='Tomada por un asesor'&&<p className="wa-banner is-handoff" role="note"><strong>Necesita un asesor:</strong> {c.handoff_reason}</p>}
    <div className="wa-messages" ref={scroller} onScroll={e=>{const el=e.currentTarget;stick.current=el.scrollHeight-el.scrollTop-el.clientHeight<80;}} aria-live="polite">

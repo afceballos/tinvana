@@ -139,3 +139,6 @@
 .wa-banner.is-closed{border-color:#d0d5dd;background:#f6f7f9;color:#344054}
 :root[data-theme=dark] .wa-tag.is-closed{background:#2a2f37;color:#cbd2dc}
 :root[data-theme=dark] .wa-banner.is-closed{border-color:#3a414c;background:#20252c;color:#d6dbe2}
+
+.wa-tag.is-optout{background:#fdecec;color:#9f1c1c}
+:root[data-theme=dark] .wa-tag.is-optout{background:#3a1717;color:#fca5a5}

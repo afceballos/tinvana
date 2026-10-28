@@ -260,7 +260,8 @@ Referencia histórica: <https://es.scribd.com/document/683043719/Documentacion-d
 - [ ] Plantillas aprobadas y verificación de ventanas/consentimiento antes de cada envío. Hecho y probado en local (2026-10-27): plantillas creadas desde Tinbana y enviadas a Meta, sincronización, «Nuevo chat» y «Enviar plantilla» con ventana cerrada y casilla de permiso del cliente. Falta: crear y aprobar una plantilla real en Meta y enviarla.
 - [x] Ventas por WhatsApp, etapas 2 a 4 (bandeja, agente de IA con fichas y ajustes, anuncios y ofertas), aviso al pasar a asesor y notificaciones de la tienda. Implementado y probado en local; detalle en [WHATSAPP.md](WHATSAPP.md).
 - [ ] Confirmación de pedidos de landings por WhatsApp. Hecho y probado en local (2026-10-27): resumen con la plantilla aprobada y botones «Confirmar pedido»/«Cambiar algo», cotización automática con el precio de la landing y el envío de Dropi, evidencia del botón, revisión manual por defecto u opción de enviar a Dropi al confirmar, aviso en el formulario y envío desde el pedido. Desde la segunda entrega del 2026-10-27 el cliente escribe primero desde el popup con su código y recibe el resumen con botones sin plantilla; la plantilla queda como respaldo. Falta: comprobar las migraciones MySQL 043–045 en MariaDB, desplegar y probarlo con números reales.
-- [ ] **Siguiente:** etapa 5 (cotización y pedido con origen WhatsApp), etapa 6 (recordatorios, avisos de estado Dropi, baja voluntaria, bandeja de operación) y etapa 7 (copia opcional a GHL y regresión completa con pedidos en MariaDB).
+- [x] Etapa 5: pedidos armados en el chat con origen WhatsApp, «1 SÍ / 2 NO», interruptor «Vender por WhatsApp» (probado en local el 2026-10-28; falta probar con la IA y Meta reales).
+- [ ] **Siguiente:** etapa 6 (recordatorios, avisos de estado Dropi, baja voluntaria, bandeja de operación) y etapa 7 (copia opcional a GHL y regresión completa con pedidos en MariaDB).
 - [ ] Recuperación de compras incompletas identificables y parada al comprar/rechazar/revocar permiso.
 - [ ] Sincronizar resultados y estados logísticos reales con la oportunidad correcta.
 
@@ -875,6 +876,18 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** la IA recibe la dirección de la landing publicada de cada producto y la comparte solo cuando el cliente la pide.
 - **Comprobado (local, IA y Meta simulados):** `whatsapp-agent.mjs` 94 (1 nueva), `whatsapp-ads` 30.
 - **Datos reales:** ninguno.
+
+### 2026-10-28 · Prueba real informada por el usuario
+- **Informado por el usuario:** el despliegue y la prueba real del módulo de WhatsApp (etapas hasta la 5) «funciona ok». No se ejecutó ni se observó desde esta sesión; no hay detalle de qué casos se probaron.
+- **Siguiente paso:** definir y construir la etapa 6.
+
+### 2026-10-28 · Etapa 6A: avisos de estado del pedido por correo y WhatsApp, baja voluntaria
+- **Pedido del usuario:** 6A con las recomendaciones (avisar guía, en camino, novedad y entregado; la baja no frena los avisos de pedidos) y enviar los avisos también por correo, por si WhatsApp no tiene plantilla o se prefiere el correo; correo y WhatsApp activos por defecto, cada tienda decide si los apaga.
+- **Cambio:** `OrderStatusNotices` (cola de WhatsApp, textos, plantilla, novedad con asesor y aviso), cuatro correos de estado en `OrderMail`, enganche en `DropiTracking::sync`, tarjeta en Confirmaciones, plantilla sugerida, baja y reactivación por mensaje, etiqueta en la Bandeja, eventos en el pedido. Migraciones PostgreSQL 035 y MySQL 052–056. Detalle en [WHATSAPP.md](WHATSAPP.md).
+- **Comprobado (local, Meta simulado, cambio de estado simulado con un ayudante):** `whatsapp-confirm.mjs` 77 (12 nuevas), `order-mail.mjs` 24 (vista previa «en camino» y 8 correos), `whatsapp-templates` 32, `whatsapp-agent` 94, `whatsapp-inbox` 43, `whatsapp-ads` 30, `whatsapp-notify` 27, `orders` 38, `order-editing` 52, `order-lookup` 18, `admin` 39, `run.php` 110.
+- **Limitaciones:** el disparo desde una respuesta real de Dropi no se probó de punta a punta (la suite de seguimiento de Dropi usa un puerto fijo); tampoco el envío con plantilla aprobada fuera de la ventana. Nada se envió a Meta ni a Dropi reales.
+- **Datos reales:** ninguno.
+- **Siguiente paso:** 6B (recordatorios) y 6C (bandeja de operación).
 
 ### Plantilla para la próxima actualización
 

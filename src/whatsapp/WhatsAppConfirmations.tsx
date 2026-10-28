@@ -9,6 +9,7 @@ import {TemplatePreview} from './WhatsAppTemplates';
 import './agent.css';
 import './templates.css';
 import './confirmations.css';
+import {StatusNotices} from './StatusNotices';
 
 type Settings={enabled:boolean;customer_first:boolean;wait_minutes:number;template_id:string|null;auto_dropi:boolean;messages:{confirmed:string;change:string}};
 type Tpl={id:string;name:string;status:string;body:string;footer:string|null;buttons:string[];purpose:string;problem:string|null};
@@ -75,5 +76,6 @@ export function WhatsAppConfirmationsPage(){
     <div className="wc-links"><Link className="secondary" to={'/panel/pedidos/'+r.order_id}>Pedido</Link>{r.conversation_id&&<Link className="secondary" to={'/panel/whatsapp/'+r.conversation_id}>Chat</Link>}</div>
    </li>)}</ul>}
   </section>
+  <StatusNotices/>
  </>;
 }

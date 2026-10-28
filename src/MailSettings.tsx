@@ -5,7 +5,7 @@ import {InlineLoading} from './Loading';
 import {Icon} from './ui';
 import './mail-settings.css';
 
-type Kind='buyer_received'|'owner_new_order'|'buyer_confirmed'|'buyer_cancelled';
+type Kind='buyer_received'|'owner_new_order'|'buyer_confirmed'|'buyer_cancelled'|'buyer_guide'|'buyer_in_transit'|'buyer_novelty'|'buyer_delivered';
 type MessageKind=Exclude<Kind,'owner_new_order'>;
 type Settings={enabled:Record<Kind,boolean>;sender_name:string;reply_to:string;owner_email:string;messages:Record<MessageKind,string>};
 type View={settings:Settings;account_email:string;mail_configured:boolean};
@@ -14,6 +14,10 @@ const kinds:{kind:Kind;title:string;who:string;icon:string}[]=[
  {kind:'owner_new_order',title:'Nuevo pedido',who:'A ti, al correo de avisos, con sus datos y un botón para abrir el pedido.',icon:'truck'},
  {kind:'buyer_confirmed',title:'Pedido confirmado',who:'Al comprador, cuando registras su aceptación.',icon:'send'},
  {kind:'buyer_cancelled',title:'Pedido cancelado',who:'Al comprador, cuando cancelas el pedido.',icon:'close'},
+ {kind:'buyer_guide',title:'Guía generada',who:'Al comprador, cuando Dropi genera la guía (con número y transportadora).',icon:'box'},
+ {kind:'buyer_in_transit',title:'Pedido en camino',who:'Al comprador, cuando la transportadora lo lleva hacia su dirección.',icon:'truck'},
+ {kind:'buyer_novelty',title:'Novedad en la entrega',who:'Al comprador, cuando Dropi reporta una novedad (dirección, ausencia…).',icon:'bell'},
+ {kind:'buyer_delivered',title:'Pedido entregado',who:'Al comprador, cuando Dropi lo marca como entregado.',icon:'check'},
 ];
 
 // Same card system as the GHL and Dropi connection pages (webhook-current, webhook-head, webhook-state).
@@ -32,7 +36,7 @@ export function MailSettingsPage(){
  const active=kinds.filter(k=>draft.enabled[k.kind]).length;
  return <>
   <div className="section-heading"><div><span className="eyebrow">Comunicación con tus compradores</span><h1>Correos de pedidos</h1></div><span className="pill">{active===1?'1 correo activo':`${active} correos activos`}</span></div>
-  <p className="muted">Elige qué correos se envían cuando entra, se confirma o se cancela un pedido. Todos usan el diseño de Tinbana y se envían automáticamente en menos de un minuto.</p>
+  <p className="muted">Elige qué correos se envían cuando entra, se confirma o se cancela un pedido, y cuando cambia su estado en Dropi. Todos usan el diseño de Tinbana y se envían automáticamente en menos de un minuto.</p>
   {!view.mail_configured&&<p className="store-warning" role="note">El servidor todavía no tiene configurado el envío de correos. Puedes dejar todo listo; se enviarán cuando el administrador lo active.</p>}
   <section className="panel narrow webhook-current mail-card">
    <div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name="mail"/></span><div><span className="eyebrow">Remitente</span><h2>Quién envía y a quién responden</h2></div><span className={'webhook-state '+(view.mail_configured?'on':'off')}>{view.mail_configured?'Envío activo':'Sin configurar'}</span></div>

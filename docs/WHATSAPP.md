@@ -263,6 +263,15 @@ Documentación oficial consultada el 2026-10-27 (mensajes interactivos con boton
 - **Enlace de la landing:** cada producto con landing publicada llega a la IA con su `url` (lo arma el servidor). La IA lo comparte, copiado exacto, solo cuando el cliente pide ver el producto, fotos o más detalles (añadido el 2026-10-28; `whatsapp-agent.mjs` 94).
 
 
+### Etapa 6A · Avisos de estado del pedido y baja voluntaria (2026-10-28, PostgreSQL `035`, MySQL `052`–`056`)
+
+- **Cuándo:** `DropiTracking::sync` detecta el cambio del estado logístico y llama a `OrderStatusNotices::queue` dentro de su transacción. Estados avisados: guía generada, en camino, novedad y entregado (no «pendiente», «devuelto» ni «cancelado», que ya tiene su correo). Uno por pedido y estado.
+- **Correo:** cuatro correos nuevos en «Correos de pedidos» (`buyer_guide`, `buyer_in_transit`, `buyer_novelty`, `buyer_delivered`), activos por defecto y con mensaje adicional opcional. Llevan transportadora, guía o novedad y el enlace de consulta. Solo si el comprador tiene correo.
+- **WhatsApp:** tarjeta «Avisos de estado del pedido» en WhatsApp → Confirmaciones (`GET/PUT /api/whatsapp/notices`), los cuatro activos por defecto. Cola `whatsapp_status_notices` procesada por `whatsapp:work`. Dentro de la ventana de 24 h va como texto; fuera, con la plantilla elegida (aprobada, sin botones y con variables de aviso: `nombre`, `pedido`, `estado`, `guia`, `transportadora`, `seguimiento`, `producto`, `tienda`). Sin plantilla se omite con el motivo y el correo sigue. Plantilla sugerida «aviso_estado_pedido» en Plantillas. Un envío que queda «enviando» más de 5 minutos se cierra como fallido sin reintento. Se omite si el pedido está cancelado, el aviso está apagado o ya hay un estado más reciente.
+- **Novedad:** además avisa a la tienda (notificación `order_novelty`) y pasa el chat a un asesor.
+- **Baja voluntaria:** «stop», «baja», «no me escriban más», «no quiero recibir más mensajes»… marcan `whatsapp_contacts.opted_out_at` y responden la confirmación; «ALTA» la revierte. No frena los avisos de pedidos (decisión del usuario) y servirá a los recordatorios de la etapa 6B. La Bandeja muestra «Dado de baja».
+
+
 ### Configuración en Meta (cuando se autorice el piloto real)
 
 1. En la app de Meta: WhatsApp → Configuración → Webhook: URL `https://<dominio>/whatsapp/webhook` y el mismo `WHATSAPP_VERIFY_TOKEN` del servidor; suscribir el campo `messages`.

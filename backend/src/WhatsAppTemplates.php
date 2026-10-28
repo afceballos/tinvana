@@ -22,6 +22,8 @@ final class WhatsAppTemplates {
    'examples'=>['nombre'=>'Laura','producto'=>'Picatodo eléctrico','cantidad'=>'1','total'=>'$68.000','direccion'=>'Cra 7 # 19-40','ciudad'=>'Pereira']],
   'greeting'=>['name'=>'saludo_nuevo_chat','category'=>'marketing','language'=>'es_CO','body'=>"Hola {{nombre}}, te escribimos de {{tienda}}. ¿Te podemos ayudar con algo?",'footer'=>'','buttons'=>['Sí, por favor','No, gracias'],
    'examples'=>['nombre'=>'Laura','tienda'=>'Tienda Tinbana']],
+  'order_status'=>['name'=>'aviso_estado_pedido','category'=>'utility','language'=>'es_CO','body'=>"Hola {{nombre}}, tu pedido {{pedido}} {{estado}}.\nConsúltalo cuando quieras aquí: {{seguimiento}}",'footer'=>'','buttons'=>[],
+   'examples'=>['nombre'=>'Laura','pedido'=>'TB-7KQ2-MX9P','estado'=>'va en camino con Servientrega (guía 240012345678)','seguimiento'=>'https://tienda.tinbana.com/pedido']],
  ];
 
  private static function account(string $owner): array {$a=WhatsAppAccount::ofUser($owner);if(!$a)throw new HttpError(409,'Primero conecta tu número en Conexión.');return $a;}
@@ -47,7 +49,7 @@ final class WhatsAppTemplates {
   $footer=is_string($b['footer']??null)?trim($b['footer']):'';if(mb_strlen($footer)>60)throw new HttpError(422,'El pie admite hasta 60 caracteres.');
   $buttons=[];foreach(is_array($b['buttons']??null)?$b['buttons']:[] as $x){$x=is_string($x)?trim($x):'';if($x==='')continue;if(mb_strlen($x)>25)throw new HttpError(422,'Cada botón admite hasta 25 caracteres.');$buttons[]=$x;}
   if(count($buttons)>3)throw new HttpError(422,'Máximo 3 botones.');
-  $purpose=in_array($b['purpose']??'custom',['custom','order_confirmation','greeting'],true)?($b['purpose']??'custom'):'custom';
+  $purpose=in_array($b['purpose']??'custom',['custom','order_confirmation','greeting','order_status'],true)?($b['purpose']??'custom'):'custom';
   $keys=self::keys($body);if(count($keys)>10)throw new HttpError(422,'Máximo 10 variables por plantilla.');
   $ex=is_array($b['examples']??null)?$b['examples']:[];$vars=[];
   foreach($keys as $k){$e=is_string($ex[$k]??null)?trim($ex[$k]):'';if($e===''||mb_strlen($e)>200)throw new HttpError(422,'Escribe un ejemplo para {{'.$k.'}}: Meta lo usa para revisar la plantilla.');$vars[]=['key'=>$k,'example'=>$e];}

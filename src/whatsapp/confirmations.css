@@ -13,3 +13,6 @@
 :root[data-theme=dark] .wc-vars code{color:#fdba74}
 :root[data-theme=dark] .wc-error{color:#fca5a5}
 @media (max-width:640px){.wc-list li{flex-direction:column;align-items:stretch}.wc-links{justify-content:flex-end}}
+
+/* Stage 6A: status notices */
+.wn-states{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
