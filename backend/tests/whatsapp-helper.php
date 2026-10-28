@@ -20,6 +20,8 @@ if($op==='reset'){
  Database::query('DELETE FROM whatsapp_offers WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM selected_products WHERE user_id IN (?,?) AND dropi_id=900002',$ids);
  Database::query('DELETE FROM whatsapp_agent_settings WHERE user_id IN (?,?)',$ids);
+ Database::query('DELETE FROM whatsapp_order_confirmations WHERE user_id IN (?,?)',$ids);
+ Database::query('DELETE FROM whatsapp_confirm_settings WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_product_sheets WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM ai_connections WHERE user_id IN (?,?)',$ids);
  Database::query("DELETE FROM admin_audit WHERE actor_id IN (?,?)",$ids);
@@ -61,6 +63,11 @@ if($op==='age-window'){
  Database::query("UPDATE whatsapp_conversations SET last_customer_at=now()-interval '25 hours' WHERE user_id=?",[$fixture['owner']]);
  echo 'ok';exit;
 }
+if($op==='confirmations'){
+ // The owner's order confirmations (for the WhatsApp confirmation tests).
+ echo Support::json(Database::all('SELECT id,order_id,status,origin,error,reply,reply_pending,conversation_id,quote_id,order_version FROM whatsapp_order_confirmations WHERE user_id=? ORDER BY created_at,id',[$fixture['owner']]));exit;
+}
+if($op==='confirm-work'){echo Support::json(App\WhatsAppOrderConfirm::runDue(20));exit;}
 if($op==='feature'){
  $on=($argv[2]??'')==='on';
  Database::query('UPDATE users SET entitlement_overrides=?::jsonb WHERE id=?',[$on?null:Support::json(['features'=>['whatsapp'=>false],'limits'=>new stdClass()]),$fixture['owner']]);

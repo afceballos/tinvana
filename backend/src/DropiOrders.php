@@ -94,8 +94,9 @@ final class DropiOrders {
   return ['mode'=>'submission','status'=>$status,'can_submit'=>$can,'can_resolve'=>$status==='unknown'||self::stale($r),'dropi_order_id'=>$r['dropi_order_id']??null,'last'=>$data,'preview'=>$preview,'checks'=>$checks,'message'=>$message];
  }
 
- /** Sends one confirmed order. Returns the refreshed order detail. */
- public static function submit(string $owner,string $id,array $b): array {
+ /** Sends one confirmed order. Returns the refreshed order detail. $automatic: sent after the buyer confirmed by WhatsApp. */
+ public static function submit(string $owner,string $id,array $b,bool $automatic=false): array {
+  $actor=$automatic?null:$owner;
   if(($b['confirm']??false)!==true)throw new HttpError(422,'Confirma que revisaste los datos antes de enviar el pedido a Dropi.');
   $confirmed=($b['confirmed']??false)===true;
   if($confirmed&&($b['confirmed_ack']??false)!==true)throw new HttpError(422,'Para enviarla confirmada debes aceptar que Dropi la procesará de inmediato.');
@@ -108,9 +109,9 @@ final class DropiOrders {
    $check=self::readiness($r);if(!$check['can_submit'])throw new HttpError(409,'Completa los requisitos de envío antes de mandar el pedido a Dropi.');
    $product=ProductOffers::forOrder($r);$integration=Database::one('SELECT * FROM integrations WHERE id=? AND user_id=?',[$product['integration_id'],$owner]);
    if(!$integration)throw new HttpError(409,'La integración de Dropi del producto ya no existe.');
-   $payload=self::payload($r,$product,$opts);$attempt=Support::uuid();$started=['attempt_id'=>$attempt,'started_at'=>gmdate('c'),'request'=>self::summary($payload)];
+   $payload=self::payload($r,$product,$opts);$attempt=Support::uuid();$started=['attempt_id'=>$attempt,'started_at'=>gmdate('c'),'request'=>self::summary($payload)]+($automatic?['automatic'=>true]:[]);
    $r=Database::one("UPDATE orders SET integration_status='sending',integration_data=?::jsonb,version=version+1,updated_at=now() WHERE id=? RETURNING *",[Support::json($started),$id]);
-   Orders::event($r,'dropi_submit_started',$started,$owner);
+   Orders::event($r,'dropi_submit_started',$started,$actor);
    $db->commit();
   }catch(\Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
 
@@ -122,7 +123,7 @@ final class DropiOrders {
    if($r['integration_status']!=='sending'||($data['attempt_id']??null)!==$attempt)throw new HttpError(409,'El estado del envío cambió durante la operación. Revisa el pedido.');
    $final=$started+['finished_at'=>gmdate('c'),'outcome'=>$result['outcome'],'http_status'=>$result['http_status'],'message'=>$result['message']];
    $r=Database::one('UPDATE orders SET integration_status=?,dropi_order_id=?,integration_data=?::jsonb,version=version+1,updated_at=now() WHERE id=? RETURNING *',[$result['outcome'],$result['dropi_order_id'],Support::json($final),$id]);
-   Orders::event($r,['sent'=>'dropi_sent','failed'=>'dropi_rejected','unknown'=>'dropi_unknown'][$result['outcome']],['attempt_id'=>$attempt,'dropi_order_id'=>$result['dropi_order_id'],'http_status'=>$result['http_status'],'message'=>$result['message']],$owner);
+   Orders::event($r,['sent'=>'dropi_sent','failed'=>'dropi_rejected','unknown'=>'dropi_unknown'][$result['outcome']],['attempt_id'=>$attempt,'dropi_order_id'=>$result['dropi_order_id'],'http_status'=>$result['http_status'],'message'=>$result['message']],$actor);
    $db->commit();
   }catch(\Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
   return Orders::detail($owner,$id);

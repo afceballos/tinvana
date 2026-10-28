@@ -37,6 +37,7 @@ final class Api {
    if($method==='POST')return Orders::create($owner,self::body());
   }
   if(preg_match('~^/api/orders/([^/]+)/dropi/sync$~',$path,$m)&&$method==='POST'){Auth::limit('dropi-sync:'.$owner,30,600);return DropiTracking::refresh($owner,$m[1]);}
+  if(preg_match('~^/api/orders/([^/]+)/whatsapp$~',$path,$m)&&$method==='POST')return WhatsAppOrderConfirm::sendFromOrder($owner,$m[1],self::body());
   if(preg_match('~^/api/orders/([^/]+)/dropi(/resolve)?$~',$path,$m)&&$method==='POST')return isset($m[2])?DropiOrders::resolve($owner,$m[1],self::body()):DropiOrders::submit($owner,$m[1],self::body());
   if(preg_match('~^/api/orders/([^/]+)(?:/(quote|confirm|cancel|customer|reopen))?$~',$path,$m)){
    if($method==='GET'&&!isset($m[2]))return Orders::detail($owner,$m[1]);

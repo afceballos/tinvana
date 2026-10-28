@@ -75,4 +75,6 @@
 .order-shipping .is-total{padding-top:6px;border-top:1px solid var(--line,var(--line,#ffe0cd));font-weight:700;font-size:16px}
 .order-shipping .is-total dt{color:inherit}
 .order-shipping-note{margin:6px 0 0;font-size:12px;color:#6b625c}
+.order-whatsapp-note{display:flex;align-items:center;gap:8px;margin:12px 0;padding:10px 12px;border-radius:12px;background:#e9f8ef;color:#14532d;font-size:14px;font-weight:600;line-height:1.35}
+.order-whatsapp-note svg{flex:none;width:20px;height:20px;fill:#1fa855}
 .order-shipping-inline{margin:4px 0 12px;padding:10px 12px;border-radius:12px;background:var(--paper,var(--tint,#fff8f1));font-size:14px;font-variant-numeric:tabular-nums}

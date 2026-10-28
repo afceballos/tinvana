@@ -45,7 +45,8 @@ final class WhatsAppInbox {
     $out[$final?'failed':'retry']++;
    }
   }
-  return $out+['agent'=>WhatsAppAgent::runDue($agentLimit)];
+  // Order confirmations go before the agent: a confirmation tap must never be answered by the AI.
+  return $out+['confirmations'=>WhatsAppOrderConfirm::runDue(),'agent'=>WhatsAppAgent::runDue($agentLimit)];
  }
 
  /** @return array{0:string,1:string} type and visible text of an incoming message */
@@ -88,12 +89,15 @@ final class WhatsAppInbox {
     if($mode==='human')Notifications::notify($owner,'new_chat',WhatsAppAgent::who(['profile_name'=>$name,'phone'=>$from]).' escribió por WhatsApp',(string)$reason,'/panel/whatsapp/'.$id,$id);
    }
    Database::query("INSERT INTO whatsapp_messages(id,user_id,conversation_id,direction,type,body,payload,wamid,status,sender,created_at) VALUES(?,?,?,'in',?,?,?::jsonb,?,'received','customer',?)",
-    [Support::uuid(),$owner,$conv['id'],$type,$body,Support::json($m),$wamid,$shown]);
+    [$messageId=Support::uuid(),$owner,$conv['id'],$type,$body,Support::json($m),$wamid,$shown]);
+   // A tap on an order confirmation button is handled by WhatsAppOrderConfirm, never by the AI.
+   $confirmation=WhatsAppOrderConfirm::inbound($owner,$conv,$m,$type,$messageId,$wamid);
    // Ad or offer code of this entry (stage 4); every entry is recorded separately.
    WhatsAppOffers::resolveEntry($owner,$conv,$body,$referral,$at);
    $newer=fn(?string $current)=>$current===null||strtotime($current)<strtotime($at);
    Database::query('UPDATE whatsapp_conversations SET last_customer_at=?,last_message_at=?,unread=unread+1,customer_seq=customer_seq+1,updated_at=now() WHERE id=?',
     [$newer($conv['last_customer_at'])?$at:Database::timestamp((string)$conv['last_customer_at']),$newer($conv['last_message_at'])?$at:Database::timestamp((string)$conv['last_message_at']),$conv['id']]);
+   if($confirmation)Database::query('UPDATE whatsapp_conversations SET ai_seq=customer_seq WHERE id=?',[$conv['id']]);
    $db->commit();
   }catch(\Throwable $t){if($db->inTransaction())$db->rollBack();throw $t;}
   return 'done';
@@ -135,6 +139,8 @@ final class WhatsAppInbox {
 
  // ---- Panel ----
 
+ /** Conversation with its contact's phone and name, for other services of the module. */
+ public static function conversation(string $owner,string $id): array {return self::owned($owner,$id);}
  private static function owned(string $owner,string $id,bool $lock=false): array {
   if(!Support::isUuid($id))throw new HttpError(404,'Conversación no encontrada.');
   $c=Database::one('SELECT c.*,ct.phone,ct.profile_name,ct.first_origin,ct.created_at AS contact_since FROM whatsapp_conversations c JOIN whatsapp_contacts ct ON ct.id=c.contact_id AND ct.user_id=c.user_id WHERE c.id=? AND c.user_id=?'.($lock?' FOR UPDATE':''),[$id,$owner]);
@@ -242,19 +248,23 @@ final class WhatsAppInbox {
    if(!preg_match('/^[1-9][0-9]{7,14}$/D',$phone))throw new HttpError(422,'Escribe el número con indicativo, por ejemplo +57 300 123 4567.');
    $name=is_string($b['name']??null)&&trim($b['name'])!==''?mb_substr(trim($b['name']),0,200):null;
    WhatsAppTemplates::build($t,$values,$phone);
-   $db=Database::connection();$db->beginTransaction();
-   try{
-    $contact=self::contact($owner,$phone,$name,null,(string)Database::timestamp(gmdate('Y-m-d\TH:i:s\Z')));
-    $conv=Database::one('SELECT id FROM whatsapp_conversations WHERE account_id=? AND contact_id=?',[$account['id'],$contact]);
-    if(!$conv){$id=Support::uuid();Database::query("INSERT INTO whatsapp_conversations(id,user_id,account_id,contact_id,captured,owner_mode,handoff_reason) VALUES(?,?,?,?,?::jsonb,'human','Chat iniciado por la tienda')",[$id,$owner,$account['id'],$contact,'{}']);$conv=['id'=>$id];}
-    $db->commit();
-   }catch(\Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
-   $c=self::owned($owner,(string)$conv['id']);
+   $c=self::conversationFor($owner,$account,$phone,$name,'Chat iniciado por la tienda');
   }
   Auth::limit('whatsapp-template-send:'.$owner,60,3600);
   $msg=WhatsAppTemplates::build($t,$values,(string)$c['phone']);
   $sent=self::sendGraph($account,$c,$msg['graph'],'template',$msg['text'],'template',$owner,null,0,['template'=>$t['name'],'language'=>$t['language']]);
   return ['conversation_id'=>$c['id'],'message'=>self::messageView($sent)];
+ }
+ /** Conversation of a phone on the connected number; a new one starts with the advisor and the given reason. */
+ public static function conversationFor(string $owner,array $account,string $phone,?string $name,string $reason): array {
+  $db=Database::connection();$db->beginTransaction();
+  try{
+   $contact=self::contact($owner,$phone,$name,null,(string)Database::timestamp(gmdate('Y-m-d\TH:i:s\Z')));
+   $conv=Database::one('SELECT id FROM whatsapp_conversations WHERE account_id=? AND contact_id=?',[$account['id'],$contact]);
+   if(!$conv){$id=Support::uuid();Database::query("INSERT INTO whatsapp_conversations(id,user_id,account_id,contact_id,captured,owner_mode,handoff_reason) VALUES(?,?,?,?,?::jsonb,'human',?)",[$id,$owner,$account['id'],$contact,'{}',mb_substr($reason,0,200)]);$conv=['id'=>$id];}
+   $db->commit();
+  }catch(\Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
+  return self::owned($owner,(string)$conv['id']);
  }
  /** Same as sendText for any Graph message body (templates): stored first, sent once, never retried blindly. */
  public static function sendGraph(array $account,array $c,array $graph,string $type,string $text,string $sender,?string $author,?string $id=null,int $tokens=0,?array $payload=null): array {

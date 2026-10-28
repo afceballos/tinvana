@@ -8,9 +8,9 @@ namespace App;
  * as account and order emails. Per-store settings choose which events notify and through which channels.
  */
 final class Notifications {
- public const EVENTS=['handoff'=>'La IA pasó un chat a un asesor','ai_failure'=>'La IA no pudo responder','limit'=>'Se alcanzó el límite mensual de la IA','off_hours'=>'Mensaje fuera del horario de atención','new_chat'=>'Llegó un chat nuevo sin IA disponible'];
+ public const EVENTS=['handoff'=>'La IA pasó un chat a un asesor','ai_failure'=>'La IA no pudo responder','limit'=>'Se alcanzó el límite mensual de la IA','off_hours'=>'Mensaje fuera del horario de atención','new_chat'=>'Llegó un chat nuevo sin IA disponible','order_confirmed'=>'Un cliente confirmó su pedido por WhatsApp','order_change'=>'Un cliente pidió cambios en su pedido por WhatsApp'];
  public const CHANNELS=['panel'=>'Campanita en el panel','sound'=>'Sonido mientras Tinvana está abierto','browser'=>'Notificación del navegador','email'=>'Correo'];
- private const DEFAULTS=['events'=>['handoff'=>true,'ai_failure'=>true,'limit'=>true,'off_hours'=>true,'new_chat'=>true],'channels'=>['panel'=>true,'sound'=>true,'browser'=>true,'email'=>true],'email'=>''];
+ private const DEFAULTS=['events'=>['handoff'=>true,'ai_failure'=>true,'limit'=>true,'off_hours'=>true,'new_chat'=>true,'order_confirmed'=>true,'order_change'=>true],'channels'=>['panel'=>true,'sound'=>true,'browser'=>true,'email'=>true],'email'=>''];
 
  private static function accountEmail(string $owner): string {return (string)(Database::one('SELECT email FROM users WHERE id=?',[$owner])['email']??'');}
  public static function settings(string $owner): array {

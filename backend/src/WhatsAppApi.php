@@ -30,6 +30,7 @@ final class WhatsAppApi {
   if($path==='/api/whatsapp/templates'){if($method==='GET')return WhatsAppTemplates::list($owner);if($method==='POST')return WhatsAppTemplates::create($owner,Api::body());}
   if($path==='/api/whatsapp/templates/sync'&&$method==='POST'){Auth::limit('whatsapp-template-sync:'.$owner,30,600);return WhatsAppTemplates::sync($owner);}
   if(preg_match('~^/api/whatsapp/templates/([a-f0-9-]{36})$~D',$path,$m)&&$method==='DELETE')return WhatsAppTemplates::delete($owner,$m[1]);
+  if($path==='/api/whatsapp/confirmations'){if($method==='GET')return WhatsAppOrderConfirm::view($owner);if($method==='PUT'){Auth::limit('whatsapp-confirm-settings:'.$owner,30,600);return WhatsAppOrderConfirm::save($owner,Api::body());}}
   if($path==='/api/whatsapp/chats'&&$method==='POST')return WhatsAppInbox::sendTemplate($owner,Api::body());
   if($path==='/api/whatsapp/conversations'&&$method==='GET')return WhatsAppInbox::list($owner,$_GET);
   if(preg_match('~^/api/whatsapp/conversations/([a-f0-9-]{36})(?:/(read|take|release|messages|template))?$~D',$path,$m)){

@@ -47,6 +47,7 @@ La dirección ahora se puede corregir en el pedido. Una dirección incompleta no
 - `POST /api/orders/{id}/customer`: `{version,first_name,last_name,email,phone,country_code,department_code,city_code,address,address_details,postal_code}`.
 - `POST /api/orders/{id}/reopen`: `{version,reason}`.
 - `POST /api/orders/{id}/dropi` y `/dropi/resolve`: envío y verificación manual; ver [DROPI-ORDERS.md](DROPI-ORDERS.md).
+- `POST /api/orders/{id}/whatsapp`: `{version}`; envía por WhatsApp el resumen de la cotización vigente. La aceptación por botón se registra sola (método `whatsapp_button`). Ver [WHATSAPP.md](WHATSAPP.md).
 
 La cotización acepta también `variant_id`, `use_offer` y `offer_version`. Al usar oferta PHP resuelve el precio autorizado, ignorando el importe unitario enviado por el navegador. El detalle devuelve `order`, `events`, `commercial` y `dropi` (preparación local, no respuesta externa).
 

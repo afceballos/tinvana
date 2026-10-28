@@ -1,6 +1,6 @@
 {
   "index.html": {
-    "file": "assets/index-CQCiEcT2.js",
+    "file": "assets/index-CmmFTbdV.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
@@ -8,7 +8,7 @@
       "node_modules/three/build/three.module.js"
     ],
     "css": [
-      "assets/index-835bQt43.css"
+      "assets/index-DRnVjnCY.css"
     ]
   },
   "node_modules/three/build/three.module.js": {

@@ -1,0 +1,15 @@
+/* Confirmación de pedidos por WhatsApp. Reutiliza tarjetas, interruptores y etiquetas del módulo. */
+.wc-preview{display:grid;gap:8px;justify-items:start}
+.wc-vars summary{cursor:pointer;font-weight:600;font-size:14px}
+.wc-vars ul{margin:8px 0 0;padding-left:18px;display:grid;gap:4px;font-size:14px}
+.wc-vars code{font-family:ui-monospace,monospace;font-size:13px;color:#c2410c}
+.wc-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.wc-list li{display:flex;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.wc-main{display:grid;gap:4px;flex:1;min-width:0}
+.wc-top{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.wc-error{color:#b42318}
+.wc-links{display:flex;gap:6px;flex:none}
+.wc-links .secondary{min-height:34px;padding:4px 10px;font-size:13px}
+:root[data-theme=dark] .wc-vars code{color:#fdba74}
+:root[data-theme=dark] .wc-error{color:#fca5a5}
+@media (max-width:640px){.wc-list li{flex-direction:column;align-items:stretch}.wc-links{justify-content:flex-end}}

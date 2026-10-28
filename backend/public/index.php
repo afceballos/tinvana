@@ -93,7 +93,10 @@ try {
   if(isset($m[2])){
    if($method!=='POST')throw new HttpError(405,'Método no permitido.');Auth::csrf();Auth::limit('lead-ip:'.($_SERVER['REMOTE_ADDR']??''),15,3600);
    $json=str_contains($_SERVER['CONTENT_TYPE']??'','application/json');$b=$json?Api::body():$_POST;$result=Leads::save($r,$b);
-   if($json){header('Content-Type: application/json; charset=utf-8');http_response_code(202);echo Support::json($result);}else {echo Landing::render($r,false,$result['message']);}exit;
+   if($json){header('Content-Type: application/json; charset=utf-8');http_response_code(202);echo Support::json($result);}else {echo Landing::render($r,false,$result['message']);}
+   // The WhatsApp order confirmation goes out after the response; the whatsapp:work cron is the fallback.
+   if($result['whatsapp_confirmation']??false){if(function_exists('fastcgi_finish_request'))fastcgi_finish_request();elseif(function_exists('litespeed_finish_request'))litespeed_finish_request();try{App\WhatsAppOrderConfirm::runDue(5);}catch(\Throwable $t){error_log('WhatsApp order confirmation: '.get_class($t));}}
+   exit;
   }
   if($method!=='GET'&&$method!=='HEAD')throw new HttpError(405,'Método no permitido.');header('Content-Type: text/html; charset=utf-8');echo Landing::render($r);exit;
  }
@@ -103,7 +106,7 @@ try {
   if(!$authorized){$expires=(string)($_GET['expires']??'');$signature=(string)($_GET['signature']??'');$key=base64_decode(Support::env('TOKEN_ENCRYPTION_KEY'),true);if(!$key||!ctype_digit($expires)||(int)$expires<time()||(int)$expires>time()+900||!hash_equals(hash_hmac('sha256',$m[1].':'.$expires,$key),$signature))throw new HttpError(404,'Vista previa no disponible o enlace vencido.');$r=Database::one('SELECT * FROM landing_pages WHERE id=?',[$m[1]]);}
   if(empty($r))throw new HttpError(404,'Vista previa no encontrada.');header('X-Robots-Tag: noindex, nofollow');header('Referrer-Policy: no-referrer');echo Landing::render($r,true);exit;
  }
- if(!preg_match('~^/(?:login|registro|verificar-correo|reenviar-verificacion|recuperar-contrasena|restablecer-contrasena|panel(?:/(?:catalogo|integraciones|webhooks|ia|perfil|seguridad|productos(?:/[a-f0-9-]+/ofertas)?|archivos|plantilla|leads|correos|notificaciones|whatsapp(?:/(?:conexion|plantillas|anuncios|agente|seguimientos|operacion|[a-f0-9-]+))?|pedidos(?:/[a-f0-9-]+)?|admin(?:/(?:planes|globales|auditoria|cuentas/[a-f0-9-]+))?|landings/[a-f0-9-]+))?)?/?$~',$path))throw new HttpError(404,'Página no encontrada.');
+ if(!preg_match('~^/(?:login|registro|verificar-correo|reenviar-verificacion|recuperar-contrasena|restablecer-contrasena|panel(?:/(?:catalogo|integraciones|webhooks|ia|perfil|seguridad|productos(?:/[a-f0-9-]+/ofertas)?|archivos|plantilla|leads|correos|notificaciones|whatsapp(?:/(?:conexion|plantillas|confirmaciones|anuncios|agente|seguimientos|operacion|[a-f0-9-]+))?|pedidos(?:/[a-f0-9-]+)?|admin(?:/(?:planes|globales|auditoria|cuentas/[a-f0-9-]+))?|landings/[a-f0-9-]+))?)?/?$~',$path))throw new HttpError(404,'Página no encontrada.');
  $file=__DIR__.'/app/index.html';if(!is_file($file))throw new HttpError(503,'Compila el frontend con npm run build.');readfile($file);
 }catch(HttpError $e){http_response_code($e->status);if($api||str_contains($_SERVER['CONTENT_TYPE']??'','application/json')){header('Content-Type: application/json; charset=utf-8');echo json_encode(['error'=>$e->getMessage()]+$e->details,JSON_UNESCAPED_UNICODE);}else tinvanaErrorPage($e->status,$e->getMessage());
 }catch(\PDOException $e){

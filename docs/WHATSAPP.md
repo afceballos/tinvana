@@ -14,9 +14,9 @@ Módulo propio de Tinvana para vender por WhatsApp con la **API oficial de Whats
 
 **Ampliaciones pedidas por el propietario (2026-10-26), para después de la etapa 4:**
 - **Nuevo chat**: escribir a un número que no ha escrito, solo con plantilla aprobada por Meta. **Implementado (2026-10-27).**
-- **Confirmación de pedidos de landings por WhatsApp**: resumen cotizado con Dropi, botones «Confirmar pedido» y «Cambiar algo»; la confirmación queda registrada con evidencia del mensaje. Por defecto el pedido queda para **revisión manual**; cada tienda puede activar «Enviar a Dropi automáticamente al confirmar».
+- **Confirmación de pedidos de landings por WhatsApp**: resumen cotizado con Dropi, botones «Confirmar pedido» y «Cambiar algo»; la confirmación queda registrada con evidencia del mensaje. Por defecto el pedido queda para **revisión manual**; cada tienda puede activar «Enviar a Dropi automáticamente al confirmar». **Implementado (2026-10-27).**
 - **Plantillas creadas por Tinvana** y enviadas a Meta para aprobación desde el panel. **Implementado (2026-10-27).**
-- **Aviso visible** en el formulario de las landings: «Te enviaremos la confirmación de tu pedido por WhatsApp».
+- **Aviso visible** en el formulario de las landings: «Te enviaremos la confirmación de tu pedido por WhatsApp». **Implementado (2026-10-27).**
 
 Fuera de alcance: Embedded Signup (registro guiado con Facebook) y registro como proveedor tecnológico de Meta. El botón «Conectar con Meta» aparece deshabilitado como «Próximamente».
 
@@ -189,6 +189,18 @@ Funcionamiento (`WhatsAppTemplates`, tabla `whatsapp_templates`; PostgreSQL `025
 - API: `GET|POST /api/whatsapp/templates`, `POST /api/whatsapp/templates/sync`, `DELETE /api/whatsapp/templates/{id}`, `POST /api/whatsapp/chats`, `POST /api/whatsapp/conversations/{id}/template`.
 - Meta cobra las conversaciones iniciadas con plantilla; el panel lo indica.
 - Comprobado (local, Meta simulado): `whatsapp-templates.mjs` 32 (validaciones y CSRF, formato enviado a Meta, rechazo explicado, aprobación y plantillas externas, consentimiento, plantilla pendiente, variables, número colombiano, chat con asesor, ventana cerrada hasta que el cliente toca un botón, plantilla tras 24 h, aislamiento entre tiendas, eliminación por `hsm_id` y nombre, panel y móvil); MariaDB 3. No se creó nada en Meta.
+
+## Confirmación de pedidos de landings (2026-10-27)
+
+Servicio `WhatsAppOrderConfirm`; tablas `whatsapp_confirm_settings` y `whatsapp_order_confirmations` (PostgreSQL `027`, MySQL `043`–`044`).
+- **Ajustes** (`/panel/whatsapp/confirmaciones`, `GET|PUT /api/whatsapp/confirmations`): apagado por defecto. Plantilla aprobada con **exactamente dos botones** (el primero confirma, el segundo pide cambios) y solo variables del pedido: `nombre`, `apellido`, `producto`, `variante`, `cantidad`, `precio`, `envio`, `total`, `direccion`, `ciudad`, `departamento`, `pedido`, `tienda`. La sugerida `confirmacion_pedido` cumple. Mensajes editables al confirmar y al pedir cambios. «Revisión manual» por defecto; «Enviar a Dropi automáticamente» usa el mismo envío que el botón manual (`PENDIENTE CONFIRMACION`, sin reintento si el resultado es desconocido).
+- **Envío:** el pedido nuevo entra en cola dentro de la transacción del lead y se envía después de responder al formulario (respaldo: cron `whatsapp:work`). Se cotiza solo con el precio de la landing y el envío que Dropi cotizó al enviar el formulario (evento `auto_quoted`, vigencia 24 h). Sin ese envío, con variantes por elegir, dirección incompleta o teléfono inválido queda «No enviada» con el motivo. Un chat nuevo empieza con el asesor (motivo «Confirmación del pedido #…»). Cada botón lleva el `payload` `tvc:{id}:ok|change`. Si Meta no acepta la plantilla queda «No se envió»; un envío interrumpido más de 5 minutos queda fallido. Nunca se reenvía sola.
+- **Respuesta:** solo cuenta un mensaje `button` con ese `payload`, en el mismo chat y con `context.id` igual al `wamid` de la plantilla; la IA no lo responde. «Confirmar pedido» confirma si el pedido sigue en borrador con la misma cotización y versión (evidencia: método `whatsapp_button`, `wamid` del toque y de la plantilla, hora); si cambió o venció, queda «Confirmó un resumen vencido», el chat pasa a un asesor y el cliente recibe un aviso. «Cambiar algo» deja el pedido en borrador, pasa el chat a un asesor y envía el mensaje de cambios. Repetir el toque no envía nada. Si el cliente escribe texto mientras espera la confirmación en un chat de la IA, el chat pasa a un asesor.
+- **Pedido:** tarjeta «Confirmación por WhatsApp» con estado, enlace al chat y «Enviar resumen por WhatsApp» / «Enviar nuevo resumen» (`POST /api/orders/{id}/whatsapp {version}`; exige cotización vigente; 60 por hora). El historial muestra la cotización automática, el envío, los cambios y los resúmenes vencidos.
+- **Formulario:** con la función activa y una plantilla válida aparece «Te enviaremos la confirmación de tu pedido por WhatsApp».
+- **Notificaciones:** `order_confirmed` y `order_change` (activas por defecto, configurables en `/panel/notificaciones`).
+- Comprobado (local, Meta y Dropi simulados): `whatsapp-confirm.mjs` 41 (validación de plantillas, CSRF, aislamiento, aviso del formulario, cotización y plantilla, toques falsos o de otro número, confirmación con evidencia, repetición, cambios, resumen vencido y reenvío desde el pedido, envío automático a Dropi, sin envío de Dropi, rechazo de Meta, apagado, panel y móvil). Puertos movibles con `TEST_BASE_URL`, `WA_GRAPH_PORT`, `DROPI_QUOTE_PORT` y `DROPI_ORDERS_PORT`. MySQL 043–044 sin comprobar en MariaDB local.
+
 
 ### Configuración en Meta (cuando se autorice el piloto real)
 

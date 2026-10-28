@@ -1,6 +1,6 @@
 # Tinvana: documento maestro de contexto y continuidad
 
-Última actualización: **23 de octubre de 2026** (envío a Dropi).
+Última actualización: **27 de octubre de 2026** (confirmación de pedidos por WhatsApp).
 
 Documento vivo para el propietario del proyecto, desarrolladores y otras IA. Describe el estado conocido al cerrar la última implementación; no garantiza que un túnel, proceso o servicio externo siga activo en otra sesión.
 
@@ -259,7 +259,8 @@ Referencia histórica: <https://es.scribd.com/document/683043719/Documentacion-d
 - [x] Intervención humana: tomar el chat pausa al agente y solo una acción explícita lo devuelve (etapas 2 y 3, probado en local). Los seguimientos se integran a esta regla en la etapa 6.
 - [ ] Plantillas aprobadas y verificación de ventanas/consentimiento antes de cada envío. Hecho y probado en local (2026-10-27): plantillas creadas desde Tinvana y enviadas a Meta, sincronización, «Nuevo chat» y «Enviar plantilla» con ventana cerrada y casilla de permiso del cliente. Falta: crear y aprobar una plantilla real en Meta y enviarla.
 - [x] Ventas por WhatsApp, etapas 2 a 4 (bandeja, agente de IA con fichas y ajustes, anuncios y ofertas), aviso al pasar a asesor y notificaciones de la tienda. Implementado y probado en local; detalle en [WHATSAPP.md](WHATSAPP.md).
-- [ ] **Siguiente:** confirmación de pedidos de landings por WhatsApp (resumen con «Confirmar pedido»/«Cambiar algo», evidencia, revisión manual por defecto y opción por tienda de enviar a Dropi al confirmar, aviso visible en el formulario). Después: etapa 5 (cotización y pedido con origen WhatsApp), etapa 6 (recordatorios, avisos de estado Dropi, baja voluntaria, bandeja de operación) y etapa 7 (copia opcional a GHL y regresión completa con pedidos en MariaDB).
+- [ ] Confirmación de pedidos de landings por WhatsApp. Hecho y probado en local (2026-10-27): resumen con la plantilla aprobada y botones «Confirmar pedido»/«Cambiar algo», cotización automática con el precio de la landing y el envío de Dropi, evidencia del botón, revisión manual por defecto u opción de enviar a Dropi al confirmar, aviso en el formulario y envío desde el pedido. Falta: comprobar las migraciones MySQL 043–044 en MariaDB, desplegar y probarlo con una plantilla aprobada real.
+- [ ] **Siguiente:** etapa 5 (cotización y pedido con origen WhatsApp), etapa 6 (recordatorios, avisos de estado Dropi, baja voluntaria, bandeja de operación) y etapa 7 (copia opcional a GHL y regresión completa con pedidos en MariaDB).
 - [ ] Recuperación de compras incompletas identificables y parada al comprar/rechazar/revocar permiso.
 - [ ] Sincronizar resultados y estados logísticos reales con la oportunidad correcta.
 
@@ -764,6 +765,13 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** «En vivo» pasa debajo de «Conversaciones» y el botón queda como píldora compacta con «+», en una sola línea, con estados de foco, hover y presión (`WhatsAppInbox.tsx`, `inbox.css`).
 - **Comprobado (local):** capturas antes y después en 1440, 1024 y 390 px; `whatsapp-templates.mjs` 32 y `whatsapp-inbox.mjs` 43.
 - **Datos reales:** ninguno.
+
+### 2026-10-27 · Confirmación de pedidos de landings por WhatsApp
+- **Cambio:** nueva pestaña **Confirmaciones** en Ventas WhatsApp (activar, plantilla, respuestas automáticas, «Revisión manual» por defecto o «Enviar a Dropi automáticamente», últimas 20 confirmaciones). Cada pedido nuevo de una landing se cotiza con el precio de la landing y el envío cotizado por Dropi y recibe la plantilla con un `payload` por botón. «Confirmar pedido» registra la aceptación (método `whatsapp_button`, `wamid` del toque y de la plantilla) si la cotización y la versión siguen iguales; «Cambiar algo» o un resumen vencido pasan el chat a un asesor y avisan a la tienda. Sin envío de Dropi o con variantes no se inventa nada: queda «No enviada» y se envía desde el pedido. Tarjeta «Confirmación por WhatsApp» en el detalle del pedido. Aviso «Te enviaremos la confirmación de tu pedido por WhatsApp» en el formulario cuando está activa. Notificaciones `order_confirmed` y `order_change`. Migración PostgreSQL 027 / MySQL 043–044. Detalle en [WHATSAPP.md](WHATSAPP.md).
+- **Comprobado (local, Meta y Dropi simulados; servidor aislado en 8091 porque la demo anterior seguía ocupando 8081/8446):** `whatsapp-confirm.mjs` 41 (nueva); regresión `orders` 38, `order-editing` 52, `dropi-orders` 36, `dropi-shipping` 20, `order-mail` 23, `lead-success` 12, `whatsapp-templates` 32, `whatsapp-inbox` 43, `whatsapp-agent` 50, `whatsapp-ads` 30, `whatsapp-notify` 27; `npm test` 107 antes de cada suite; `npm run build`.
+- **No comprobado:** migraciones MySQL 043–044 en la MariaDB local (el servidor arrancó, pero no estaban a mano sus credenciales de prueba y no se adivinaron). Texto libre del cliente mientras espera la confirmación en un chat con la IA (pasa a un asesor): implementado, sin prueba automática.
+- **Datos reales:** ninguno. Ninguna llamada a Meta ni a Dropi.
+- **Siguiente paso:** aplicar 043–044 en MariaDB local, desplegar, crear y aprobar `confirmacion_pedido` en Meta y probar un pedido real de la landing; luego la etapa 5.
 
 ### Plantilla para la próxima actualización
 
