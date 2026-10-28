@@ -25,6 +25,7 @@ if($op==='reset'){
  Database::query('DELETE FROM whatsapp_status_notices WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_notice_settings WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_reminders WHERE user_id IN (?,?)',$ids);
+ Database::query('DELETE FROM pending_reviewed WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_confirm_settings WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_product_sheets WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM ai_connections WHERE user_id IN (?,?)',$ids);
@@ -79,6 +80,10 @@ if($op==='age-reminders'){
  Database::query("UPDATE whatsapp_order_confirmations SET sent_at=now()-interval '4 hours' WHERE user_id=? AND status='sent'",[$fixture['owner']]);
  foreach(Database::all('SELECT id,pending FROM whatsapp_conversations WHERE user_id=? AND pending IS NOT NULL',[$fixture['owner']]) as $c){$p=json_decode((string)$c['pending'],true);if(is_array($p)){$p['at']=gmdate('c',time()-4*3600);Database::query('UPDATE whatsapp_conversations SET pending=?::jsonb WHERE id=?',[Support::json($p),$c['id']]);}}
  Database::query("UPDATE whatsapp_reminders SET created_at=now()-interval '25 hours' WHERE user_id=?",[$fixture['owner']]);echo 'ok';exit;
+}
+if($op==='set-novelty'){
+ // A Dropi novelty on one order of the owner, as the tracking sync would leave it.
+ Database::query("UPDATE orders SET logistics_status='novelty',dropi_status='NOVEDAD',dropi_tracking=?::jsonb WHERE id=? AND user_id=?",[Support::json(['novelty'=>'Dirección incompleta','carrier'=>'Servientrega','updated_at'=>gmdate('c')]),$argv[2]??'',$fixture['owner']]);echo 'ok';exit;
 }
 if($op==='housekeeping'){echo Support::json(App\WhatsAppInbox::housekeeping());exit;}
 if($op==='superadmin'){

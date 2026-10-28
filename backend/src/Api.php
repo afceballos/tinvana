@@ -24,7 +24,7 @@ final class Api {
   if($path==='/api/notifications/read'&&$method==='POST')return Notifications::markRead($owner,self::body());
   if($path==='/api/notifications/settings'){if($method==='GET')return Notifications::view($owner);if($method==='PUT'){Auth::limit('notification-settings:'.$owner,30,600);return Notifications::save($owner,self::body());}}
   // Plan features, enforced for the whole module here; the panel only hides what this would refuse. [pattern, feature, writes only]
-  foreach([['~^/api/orders/[^/]+/dropi~','dropi_orders',false],['~^/api/orders~','orders',false],['~^/api/landings/[^/]+/ai$~','ai',false],['~^/api/ai/~','ai',true],
+  foreach([['~^/api/orders/[^/]+/dropi~','dropi_orders',false],['~^/api/orders~','orders',false],['~^/api/pending~','orders',false],['~^/api/landings/[^/]+/ai$~','ai',false],['~^/api/ai/~','ai',true],
    ['~^/api/integrations/[^/]+/(products|categories)$~','catalog',false],['~^/api/webhook-settings$~','ghl',true],['~^/api/mail-settings~','mail',true],['~^/api/profile/store$~','store',false],
    ['~^/api/landings/[^/]+/(publish)$~','publish',false],['~^/api/landings/~','landings',true],['~^/api/builder-templates$~','landings',true],['~^/api/products/[^/]+/(landing|offers)$~','landings',true]] as [$pattern,$feature,$writes])
    if(preg_match($pattern,$path)&&(!$writes||!in_array($method,['GET','HEAD'],true))){Entitlements::require($owner,$feature);break;}
@@ -46,6 +46,10 @@ final class Api {
   if($path==='/api/media'){if($method==='DELETE')return Media::remove($owner,self::body());if($method==='GET')return Media::listing($owner,$_GET);if($method==='POST')return ['image'=>Media::upload(null,$owner)];}
   if($path==='/api/profile'){if($method==='GET')return ['profile'=>Profile::view($owner)];if($method==='PUT')return ['profile'=>Profile::save($owner,self::body())];}
   if($path==='/api/profile/store'&&$method==='PUT')return ['profile'=>Store::save($owner,self::body())];
+  // Stage 6C: «Pendientes» (read-only list, reviewed marks and the menu counter).
+  if($path==='/api/pending'&&$method==='GET')return Pending::view($owner);
+  if($path==='/api/pending/count'&&$method==='GET')return Pending::count($owner);
+  if($path==='/api/pending/review'&&$method==='POST')return Pending::review($owner,self::body());
   if($path==='/api/mail-settings'){if($method==='GET')return OrderMail::view($owner);if($method==='PUT')return OrderMail::save($owner,self::body());}
   if(preg_match('~^/api/mail-settings/preview/([a-z_]+)$~',$path,$m)&&$method==='POST'){$draft=self::body()['settings']??null;return OrderMail::preview($owner,$m[1],is_array($draft)?$draft:null);}
   if($path==='/api/mail-settings/test'&&$method==='POST'){Auth::limit('mail-test:'.$owner,5,3600);return OrderMail::test($owner,(string)(self::body()['kind']??''));}

@@ -236,8 +236,21 @@ try{
  await helper('age-reminders');await poke();rm=(await(await owner.ctx.get('/api/whatsapp/notices')).json()).reminders;
  const lost=rm.find(r=>r.kind==='unconfirmed'&&r.status==='no_answer');
  check('24 hours after the reminder without an answer the store is notified and the order shows it',!!lost&&(await notifications()).some(n=>n.kind==='order_no_answer')&&(await detail(lost.order_id)).events.some(e=>e.event_type==='whatsapp_no_answer'));
+ // Stage 6C: «Pendientes»
+ await helper('set-novelty',o.id);await text('573001112233','Hola, ¿qué pasó con la entrega?');
+ let pv=await(await owner.ctx.get('/api/pending')).json();const sec=k=>pv.sections.find(s=>s.key===k)?.items||[];
+ check('Pendientes shows the chat waiting for an advisor and the Dropi novelty as urgent',sec('chats').some(i=>i.key==='chat:'+c.conversation_id)&&sec('novelties').some(i=>i.key.startsWith('novelty:'+o.id)&&/Dirección incompleta/.test(i.detail))&&pv.sections.find(s=>s.key==='chats').urgent);
+ check('it also gathers unconfirmed orders with problems, confirmed orders not in Dropi and failed sends',sec('confirm').length>=1&&sec('dropi').some(i=>i.key==='dropi:'+o.id)&&sec('failed').length>=1);
+ check('the menu counter only counts the urgent ones',(await(await owner.ctx.get('/api/pending/count')).json()).urgent===sec('chats').length+sec('novelties').length&&pv.total>pv.urgent);
+ const rev=sec('failed')[0];const after=await(await owner.ctx.post('/api/pending/review',{headers:owner.H,data:{key:rev.key}})).json();
+ check('a failed send can be marked as reviewed and leaves the list',!after.sections.flatMap(s=>s.items).some(i=>i.key===rev.key));
+ check('items that solve themselves cannot be marked as reviewed',(await owner.ctx.post('/api/pending/review',{headers:owner.H,data:{key:'dropi:'+o.id}})).status()===409);
+ check('another store sees none of them',(await(await other.ctx.get('/api/pending')).json()).total===0&&(await other.ctx.post('/api/pending/review',{headers:other.H,data:{key:rev.key}})).status()===404);
  browser=await chromium.launch({channel:'msedge',headless:true});const ctx=await browser.newContext({viewport:{width:1280,height:900},reducedMotion:'reduce'});
  const st=await owner.ctx.storageState();await ctx.addCookies(st.cookies);const p=await ctx.newPage();const errors=[];p.on('pageerror',e=>errors.push(e.message));
+ await p.goto(base+'/panel/pendientes');await p.getByRole('heading',{name:'Pendientes',level:1}).waitFor();await p.getByRole('heading',{name:'Chats esperando asesor'}).waitFor();
+ check('the Pendientes page lists the sections and the menu shows the urgent counter',await p.locator('.pending-section').count()>=4&&Number(await p.locator('.nav-count').innerText())===(await(await owner.ctx.get('/api/pending/count')).json()).urgent);
+ await p.screenshot({path:'test-results/pending.png',fullPage:true});
  await p.goto(base+'/panel/whatsapp/confirmaciones');await p.getByRole('heading',{name:'Confirmaciones enviadas'}).waitFor();
  check('the Confirmaciones tab shows the settings and the latest sends',await p.getByRole('link',{name:'Confirmaciones'}).getAttribute('aria-current')==='page'&&await p.locator('.wc-list li').count()>=6&&await p.getByText('Confirmado por el cliente').first().isVisible());
  await p.getByRole('heading',{name:'Recordatorios'}).waitFor(); check('the page also shows the reminders',await p.getByRole('heading',{name:'Recordatorios'}).isVisible());

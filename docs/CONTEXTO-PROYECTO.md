@@ -261,7 +261,8 @@ Referencia histórica: <https://es.scribd.com/document/683043719/Documentacion-d
 - [x] Ventas por WhatsApp, etapas 2 a 4 (bandeja, agente de IA con fichas y ajustes, anuncios y ofertas), aviso al pasar a asesor y notificaciones de la tienda. Implementado y probado en local; detalle en [WHATSAPP.md](WHATSAPP.md).
 - [ ] Confirmación de pedidos de landings por WhatsApp. Hecho y probado en local (2026-10-27): resumen con la plantilla aprobada y botones «Confirmar pedido»/«Cambiar algo», cotización automática con el precio de la landing y el envío de Dropi, evidencia del botón, revisión manual por defecto u opción de enviar a Dropi al confirmar, aviso en el formulario y envío desde el pedido. Desde la segunda entrega del 2026-10-27 el cliente escribe primero desde el popup con su código y recibe el resumen con botones sin plantilla; la plantilla queda como respaldo. Falta: comprobar las migraciones MySQL 043–045 en MariaDB, desplegar y probarlo con números reales.
 - [x] Etapa 5: pedidos armados en el chat con origen WhatsApp, «1 SÍ / 2 NO», interruptor «Vender por WhatsApp» (probado en local el 2026-10-28; falta probar con la IA y Meta reales).
-- [ ] **Siguiente:** etapa 6 (recordatorios, avisos de estado Dropi, baja voluntaria, bandeja de operación) y etapa 7 (copia opcional a GHL y regresión completa con pedidos en MariaDB).
+- [x] Etapa 6: avisos de estado Dropi por correo y WhatsApp, baja voluntaria, recordatorios y «Pendientes» (probado en local el 2026-10-28; falta probar con Meta y Dropi reales).
+- [ ] **Siguiente:** etapa 7 (copia opcional a GHL y regresión completa con pedidos en MariaDB).
 - [ ] Recuperación de compras incompletas identificables y parada al comprar/rechazar/revocar permiso.
 - [ ] Sincronizar resultados y estados logísticos reales con la oportunidad correcta.
 
@@ -896,6 +897,13 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Limitaciones:** el recordatorio de pedido dentro de la ventana (texto + resumen) y la espera fuera de horario no tienen prueba propia; las pruebas fijan el horario a todo el día. Nada se envió a Meta real. La base local de pruebas se reinició después de que el sistema la detuviera por falta de memoria.
 - **Datos reales:** ninguno.
 - **Siguiente paso:** 6C (bandeja de operación); baja por correo pendiente.
+
+### 2026-10-28 · Etapa 6C: «Pendientes»
+- **Pedido del usuario:** 6C con las recomendaciones: ítem propio en el menú, contador solo de lo urgente y «Marcar como revisado».
+- **Cambio:** `Pending` (seis secciones, revisados y contador), tabla `pending_reviewed` (PostgreSQL 037 / MySQL 058), página `Pending.tsx` con el estilo de tarjetas, ítem «Pendientes» con contador en el menú, ruta permitida en el servidor. Detalle en [WHATSAPP.md](WHATSAPP.md).
+- **Comprobado (local, Meta simulado):** `whatsapp-confirm.mjs` 90 (7 nuevas: chat esperando y novedad urgentes, resto de secciones, contador, revisado, 409 para lo que se resuelve solo, aislamiento entre tiendas, página con contador), `whatsapp-agent` 97, `whatsapp-inbox` 43 (una falla intermitente de «volver a la lista» que pasó en dos repeticiones), `orders` 38, `order-editing` 52, `order-mail` 24, `admin` 39, `run.php` 110. `tinvana-ui` sigue con su falla conocida del menú móvil (anterior a este bloque).
+- **Datos reales:** ninguno.
+- **Siguiente paso:** etapa 7 (copia opcional a GHL y regresión completa en MariaDB); baja por correo pendiente.
 
 ### Plantilla para la próxima actualización
 

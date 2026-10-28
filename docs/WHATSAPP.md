@@ -280,6 +280,14 @@ Documentación oficial consultada el 2026-10-27 (mensajes interactivos con boton
 - **Nunca:** a quien se dio de baja, si un asesor tomó el chat o le escribió en las últimas 24 horas, en chats cerrados ni fuera del horario de atención del agente (espera a la apertura mientras siga teniendo sentido).
 
 
+### Etapa 6C · «Pendientes» (2026-10-28, PostgreSQL `037`, MySQL `058`)
+
+- **Página** `/panel/pendientes` (primer ítem del menú, permiso `orders`; API `GET /api/pending`, `GET /api/pending/count`, `POST /api/pending/review`). Solo lectura: cada ítem enlaza a donde se resuelve y desaparece al resolverse.
+- **Secciones, de lo más urgente a lo menos:** chats con asesor donde el cliente escribió último (con aviso si la ventana de 24 h cierra en menos de 2 horas o ya cerró); novedades de Dropi; borradores sin respuesta tras el recordatorio, con «pidió cambios» o sin resumen enviado (motivo); confirmados sin enviar a Dropi y «envío por verificar»; envíos fallidos de los últimos 7 días (mensajes, avisos, recordatorios, correos); plantillas elegidas para confirmaciones o avisos que Meta rechazó, pausó o desactivó. Hasta 50 por sección. Las secciones de WhatsApp se ocultan sin ese permiso.
+- **Revisado:** solo para lo que no se resuelve solo (novedad, sin respuesta, cambios, resumen no enviado, envíos fallidos); se guarda en `pending_reviewed` con una clave que incluye la ocurrencia, así un problema nuevo reaparece. Los chats, los envíos a Dropi y las plantillas responden 409.
+- **Contador del menú:** solo lo urgente (chats esperando asesor + novedades), cada minuto con la pestaña visible y al marcar un ítem.
+
+
 ### Configuración en Meta (cuando se autorice el piloto real)
 
 1. En la app de Meta: WhatsApp → Configuración → Webhook: URL `https://<dominio>/whatsapp/webhook` y el mismo `WHATSAPP_VERIFY_TOKEN` del servidor; suscribir el campo `messages`.
