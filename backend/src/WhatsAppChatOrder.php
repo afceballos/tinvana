@@ -21,6 +21,8 @@ final class WhatsAppChatOrder {
   $r=Database::one("SELECT * FROM landing_pages WHERE selected_product_id=? AND user_id=? AND status='published'",[$productId,$owner]);
   return $r?Landing::published($r):null;
  }
+ /** Public address of the product's published landing, to share when the customer wants to see the product. */
+ public static function url(array $landing): string {return Store::landingUrl((string)($landing['published_slug']?:$landing['slug']),Store::subdomainOf((string)$landing['user_id']));}
  /** Price as the agent may say it: the landing price, or «desde» the cheapest available variant. */
  public static function priceText(array $landing): ?string {
   $r=Landing::decode($landing);$c=$r['content'];$prices=[];

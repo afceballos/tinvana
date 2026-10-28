@@ -27,6 +27,7 @@ const openai=createServer(tls,(req,res)=>{let raw='';req.on('data',c=>raw+=c);re
  const empty={name:'',city:'',department:'',address:'',neighborhood:'',reference:'',quantity:'',variant:''};
  const pid=input.products[0]?.id||'';
  if(/falla/i.test(last))return reply({},500);
+ if(/ver el producto/i.test(last))return reply({reply:'Claro, aquí lo puedes ver: '+(input.products[0]?.url||''),intent:'ver',product_id:pid,captured:empty,action:'none',handoff_reason:'',order_number:'',memory:''});
  // Test shortcut: «pedido: {json}» is what the customer gave; the AI asks the server for the summary.
  if(/^pedido: /.test(last))return reply({reply:'Listo, ya te armo el resumen.',intent:'comprar',product_id:pid,captured:{...empty,...JSON.parse(last.slice(8))},action:'request_quote',handoff_reason:'',order_number:'',memory:''});
  if(/qué pedidos tengo/i.test(last))return reply({reply:'Te muestro tu pedido.',intent:'pedido',product_id:'',captured:empty,action:'show_order',handoff_reason:'',order_number:'',memory:'Clienta Nora; preguntó por sus pedidos.'});
@@ -183,6 +184,9 @@ try{
  check('the store turns on «Vender por WhatsApp»',(await owner.ctx.put('/api/whatsapp/agent',{headers:owner.H,data:{...v.settings,chat_orders:true}})).ok()&&(await agent()).settings.chat_orders===true);
  const a10=ai.length;await say('573007770020','Mario Ruiz','Hola, ¿qué productos tienen?');const cat=ai.at(-1);
  check('without a link the AI gets the catalog with each price and the instructions to sell',ai.length===a10+1&&cat.input.products.some(x=>x.price_text==='$59.900')&&cat.payload.instructions.includes('qué productos hay')&&cat.payload.instructions.includes('Puedes tomar pedidos')&&cat.input.buy&&cat.input.buy.max_quantity>=1);
+ await say('573007770020','Mario Ruiz','¿Puedo ver el producto?');
+ const url=ai.at(-1).input.products.find(x=>x.url)?.url||'';
+ check('the AI gets the landing address of each product and shares it only when asked',url.includes(f.slug)&&cat.payload.instructions.includes('No envíes el enlace si no lo pide')&&sends.at(-1).text.body.includes(url));
  const mario=await convOf('573007770020');const ask=d=>say('573007770020','Mario Ruiz','pedido: '+JSON.stringify(d));
  const chatOrders=async()=>(await(await owner.ctx.get('/api/orders')).json()).orders.filter(o=>o.customer.phone==='+573007770020');
  await ask({name:'Mario',city:'Cali',address:'Calle 5 # 10-20',neighborhood:'San Fernando'});

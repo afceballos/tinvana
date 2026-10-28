@@ -870,6 +870,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Datos reales:** ninguno.
 - **Siguiente paso:** probar en el piloto con la IA real; etapas 6 y 7.
 
+### 2026-10-28 · Enlace de la landing en el chat
+- **Pedido del usuario:** que la IA pueda pasar la landing del producto si el cliente quiere verlo.
+- **Cambio:** la IA recibe la dirección de la landing publicada de cada producto y la comparte solo cuando el cliente la pide.
+- **Comprobado (local, IA y Meta simulados):** `whatsapp-agent.mjs` 94 (1 nueva), `whatsapp-ads` 30.
+- **Datos reales:** ninguno.
+
 ### Plantilla para la próxima actualización
 
 ```text
