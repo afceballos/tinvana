@@ -37,7 +37,7 @@ final class LandingVariants {
    $options=[];foreach($v['options']??[] as $o)if(is_array($o)&&isset($o['name'],$o['value']))$options[(string)$o['name']]=(string)$o['value'];
    if(!$options)$options=['Opción'=>(string)$v['label']];
    $out[]=['id'=>$id,'label'=>(string)$v['label'],'options'=>$options,'price'=>isset($own['price'])?(float)$own['price']:($content['publicPrice']===null?null:(float)$content['publicPrice']),
-    'image'=>($own['image']??'')!==''?$own['image']:($v['image']??null),'available'=>($v['stock']??null)!==0&&($v['stock']??null)!==0.0];
+    'image'=>($own['image']??'')!==''?$own['image']:($v['image']??null),'available'=>($v['stock']??null)!==0&&($v['stock']??null)!==0.0,'stock'=>isset($v['stock'])?(int)$v['stock']:null];
   }
   return $out;
  }
@@ -56,16 +56,33 @@ final class LandingVariants {
   if(!$picked['available'])throw new HttpError(422,'Esa opción está agotada. Elige otra, por favor.');
   return $picked;
  }
- /** Picker for the purchase dialog: one group of choices per option, plus the data the runtime uses. */
- public static function picker(array $content,array $snapshot): string {
+ /** Price of the variant that starts chosen (the first available), or null without variants. */
+ public static function firstPrice(array $content,array $snapshot): ?float {
+  foreach(self::visible($content,$snapshot) as $v)if($v['available'])return $v['price'];
+  return null;
+ }
+ /** Units in stock as the buyer reads them, or '' when Dropi does not say. */
+ public static function stockText(?float $stock): string {
+  if($stock===null)return '';if($stock<=0)return 'Agotado';
+  return 'Disponibles: '.number_format($stock,0,',','.').' '.((int)$stock===1?'unidad':'unidades');
+ }
+ /**
+  * Variant picker: one group of choices per option, the stock of the chosen variant and the data the runtime uses.
+  * The first available variant starts chosen, so the buyer sees a price and a stock right away. $box: the copy in the
+  * page's purchase box, which only mirrors the choice (its radios are not part of the form).
+  */
+ public static function picker(array $content,array $snapshot,bool $box=false): string {
   $list=self::visible($content,$snapshot);if(!$list)return '';
-  $e=fn($v)=>Support::escape((string)$v);$html='<div class="vp" data-variant-picker><input type="hidden" name="variant_id" form="lead-form" data-lead-variant value="">';
+  $first=null;foreach($list as $v)if($v['available']){$first=$v;break;}
+  $e=fn($v)=>Support::escape((string)$v);
+  $html='<div class="vp'.($box?' vp-box':'').'" data-variant-picker'.($box?' data-vp-mirror':'').'>'.($box?'':'<input type="hidden" name="variant_id" form="lead-form" data-lead-variant value="'.$e($first['id']??'').'">');
   foreach(self::options($list) as $name=>$values){
-   $html.='<fieldset class="vp-group" data-vp-option="'.$e($name).'"><legend><span>'.$e($name).'</span><strong class="vp-current" data-vp-current aria-live="polite"></strong></legend><div class="vp-choices">';
-   foreach($values as $value)$html.='<label class="vp-choice"><input type="radio" name="variant_option['.$e($name).']" value="'.$e($value).'" form="lead-form" required data-vp-input><span>'.$e($value).'</span></label>';
+   $chosen=$first['options'][$name]??null;
+   $html.='<fieldset class="vp-group" data-vp-option="'.$e($name).'"><legend><span>'.$e($name).'</span><strong class="vp-current" data-vp-current aria-live="polite">'.$e($chosen??'').'</strong></legend><div class="vp-choices">';
+   foreach($values as $value)$html.='<label class="vp-choice"><input type="radio" name="'.($box?'box_option':'variant_option').'['.$e($name).']" value="'.$e($value).'"'.($box?'':' form="lead-form" required').($value===$chosen?' checked':'').' data-vp-input><span>'.$e($value).'</span></label>';
    $html.='</div></fieldset>';
   }
-  $data=array_map(fn($v)=>['id'=>$v['id'],'label'=>$v['label'],'options'=>$v['options'],'price'=>$v['price'],'image'=>$v['image'],'available'=>$v['available']],$list);
-  return $html.'<p class="vp-error" data-vp-error role="alert" hidden></p><script type="application/json" data-vp-data>'.str_replace('</','<\/',Support::json($data)).'</script></div>';
+  $data=array_map(fn($v)=>['id'=>$v['id'],'label'=>$v['label'],'options'=>$v['options'],'price'=>$v['price'],'image'=>$v['image'],'available'=>$v['available'],'stock'=>$v['stock']],$list);
+  return $html.'<p class="vp-stock" data-vp-stock>'.$e(self::stockText($first['stock']??null)).'</p><p class="vp-error" data-vp-error role="alert" hidden></p><script type="application/json" data-vp-data>'.str_replace('</','<\/',Support::json($data)).'</script></div>';
  }
 }

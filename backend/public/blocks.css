@@ -573,3 +573,14 @@ a.selected-product-card:hover .selected-product-link .block-icon{transform:trans
 [data-theme=warm] .stock-toast{border-radius:var(--r-md)}
 @media (prefers-reduced-motion:reduce){.stock-toast{transition:none}}
 [data-stock=out] .quantity-control{opacity:.5;pointer-events:none}
+/* Variant picker inside the page purchase box: same choices, without the tinted panel of the form. */
+.vp.vp-box,[data-theme=warm] .vp.vp-box,[data-theme=bold] .vp.vp-box{gap:14px;margin:0 0 16px;padding:0;border:0;border-radius:0;background:none;box-shadow:none}
+.vp-box .vp-group legend{font-size:14px}
+.vp-box .vp-choice span{min-height:44px;padding:0 14px;font-size:14px}
+/* Units in stock (product or chosen variant). */
+.vp-stock,.stock-note{display:flex;align-items:center;gap:8px;margin:0;color:#3f3a35;font-size:14px;font-weight:600}
+.vp-stock:empty{display:none}
+.vp-stock::before,.stock-note::before{content:"";width:8px;height:8px;flex:none;border-radius:50%;background:#16a34a;box-shadow:0 0 0 3px #16a34a26}
+.purchase-box .stock-note{margin:0 0 14px}
+.order-summary .stock-note{margin-top:4px;font-size:13px}
+[data-stock=out] .vp-stock::before,[data-stock=out] .stock-note::before{background:#b42318;box-shadow:0 0 0 3px #b4231826}

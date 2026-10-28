@@ -1,6 +1,6 @@
 import {prepareLeadForm} from './lead-form';
 import {showLeadSuccess} from './lead-success';
-import {initVariantPicker} from './variant-picker';
+import {initVariantPicker,type PickedVariant,type VariantPicker} from './variant-picker';
 import './landing-form.css';
 
 // Public landing runtime. No animation library: CSS does the motion, the Web Animations API covers the dialogs.
@@ -9,7 +9,7 @@ const reduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ease='cubic-bezier(.2,.8,.2,1)';
 const basePrice=document.body.dataset.price===''?null:Number(document.body.dataset.price);
 // The chosen variant may have its own price; totals, shipping and the summary follow it.
-let price=basePrice;let variantPicker:ReturnType<typeof initVariantPicker>|null=null;
+let price=basePrice;let variantPicker:VariantPicker|null=null;
 const max=Number(document.body.dataset.maxQuantity)||1;
 let quantity=1;
 const money=(value:number|null)=>value===null?'Consulta el precio':new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:2}).format(value);
@@ -20,12 +20,20 @@ function renderShipping(){if(!shippingEnabled)return;const product=price===null?
 function quoteShipping(){if(!shippingEnabled)return;const lead=document.querySelector<HTMLFormElement>('#lead-form');const city=lead?.querySelector<HTMLSelectElement>('[name=city_code]')?.value||'';window.clearTimeout(shippingTimer);shippingRequest?.abort();if(!lead||!/^[0-9]{5}$/.test(city)){shipping={state:'idle',amount:null};renderShipping();return;}shipping={state:'loading',amount:null};renderShipping();shippingTimer=window.setTimeout(async()=>{const ctl=new AbortController();shippingRequest=ctl;try{const csrf=lead.querySelector<HTMLInputElement>('[name=csrf]')?.value||'';const r=await fetch(lead.action.replace(/\/lead$/,'/shipping'),{method:'POST',credentials:'same-origin',signal:ctl.signal,headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({city_code:city,quantity,csrf,variant_id:variantPicker?.variant?.id||''})});const data=await r.json();shipping=r.ok&&typeof data.amount==='number'?{state:'ok',amount:data.amount}:{state:'none',amount:null};}catch(e){if((e as Error).name==='AbortError')return;shipping={state:'none',amount:null};}renderShipping();},250);}
 document.querySelectorAll<HTMLInputElement>('[data-quantity]').forEach(input=>input.addEventListener('change',()=>setQuantity(Number(input.value))));
 document.querySelectorAll<HTMLButtonElement>('[data-quantity-step]').forEach(button=>button.addEventListener('click',()=>setQuantity(quantity+Number(button.dataset.quantityStep))));
-const pickerRoot=document.querySelector<HTMLElement>('[data-variant-picker]');const summaryImage=document.querySelector<HTMLImageElement>('#purchase-dialog .order-summary img');const baseImage=summaryImage?.getAttribute('src')||'';
-if(pickerRoot)variantPicker=initVariantPicker(pickerRoot,variant=>{
+const summaryImage=document.querySelector<HTMLImageElement>('#purchase-dialog .order-summary img');const baseImage=summaryImage?.getAttribute('src')||'';
+const heroImage=document.querySelector<HTMLImageElement>('[data-hero-buy]')?.closest('.landing-block')?.querySelector<HTMLImageElement>('.block-gallery-main img')||null;const heroOriginal=heroImage?.getAttribute('src')||'';
+const swap=(img:HTMLImageElement|null,next:string)=>{if(!img||!next||img.getAttribute('src')===next)return;img.src=next;if(!reduced())img.animate([{opacity:.35,transform:'scale(.97)'},{opacity:1,transform:'none'}],{duration:240,easing:ease});};
+// The chosen variant sets the price, the photos (form summary and, when it has its own photo, the main image) and totals.
+function applyVariant(variant:PickedVariant|null){
  price=variant?.price??basePrice;document.querySelectorAll('[data-summary-unit]').forEach(el=>el.textContent=money(price));
- const next=variant?.image||baseImage;if(summaryImage&&next&&summaryImage.getAttribute('src')!==next){summaryImage.src=next;if(!reduced())summaryImage.animate([{opacity:.35,transform:'scale(.97)'},{opacity:1,transform:'none'}],{duration:240,easing:ease});}
+ swap(summaryImage,variant?.image||baseImage);swap(heroImage,variant?.image&&variant.image!==baseImage?variant.image:heroOriginal);
  setQuantity(quantity);quoteShipping();
-});
+}
+// Two copies may exist (purchase box and form): a choice in one is mirrored in the other.
+const pickerRoots=[...document.querySelectorAll<HTMLElement>('[data-variant-picker]')];let pickers:VariantPicker[]=[];let syncing=false;
+pickers=pickerRoots.map((root,index)=>initVariantPicker(root,(variant,chosen)=>{if(syncing)return;syncing=true;pickers.forEach((p,i)=>{if(i!==index)p.select(chosen);});syncing=false;applyVariant(variant);}));
+variantPicker=pickers.find((_,i)=>pickerRoots[i].querySelector('[data-lead-variant]'))||null;
+if(pickers.length)applyVariant((variantPicker||pickers[0]).variant);
 
 const purchase=document.querySelector<HTMLDialogElement>('#purchase-dialog');
 let trigger:HTMLElement|null=null;let closing=false;let overflow='';
@@ -49,7 +57,7 @@ document.querySelectorAll<HTMLButtonElement>('[data-buy]').forEach(button=>butto
  if(!preview&&stockUrl&&Date.now()-stockCheckedAt>600000){
   let label=button.innerHTML;button.setAttribute('aria-busy','true');button.style.minWidth=button.offsetWidth+'px';button.textContent='Verificando…';
   const ctl=new AbortController();const timer=window.setTimeout(()=>ctl.abort(),7000);
-  try{const r=await fetch(stockUrl,{credentials:'same-origin',signal:ctl.signal,headers:{Accept:'application/json'}});const s=await r.json();if(r.ok){stockCheckedAt=Date.now();if(s.available===false){button.innerHTML=label;button.removeAttribute('aria-busy');markSoldOut();stockNotice(s.message||soldOutText);return;}if(document.body.dataset.stock==='out'){label=button.dataset.label||label;markInStock();}if(s.variants)variantPicker?.setAvailability(s.variants);}}
+  try{const r=await fetch(stockUrl,{credentials:'same-origin',signal:ctl.signal,headers:{Accept:'application/json'}});const s=await r.json();if(r.ok){stockCheckedAt=Date.now();if(s.available===false){button.innerHTML=label;button.removeAttribute('aria-busy');markSoldOut();stockNotice(s.message||soldOutText);return;}if(document.body.dataset.stock==='out'){label=button.dataset.label||label;markInStock();}if(s.variants)pickers.forEach(p=>p.setAvailability(s.variants));}}
   catch{/* Unknown stock: the form opens and the server checks again on submit. */}
   finally{window.clearTimeout(timer);if(button.getAttribute('aria-busy')==='true'){button.innerHTML=label;button.removeAttribute('aria-busy');button.style.minWidth='';}}
  }
@@ -75,7 +83,7 @@ form?.addEventListener('submit',async event=>{
  event.preventDefault();if(submitting||preview)return;if(variantPicker&&!variantPicker.validate())return;setQuantity(quantity);submitting=true;
  const status=document.querySelector<HTMLElement>('#lead-status')!;const button=form.querySelector<HTMLButtonElement>('button[type=submit]')!;
  button.disabled=true;button.textContent='Enviando solicitud…';form.setAttribute('aria-busy','true');status.dataset.state='pending';status.textContent='Guardando tu solicitud…';
- try{const payload=Object.fromEntries(new FormData(form));const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':String(payload.csrf)},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok){if(result.sold_out){markSoldOut();window.setTimeout(()=>{void closePurchase().then(()=>stockNotice(soldOutText));},1600);}if(result.sold_out_variant)variantPicker?.setAvailability({[result.sold_out_variant]:false});throw new Error(result.error||'No se pudo guardar la solicitud.');}status.dataset.state='success';status.textContent=result.message;button.textContent='Solicitud recibida';form.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input:not([type=hidden]),select').forEach(input=>input.disabled=true);form.dispatchEvent(new Event('lead-saved'));if(purchase?.open){const returnTo=trigger;void closePurchase().then(()=>showLeadSuccess(reduced(),returnTo,result.whatsapp?.link?result.whatsapp:null));}}
+ try{const payload=Object.fromEntries(new FormData(form));const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':String(payload.csrf)},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok){if(result.sold_out){markSoldOut();window.setTimeout(()=>{void closePurchase().then(()=>stockNotice(soldOutText));},1600);}if(result.sold_out_variant)pickers.forEach(p=>p.setAvailability({[result.sold_out_variant]:false}));throw new Error(result.error||'No se pudo guardar la solicitud.');}status.dataset.state='success';status.textContent=result.message;button.textContent='Solicitud recibida';form.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input:not([type=hidden]),select').forEach(input=>input.disabled=true);form.dispatchEvent(new Event('lead-saved'));if(purchase?.open){const returnTo=trigger;void closePurchase().then(()=>showLeadSuccess(reduced(),returnTo,result.whatsapp?.link?result.whatsapp:null));}}
  catch(error){status.dataset.state='error';status.textContent=(error as Error).message;button.disabled=false;button.textContent='Reintentar solicitud';submitting=false;}
  finally{form.setAttribute('aria-busy','false');}
 });

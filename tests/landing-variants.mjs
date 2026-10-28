@@ -71,8 +71,7 @@ try{
   const p=await ctx.newPage();p.on('pageerror',e=>errors.push(e.message));await p.goto(base+'/p/'+f.slug);await p.locator('[data-buy]').first().click();
   const m=p.locator('#purchase-dialog');await m.locator('.vp').waitFor();
   if(theme==='modern'&&w===1280){
-   await m.getByRole('radio',{name:'Negro'}).check();
-   check('choosing only the color leaves the size pending',(await m.locator('[data-lead-variant]').inputValue())===''&&await m.locator('.vp-choice.is-out',{hasText:'L'}).count()===1);
+   check('the first available variant starts chosen, with its stock',(await m.locator('[data-lead-variant]').inputValue())==='501'&&(await m.locator('[data-vp-stock]').innerText())==='Disponibles: 40 unidades'&&await m.locator('.vp-choice.is-out',{hasText:'L'}).count()===1);
    await m.getByRole('radio',{name:/^M$/}).check();
    check('choosing color and size shows the variant price',(await m.locator('[data-summary-unit]').innerText()).includes('64.900')&&(await m.locator('[data-lead-variant]').inputValue())==='502');
    await m.getByRole('radio',{name:'Beige'}).check();await m.getByRole('radio',{name:/^S$/}).check();
@@ -86,7 +85,13 @@ try{
    await m.getByRole('radio',{name:/^S$/}).check();await p.waitForFunction(()=>/[0-9]/.test(document.querySelector('[data-summary-shipping]')?.textContent||''));
    const sent=p.waitForResponse(x=>x.url().endsWith('/lead'));await m.getByRole('button',{name:/Enviar solicitud/}).click();
    check('the buyer completes the order with the chosen variant',(await sent).status()===202&&(await orderOf('variante-ui@example.test')).order.variant_data.label==='Beige · S');
-   await p.goto(base+'/p/'+f.slug);await p.locator('[data-buy]').first().click();await m.locator('.vp').waitFor();
+   await p.goto(base+'/p/'+f.slug);const box=p.locator('.purchase-box .vp-box');await box.waitFor();
+   check('the purchase box shows the variants with the first available chosen and its stock',await box.getByRole('radio',{name:'Negro'}).isChecked()&&await box.getByRole('radio',{name:/^S$/}).isChecked()&&(await box.locator('[data-vp-stock]').innerText()).includes('40'));
+   await box.getByRole('radio',{name:/^M$/}).check();
+   check('a choice in the purchase box updates its price and stock',(await p.locator('.purchase-box [data-summary-unit]').innerText()).includes('64.900')&&(await box.locator('[data-vp-stock]').innerText()).includes('35'));
+   await box.screenshot({path:'test-results/variants-box.png'});
+   await p.locator('[data-buy]').first().click();await m.locator('.vp').first().waitFor();
+   check('the form receives the choice made in the purchase box',(await m.locator('[data-lead-variant]').inputValue())==='502');
   }
   await m.getByRole('radio',{name:'Negro'}).check();await m.getByRole('radio',{name:/^M$/}).check();
   await m.locator('.vp').screenshot({path:`test-results/variants-${theme}-${w}.png`});
@@ -96,7 +101,11 @@ try{
  // Editor
  const ectx=await browser.newContext({storageState:await owner.ctx.storageState(),viewport:{width:1440,height:1000}});const ep=await ectx.newPage();ep.on('pageerror',e=>errors.push(e.message));
  await ectx.route(IMG+'**',x=>x.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="#d8c3a5"/></svg>'}));
- await ep.goto(base+'/panel/landings/'+f.landing);await ep.getByRole('button',{name:'Producto y página'}).first().click();const bv=ep.locator('.bv');await bv.waitFor();
+ await ep.goto(base+'/panel/landings/'+f.landing);await ep.getByRole('button',{name:'Producto y página'}).first().click();
+ check('the product panel is organized in sections, the first one open',await ep.locator('.bs').count()>=8&&await ep.locator('.bs[open]').count()===1);
+ await ep.locator('.bs summary',{hasText:'Variantes'}).click();check('the variants section summarizes what is for sale',(await ep.locator('.bs[open]',{hasText:'Variantes'}).innerText()).includes('5 de 6 a la venta'));
+ await ep.screenshot({path:'test-results/variants-panel.png'});
+ await ep.getByRole('button',{name:'Editar variantes'}).click();const bv=ep.locator('.bd .bv');await bv.waitFor();
  check('the editor lists the variants with stock and the hidden one switched off',await bv.locator('.bv-list li').count()===6&&(await bv.locator('.bv-count').innerText()).includes('de 6')&&await bv.locator('.bv-list li.is-hidden').count()===1&&(await bv.innerText()).includes('Agotada'));
  await bv.scrollIntoViewIfNeeded();await bv.screenshot({path:'test-results/variants-editor.png'});
  await bv.getByRole('button',{name:'Ocultar agotadas'}).click();

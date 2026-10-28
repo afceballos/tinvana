@@ -809,6 +809,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Datos reales:** ninguno. En producción cada revisión es una búsqueda de solo lectura en el catálogo de Dropi con el token de la tienda.
 - **Siguiente paso:** desplegar y aplicar `migrate` (MySQL 043 a 046).
 
+### 2026-10-28 · Variantes y stock en el recuadro de compra; panel por secciones
+- **Pedido del usuario:** variantes junto a la cantidad y el botón, con la primera elegida y el stock visible; secciones del panel en acordeones y opciones grandes en ventanas.
+- **Cambio:** selector de variantes en el recuadro de compra (sincronizado con el formulario), primera variante disponible elegida por defecto, stock por variante o del producto, foto principal según la variante; panel «Producto y página» en secciones plegables y ventanas para Variantes y Estilo. Detalle en [BUILDER.md](BUILDER.md).
+- **Comprobado (local, servidor aislado en 8091):** `landing-variants.mjs` 38, `landing-stock.mjs` 24, `template-design.mjs` 10, `builder`, `landing-design` 40, `owner-edit` 12, `lead-success` 12, `dropi-shipping` 20, `orders` 38, `product-list`, `whatsapp-confirm` 59, `delivery-ui`, `dropi-block`; `run.php` 80, `blocks.php` 101.
+- **Datos reales:** ninguno.
+
 ### Plantilla para la próxima actualización
 
 ```text

@@ -83,7 +83,7 @@ try{
  await pctx.route('https://example.test/**',x=>x.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg"/>'}));
  await pp.goto(base+'/panel/productos');await pp.locator('.sold-out-badge').first().waitFor();
  check('«Mis productos» marks the product as sold out',await pp.locator('.sold-out-badge').count()>=1);
- await pp.goto(base+'/panel/landings/'+f.landing);await pp.getByRole('button',{name:'Producto y página'}).first().click();
+ await pp.goto(base+'/panel/landings/'+f.landing);await pp.getByRole('button',{name:'Producto y página'}).first().click();await pp.locator('.bs summary',{hasText:'Precio'}).first().click();
  check('the landing editor explains that it does not sell while sold out',await pp.getByText('Este producto está agotado en Dropi').isVisible());
  check('no browser errors',errors.length===0);
  console.log(`${checks} stock checks passed against a simulated Dropi catalog. Nothing reached Dropi.`);
