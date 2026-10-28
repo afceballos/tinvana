@@ -97,6 +97,12 @@ $content=['publicPrice'=>59900.0,'variants'=>['items'=>[1=>['price'=>null,'image
 check('a landing sells while one visible variant has stock',App\LandingStock::availability($content,$v)['available']===true&&App\LandingStock::availability($content,$v)['variants']==['2'=>true,'3'=>true]);
 $content['variants']['items']=[1=>['price'=>null,'image'=>'','hidden'=>true],2=>['price'=>null,'image'=>'','hidden'=>true],3=>['price'=>null,'image'=>'','hidden'=>true]];
 check('a landing whose variants are all hidden does not sell',App\LandingStock::availability($content,$v)['available']===false);
+$mail=['ref'=>'A1B2C3D4','order_id'=>'x','first_name'=>'Ana','last_name'=>'P','email'=>'a@example.test','phone'=>'+573001234567','product'=>'Faja','variant'=>'Negro · L','quantity'=>1,'unit_price'=>59900.0,'shipping'=>12000.0,'total'=>71900.0,'address'=>'Calle 1','city'=>'Cali','store'=>'Tienda','reply_to'=>'','panel_url'=>'','message'=>''];
+$m=App\OrderMail::render('buyer_received',$mail+['whatsapp'=>['link'=>'https://wa.me/573000000000?text=Hola%2C%20quiero%20confirmar%20mi%20pedido%20TV-ABC234','code'=>'TV-ABC234','sent'=>false]]);
+check('the order email offers the WhatsApp confirmation with the code',str_contains($m['html'],'Confirmar por WhatsApp')&&str_contains($m['html'],'TV-ABC234')&&str_contains($m['html'],'https://wa.me/573000000000?text=')&&str_contains($m['text'],'https://wa.me/573000000000'));
+$m=App\OrderMail::render('buyer_received',$mail+['whatsapp'=>['link'=>'https://wa.me/573000000000','code'=>null,'sent'=>true]]);
+check('after the summary was sent, the email points to the chat',str_contains($m['html'],'toca «Confirmar pedido»')&&str_contains($m['html'],'Abrir WhatsApp'));
+check('without the WhatsApp step the email stays as before',!str_contains(App\OrderMail::render('buyer_received',$mail)['html'],'WhatsApp')&&!str_contains(App\OrderMail::render('buyer_confirmed',$mail+['whatsapp'=>['link'=>'x','code'=>'TV-1','sent'=>false]])['html'],'WhatsApp'));
 $mediaId='11111111-1111-4111-8111-111111111111';$canonical=rtrim(App\Support::env('APP_URL'),'/');
 check('own local upload follows current public origin',App\Media::rebase('http://127.0.0.1:8080/media/'.$mediaId.'.webp')===$canonical.'/media/'.$mediaId.'.webp');
 check('old temporary upload follows current origin',App\Media::rebase(['blocks'=>[['image'=>'https://old-demo.trycloudflare.com/media/'.$mediaId.'.webp']]])['blocks'][0]['image']===$canonical.'/media/'.$mediaId.'.webp');

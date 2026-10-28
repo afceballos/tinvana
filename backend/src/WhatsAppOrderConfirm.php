@@ -298,6 +298,19 @@ final class WhatsAppOrderConfirm {
   return true;
  }
 
+ /**
+  * WhatsApp step for the «pedido recibido» email, read when the email goes out (not when it was queued): the link with
+  * the code while the store waits for the customer, the chat while the summary waits for an answer, nothing otherwise.
+  * @return array{link:string,code:?string,sent:bool}|null
+  */
+ public static function mailInfo(string $owner,string $orderId): ?array {
+  $row=Database::one('SELECT status,code FROM whatsapp_order_confirmations WHERE order_id=? AND user_id=?',[$orderId,$owner]);
+  if(!$row||!in_array($row['status'],['queued','sending','sent'],true))return null;
+  $a=WhatsAppAccount::ofUser($owner);$phone=$a?self::businessPhone($a):null;if(!$phone)return null;
+  if($row['status']!=='sent'&&$row['code'])return ['link'=>'https://wa.me/'.$phone.'?text='.rawurlencode('Hola, quiero confirmar mi pedido TV-'.$row['code']),'code'=>'TV-'.$row['code'],'sent'=>false];
+  return $row['status']==='sent'?['link'=>'https://wa.me/'.$phone,'code'=>null,'sent'=>true]:null;
+ }
+
  // ---- Order detail ----
 
  public static function forOrder(array $r): array {

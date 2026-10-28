@@ -72,6 +72,7 @@ if($op==='confirm-due'){
  Database::query("UPDATE whatsapp_order_confirmations SET send_after=now()-interval '1 minute' WHERE user_id=? AND status='queued'",[$fixture['owner']]);
  echo 'ok';exit;
 }
+if($op==='mail-info'){echo Support::json(App\WhatsAppOrderConfirm::mailInfo($fixture['owner'],(string)($argv[2]??'')));exit;}
 if($op==='confirm-work'){echo Support::json(App\WhatsAppOrderConfirm::runDue(20));exit;}
 if($op==='feature'){
  $on=($argv[2]??'')==='on';

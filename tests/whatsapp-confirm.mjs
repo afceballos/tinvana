@@ -156,10 +156,12 @@ try{
  let res=await(await lead('3008889900','wa8@example.test')).json();const o8=await orderOf('wa8@example.test');d=await detail(o8.id);
  const code=res.whatsapp?.code;
  check('the form response brings the WhatsApp link with the order code',/^TV-[A-Z2-9]{6}$/.test(code)&&res.whatsapp.link==='https://wa.me/573000000000?text='+encodeURIComponent('Hola, quiero confirmar mi pedido '+code));
+ check('the order email offers WhatsApp with the code while the customer has not written',JSON.parse(await helper('mail-info',o8.id)).code===code);
  check('nothing is sent until the customer writes',!meta.sends.some(s=>s.to==='573008889900')&&d.whatsapp.status==='queued'&&d.whatsapp.waiting_customer===true&&d.whatsapp.hint.includes(code)&&d.order.quote_id===null);
  await text('573118887766','Hola, quiero confirmar mi pedido '+code.toLowerCase());
  const inter=meta.sends.filter(s=>s.to==='573118887766').at(-1);d=await detail(o8.id);
  check('when the customer sends the code the summary goes out with buttons and no template',inter?.type==='interactive'&&inter.interactive.type==='button'&&inter.interactive.action.buttons.map(b=>b.reply.title).join('|')==='Confirmar pedido|Cambiar algo'&&/Ana/.test(inter.interactive.body.text)&&d.whatsapp.status==='sent'&&d.whatsapp.channel==='interactive'&&d.order.quote_id!==null);
+ check('once the summary is sent the email points to the chat',JSON.parse(await helper('mail-info',o8.id)).sent===true);
  check('the reply goes to the number that wrote, even if the form had another one',!meta.sends.some(s=>s.to==='573008889900'));
  chat=await(await owner.ctx.get('/api/whatsapp/conversations/'+d.whatsapp.conversation_id)).json();
  check('the AI did not answer the code message',!chat.messages.some(m=>m.sender==='ai'));
@@ -168,6 +170,7 @@ try{
  await press('573118887766',inter.interactive.action.buttons[0].reply.id,'Confirmar pedido','wamid.NOT-OURS');
  check('an interactive tap with a foreign context does not confirm',(await detail(o8.id)).order.sale_status==='draft');
  await press('573118887766',inter.interactive.action.buttons[0].reply.id,'Confirmar pedido',inter.wamid);d=await detail(o8.id);
+ check('after confirming the email no longer asks for it',(await helper('mail-info',o8.id)).trim()==='null');
  check('the interactive «Confirmar pedido» confirms the order with that evidence',d.order.sale_status==='confirmed'&&d.order.confirmation.method==='whatsapp_button'&&d.order.confirmation.template_wamid===inter.wamid&&/confirmado/.test(lastText('573118887766')));
  // Fallback: the customer does not write
  res=await(await lead('3009990000','wa9@example.test')).json();const o9=await orderOf('wa9@example.test');

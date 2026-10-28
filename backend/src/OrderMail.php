@@ -78,6 +78,10 @@ final class OrderMail {
   $row=fn(string $k,string $v,bool $strong=false)=>'<tr><td style="padding:10px 0;border-top:1px solid #ffe0cd;font-size:14px;color:#75665c">'.$e($k).'</td><td align="right" style="padding:10px 0;border-top:1px solid #ffe0cd;font-size:'.($strong?'16px;font-weight:bold;color:#1e1e1e':'14px;color:#3b3029').'">'.$e($v).'</td></tr>';
   $body='<p style="font-size:16px;line-height:1.7;margin:0 0 22px;color:#3b3029">'.$e($intro).'</p>';
   if(!$owner&&trim((string)$d['message'])!=='')$body.='<div style="margin:0 0 22px;padding:16px 18px;background:#fff8f1;border:1px solid #ffe0cd;border-radius:14px;font-size:15px;line-height:1.6;color:#3b3029">'.nl2br($e($d['message'])).'</div>';
+  // WhatsApp step of the order confirmation (only while the customer has not confirmed; see WhatsAppOrderConfirm::mailInfo).
+  $wa=$kind==='buyer_received'&&is_array($d['whatsapp']??null)?$d['whatsapp']:null;
+  $waText=$wa?($wa['sent']?'Te enviamos el resumen de tu pedido por WhatsApp. Ábrelo y toca «Confirmar pedido» para que lo preparemos.':'¿Quieres confirmarlo más rápido? Escríbenos por WhatsApp con tu código '.$wa['code'].' y te enviamos el resumen al instante.'):'';
+  if($wa)$body.='<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 22px;background:#e9f8ef;border:1px solid #bfe8cf;border-radius:14px"><tr><td style="padding:16px 18px"><p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#14532d">'.$e($waText).'</p><table role="presentation" cellpadding="0" cellspacing="0"><tr><td bgcolor="#128c4a" style="border-radius:12px"><a href="'.$e($wa['link']).'" style="display:inline-block;padding:14px 22px;color:#ffffff;font-size:15px;font-weight:bold;text-decoration:none">'.($wa['sent']?'Abrir WhatsApp':'Confirmar por WhatsApp').'</a></td></tr></table></td></tr></table>';
   $body.='<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;border:1px solid #ffe0cd;border-radius:14px"><tr><td style="padding:16px 18px"><p style="margin:0 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#974000;font-weight:bold">Resumen del pedido · #'.$e($d['ref']).'</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
    .$row('Producto',$d['product'].($d['variant']!==''?' · '.$d['variant']:''))
    .$row('Cantidad',(string)$d['quantity'])
@@ -91,7 +95,7 @@ final class OrderMail {
   else $body.='<p style="font-size:13px;line-height:1.6;margin:0;color:#75665c">¿Tienes preguntas? Responde a este correo y te atenderá '.$e($store).'.</p>';
   $footer=$owner?'Tinvana · Ideas que toman vuelo.':$store.' · Enviado con Tinvana';
   $subject=$owner?'Nuevo pedido #'.$d['ref'].' · '.$d['product']:$title.' · '.$store;
-  $text=$title."\n\n".$intro."\n\n".(!$owner&&trim((string)$d['message'])!==''?$d['message']."\n\n":'')
+  $text=$title."\n\n".$intro."\n\n".(!$owner&&trim((string)$d['message'])!==''?$d['message']."\n\n":'').($wa?$waText."\n".$wa['link']."\n\n":'')
    ."Pedido #".$d['ref']."\nProducto: ".$d['product'].($d['variant']!==''?' · '.$d['variant']:'')."\nCantidad: ".$d['quantity']."\nPrecio por unidad: ".self::money($d['unit_price'])."\nEnvío: ".self::money($d['shipping'])."\nTotal: ".self::money($d['total'])
    ."\n\nEntrega: ".$d['address'].', '.$d['city'].($owner?"\n\nVer pedido: ".$d['panel_url']:'');
   return ['subject'=>$subject,'html'=>AccountMail::layout($title,$title.' · #'.$d['ref'],$body,$footer),'text'=>$text];
@@ -106,6 +110,7 @@ final class OrderMail {
  public static function preview(string $owner,string $kind,?array $settings=null): array {
   if(!in_array($kind,self::KINDS,true))throw new HttpError(404,'Correo no disponible.');
   $d=self::sample($owner);if($settings){$d['store']=self::senderName((string)($settings['sender_name']??$d['store']));$m=$settings['messages'][$kind]??'';$d['message']=is_string($m)?mb_substr($m,0,500):'';}else $d['message']=self::settings($owner)['messages'][$kind]??'';
+  if($kind==='buyer_received'&&($act=WhatsAppOrderConfirm::active($owner))&&$act['phone'])$d['whatsapp']=['link'=>'https://wa.me/'.$act['phone'],'code'=>'TV-ABC234','sent'=>false];
   $r=self::render($kind,$d);$r['html']=str_replace('cid:tinvana-logo','/brand/tinvana-mail.png',$r['html']);return $r;
  }
  /** Sends the sample email to the owner's notification address right away. */
@@ -124,7 +129,7 @@ final class OrderMail {
    try{$r=Database::one("SELECT * FROM order_mail m WHERE (m.status='pending' AND m.next_attempt_at<=now()) OR (m.status='processing' AND m.locked_at<now()-interval '3 minutes') ORDER BY m.created_at FOR UPDATE OF m SKIP LOCKED LIMIT 1");if(!$r){$db->commit();break;}Database::query("UPDATE order_mail SET status='processing',locked_at=now(),updated_at=now() WHERE id=?",[$r['id']]);$db->commit();}
    catch(\Throwable $e){$db->rollBack();throw $e;}
    $attempt=(int)$r['attempts']+1;
-   try{$d=json_decode(Crypto::decrypt((string)$r['payload_ciphertext'],'order-mail:'.$r['id']),true,32,JSON_THROW_ON_ERROR);AccountMail::deliver($d['to'],self::render($r['kind'],$d),'order-mail-'.$r['id'],$d['store'],$r['kind']==='owner_new_order'?'':$d['reply_to']);
+   try{$d=json_decode(Crypto::decrypt((string)$r['payload_ciphertext'],'order-mail:'.$r['id']),true,32,JSON_THROW_ON_ERROR);if($r['kind']==='buyer_received')$d['whatsapp']=WhatsAppOrderConfirm::mailInfo((string)$r['user_id'],(string)$r['order_id']);AccountMail::deliver($d['to'],self::render($r['kind'],$d),'order-mail-'.$r['id'],$d['store'],$r['kind']==='owner_new_order'?'':$d['reply_to']);
     Database::query("UPDATE order_mail SET status='sent',payload_ciphertext=null,attempts=?,locked_at=null,last_error=null,updated_at=now() WHERE id=?",[$attempt,$r['id']]);$sent++;}
    catch(\Throwable $failure){error_log('Tinvana order mail: '.AccountMail::describe($failure));$final=$attempt>=5;
     Database::query("UPDATE order_mail SET status=?,attempts=?,locked_at=null,next_attempt_at=now()+(? * interval '1 second'),last_error='No fue posible enviar el correo con el proveedor configurado.',updated_at=now() WHERE id=?",[$final?'failed':'pending',$attempt,min(900,60*2**($attempt-1)),$r['id']]);

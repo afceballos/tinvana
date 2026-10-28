@@ -39,7 +39,21 @@ const purchase=document.querySelector<HTMLDialogElement>('#purchase-dialog');
 let trigger:HTMLElement|null=null;let closing=false;let overflow='';
 // Resolves once the dialog is really closed and the page scroll restored, so anything opened next sees the true state.
 function closePurchase():Promise<void>{if(!purchase?.open||closing)return Promise.resolve();closing=true;const finish=()=>{purchase.close();document.body.style.overflow=overflow;trigger?.focus();closing=false;};if(reduced()){finish();return Promise.resolve();}return purchase.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(12px)'}],{duration:170,easing:'ease-in'}).finished.then(finish,finish);}
-function openPurchase(button:HTMLElement){if(!purchase||purchase.open)return;setQuantity(quantity);trigger=button;overflow=document.body.style.overflow;document.body.style.overflow='hidden';purchase.showModal();purchase.querySelector<HTMLInputElement>('input[name=first_name]')?.focus();if(!reduced())purchase.animate([{opacity:0,transform:'translateY(24px) scale(.98)'},{opacity:1,transform:'none'}],{duration:320,easing:ease});}
+// After a saved order the form starts clean for the next one: fields enabled and empty, quantity 1 and a new request
+// id (the previous id keeps protecting that order against a double send). The chosen variant stays.
+let leadSaved=false;
+function newRequestId(){if(crypto.randomUUID)return crypto.randomUUID();const b=crypto.getRandomValues(new Uint8Array(16));b[6]=b[6]&15|64;b[8]=b[8]&63|128;const h=[...b].map(x=>x.toString(16).padStart(2,'0')).join('');return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20);}
+function resetLeadForm(){
+ const lead=document.querySelector<HTMLFormElement>('#lead-form');if(!lead||!leadSaved)return;leadSaved=false;
+ const keep=variantPicker?.variant?.options||null;lead.reset();
+ lead.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input:not([type=hidden]),select').forEach(input=>input.disabled=false);
+ const key=lead.querySelector<HTMLInputElement>('[name=idempotency_key]');if(key)key.value=newRequestId();
+ const send=lead.querySelector<HTMLButtonElement>('button[type=submit]');if(send){send.disabled=false;send.textContent='Enviar solicitud';}
+ const state=lead.querySelector<HTMLElement>('#lead-status');if(state){state.textContent='';delete state.dataset.state;}
+ lead.dispatchEvent(new Event('lead-reset'));for(const name of ['country_code','department_code','city_code'])lead.querySelector('[name='+name+']')?.dispatchEvent(new Event('change'));
+ if(keep)pickers.forEach(p=>p.select(keep));submitting=false;setQuantity(1);
+}
+function openPurchase(button:HTMLElement){if(!purchase||purchase.open)return;resetLeadForm();setQuantity(quantity);trigger=button;overflow=document.body.style.overflow;document.body.style.overflow='hidden';purchase.showModal();purchase.querySelector<HTMLInputElement>('input[name=first_name]')?.focus();if(!reduced())purchase.animate([{opacity:0,transform:'translateY(24px) scale(.98)'},{opacity:1,transform:'none'}],{duration:320,easing:ease});}
 // Stock: the page starts from the saved copy (data-stock); tapping «Comprar» asks the server, which checks Dropi at most
 // once per 10 minutes per product. Sold out: the buy buttons look disabled, the form does not open and a short notice
 // explains why. If the check fails the form opens as usual (the server checks again when the form is sent).
@@ -83,7 +97,7 @@ form?.addEventListener('submit',async event=>{
  event.preventDefault();if(submitting||preview)return;if(variantPicker&&!variantPicker.validate())return;setQuantity(quantity);submitting=true;
  const status=document.querySelector<HTMLElement>('#lead-status')!;const button=form.querySelector<HTMLButtonElement>('button[type=submit]')!;
  button.disabled=true;button.textContent='Enviando solicitud…';form.setAttribute('aria-busy','true');status.dataset.state='pending';status.textContent='Guardando tu solicitud…';
- try{const payload=Object.fromEntries(new FormData(form));const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':String(payload.csrf)},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok){if(result.sold_out){markSoldOut();window.setTimeout(()=>{void closePurchase().then(()=>stockNotice(soldOutText));},1600);}if(result.sold_out_variant)pickers.forEach(p=>p.setAvailability({[result.sold_out_variant]:false}));throw new Error(result.error||'No se pudo guardar la solicitud.');}status.dataset.state='success';status.textContent=result.message;button.textContent='Solicitud recibida';form.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input:not([type=hidden]),select').forEach(input=>input.disabled=true);form.dispatchEvent(new Event('lead-saved'));if(purchase?.open){const returnTo=trigger;void closePurchase().then(()=>showLeadSuccess(reduced(),returnTo,result.whatsapp?.link?result.whatsapp:null));}}
+ try{const payload=Object.fromEntries(new FormData(form));const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':String(payload.csrf)},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok){if(result.sold_out){markSoldOut();window.setTimeout(()=>{void closePurchase().then(()=>stockNotice(soldOutText));},1600);}if(result.sold_out_variant)pickers.forEach(p=>p.setAvailability({[result.sold_out_variant]:false}));throw new Error(result.error||'No se pudo guardar la solicitud.');}leadSaved=true;status.dataset.state='success';status.textContent=result.message;button.textContent='Solicitud recibida';form.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input:not([type=hidden]),select').forEach(input=>input.disabled=true);form.dispatchEvent(new Event('lead-saved'));if(purchase?.open){const returnTo=trigger;void closePurchase().then(()=>showLeadSuccess(reduced(),returnTo,result.whatsapp?.link?result.whatsapp:null));}}
  catch(error){status.dataset.state='error';status.textContent=(error as Error).message;button.disabled=false;button.textContent='Reintentar solicitud';submitting=false;}
  finally{form.setAttribute('aria-busy','false');}
 });

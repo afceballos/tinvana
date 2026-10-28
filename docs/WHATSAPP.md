@@ -212,6 +212,12 @@ Documentación oficial consultada el 2026-10-27 (mensajes interactivos con boton
 - Comprobado (local): `whatsapp-confirm.mjs` 59 (enlace y código, nada antes de que escriba, mensaje interactivo al número que escribió, código repetido, contexto ajeno, confirmación por botón interactivo, respaldo con plantilla, envío inmediato desde el pedido, sin plantilla, popup y «Ahora no»).
 
 
+### Correo «Recibimos tu pedido» con WhatsApp (2026-10-28)
+
+- Al enviarse el correo (`mail:work`), `WhatsAppOrderConfirm::mailInfo` lee el estado de la confirmación: si el cliente aún no escribió, el correo incluye «¿Quieres confirmarlo más rápido?» y el botón «Confirmar por WhatsApp» con su código; si ya se le envió el resumen, el botón «Abrir WhatsApp» con el aviso de tocar «Confirmar pedido»; si ya confirmó (u otra situación), nada. La vista previa de Correos muestra el bloque cuando la tienda usa el paso «el cliente escribe primero».
+- Requisitos para ver el botón del popup y el aviso del formulario: confirmaciones activas en Ventas WhatsApp → Confirmaciones, «Primero invitar al cliente a escribirte» encendido y el número guardado con «Probar conexión».
+
+
 ### Configuración en Meta (cuando se autorice el piloto real)
 
 1. En la app de Meta: WhatsApp → Configuración → Webhook: URL `https://<dominio>/whatsapp/webhook` y el mismo `WHATSAPP_VERIFY_TOKEN` del servidor; suscribir el campo `messages`.

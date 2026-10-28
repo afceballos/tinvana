@@ -32,7 +32,7 @@ export function prepareLeadForm(form:HTMLFormElement,modal:HTMLDialogElement|nul
    input.addEventListener('countrychange',sync);input.addEventListener('input',()=>{if(fallback.value)input.setCustomValidity('');});sync();form.classList.add('is-phone-enhanced');
    // A hidden invalid control would block the submit silently ("not focusable"): report it on the visible phone field.
    fallback.addEventListener('invalid',event=>{event.preventDefault();sync();if(fallback.checkValidity()){setTimeout(()=>form.requestSubmit());return;}input.setCustomValidity('Selecciona el país de tu teléfono.');input.setAttribute('aria-invalid','true');input.reportValidity();});
-   form.addEventListener('lead-saved',()=>instance.setDisabled(true));modal?.addEventListener('close',()=>instance.closeCountrySelector());
+   form.addEventListener('lead-saved',()=>instance.setDisabled(true));form.addEventListener('lead-reset',()=>{instance.setDisabled(false);instance.setNumber('');sync();});modal?.addEventListener('close',()=>instance.closeCountrySelector());
    window.addEventListener('pagehide',()=>{stopFloating();instance.destroy();},{once:true});
   }catch{ /* Keep the native country selector if enhancement is unavailable. */ }
  }

@@ -85,6 +85,13 @@ try{
    await m.getByRole('radio',{name:/^S$/}).check();await p.waitForFunction(()=>/[0-9]/.test(document.querySelector('[data-summary-shipping]')?.textContent||''));
    const sent=p.waitForResponse(x=>x.url().endsWith('/lead'));await m.getByRole('button',{name:/Enviar solicitud/}).click();
    check('the buyer completes the order with the chosen variant',(await sent).status()===202&&(await orderOf('variante-ui@example.test')).order.variant_data.label==='Beige · S');
+   const firstKey=await m.locator('[name=idempotency_key]').inputValue();await p.locator('dialog.lead-success .ls-button').click();await p.locator('dialog.lead-success').waitFor({state:'detached'});
+   await p.locator('[data-buy]').first().click();await m.locator('.vp').first().waitFor();
+   check('after an order the form starts clean for the next one',(await m.locator('[name=first_name]').inputValue())===''&&await m.locator('[name=first_name]').isEnabled()&&(await m.locator('[name=address]').inputValue())===''&&(await m.locator('[name=idempotency_key]').inputValue())!==firstKey&&(await m.getByRole('button',{name:/Enviar solicitud/}).isEnabled())&&(await m.locator('[data-lead-variant]').inputValue())==='504');
+   await m.locator('[name=first_name]').fill('Ana');await m.locator('[name=last_name]').fill('Segundo');await m.locator('[name=email]').fill('variante-ui2@example.test');await m.locator('[name=phone]').fill('3001234567');
+   await m.locator('[name=department_code]').selectOption('05');await m.locator('[name=city_code]').selectOption('05001');await m.locator('[name=address]').fill('Calle 1 # 2-3');
+   const second=p.waitForResponse(x=>x.url().endsWith('/lead'));await m.getByRole('button',{name:/Enviar solicitud/}).click();
+   check('a second order can be sent without reloading the page',(await second).status()===202&&(await orderOf('variante-ui2@example.test')).order.variant_data.label==='Beige · S');
    await p.goto(base+'/p/'+f.slug);const box=p.locator('.purchase-box .vp-box');await box.waitFor();
    check('the purchase box shows the variants with the first available chosen and its stock',await box.getByRole('radio',{name:'Negro'}).isChecked()&&await box.getByRole('radio',{name:/^S$/}).isChecked()&&(await box.locator('[data-vp-stock]').innerText()).includes('40'));
    await box.getByRole('radio',{name:/^M$/}).check();

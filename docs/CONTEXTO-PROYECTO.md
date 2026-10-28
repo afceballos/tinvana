@@ -815,6 +815,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado (local, servidor aislado en 8091):** `landing-variants.mjs` 38, `landing-stock.mjs` 24, `template-design.mjs` 10, `builder`, `landing-design` 40, `owner-edit` 12, `lead-success` 12, `dropi-shipping` 20, `orders` 38, `product-list`, `whatsapp-confirm` 59, `delivery-ui`, `dropi-block`; `run.php` 80, `blocks.php` 101.
 - **Datos reales:** ninguno.
 
+### 2026-10-28 · Formulario que se reinicia y correo con WhatsApp
+- **Reportes del usuario:** el formulario de las landings no se reiniciaba después de enviar (no permitía otro pedido) y pidió que el correo de pedido recibido ofrezca confirmar por WhatsApp si el cliente no lo hizo.
+- **Cambio:** tras un pedido guardado, al volver a tocar «Comprar» el formulario empieza limpio (campos habilitados y vacíos, cantidad 1, identificador nuevo; la variante elegida se conserva); el pedido anterior sigue protegido contra doble envío. El correo «Recibimos tu pedido» incluye el paso de WhatsApp según el estado al enviarse (ver [WHATSAPP.md](WHATSAPP.md)).
+- **Comprobado (local):** `run.php` 83 (3 nuevas del correo), `whatsapp-confirm.mjs` 62, `landing-variants.mjs` 40 (incluye un segundo pedido sin recargar), `order-mail` 23, `lead-success` 12, `lead-phone-country` 6, `delivery-ui`, `builder`, `landing-stock` 24, `dropi-shipping` 20. Correo revisado en captura.
+- **Datos reales:** ninguno; no se envió ningún correo.
+
 ### Plantilla para la próxima actualización
 
 ```text
