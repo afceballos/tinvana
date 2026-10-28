@@ -21,10 +21,13 @@ final class Leads {
  }
  public static function save(array $landing,array $b): array {
   $v=self::validate($b);$r=Landing::decode($landing);$c=$r['content'];$p=$r['product_snapshot'];
+  // Live stock with Dropi before saving (the buyer may have spent minutes on the form); a failure keeps the saved copy.
+  $stock=LandingStock::check($r,true);if(!$stock['available'])throw new HttpError(409,LandingStock::SOLD_OUT,['sold_out'=>true]);
   $quantity=filter_var($b['quantity']??1,FILTER_VALIDATE_INT);$max=$c['commerce']['quantityEnabled']?$c['commerce']['maxQuantity']:1;if($quantity===false||$quantity<1||$quantity>$max)throw new HttpError(422,'Cantidad inválida.');
   // The chosen variant sets the unit price (its own or the landing price); the browser only sends its id.
-  $variant=LandingVariants::chosen($c,$p,$b);$data=self::productData($r,$quantity);
-  if($variant){$data['variant']=['id'=>$variant['id'],'label'=>$variant['label'],'options'=>$variant['options']];$data['variant_id']=$variant['id'];$data['variant_label']=$variant['label'];$data['public_price']=$data['unit_price']=$data['inflated_price']=$variant['price'];$data['total']=round($variant['price']*$quantity,2);if($variant['image'])$data['image']=$variant['image'];}
+  $variant=LandingVariants::chosen($c,$p,$b);
+  if($variant&&($stock['variants'][$variant['id']]??true)===false)throw new HttpError(409,'Esa opción se agotó. Elige otra, por favor.',['sold_out_variant'=>$variant['id']]);$data=self::productData($r,$quantity);
+  if($variant){$data['variant']=['id'=>$variant['id'],'label'=>$variant['label'],'options'=>$variant['options']];$data['variant_id']=$variant['id'];$data['variant_label']=$variant['label'];if($variant['price']!==null){$data['public_price']=$data['unit_price']=$data['inflated_price']=$variant['price'];$data['total']=round($variant['price']*$quantity,2);}if($variant['image'])$data['image']=$variant['image'];}
   // Freight is quoted again on the server (never trusted from the browser); without a quote the lead is still saved.
   if(($c['commerce']['dropiShipping']??false)===true){$q=DropiShipping::forLanding($r,$v['delivery']['city_code'],$quantity,$variant['price']??null);$data['shipping_source']='dropi';$data['shipping_price']=$q['amount']??null;$data['shipping_carrier']=$q['carrier']??null;$data['grand_total']=$q!==null&&$data['total']!==null?round($data['total']+$q['amount'],2):null;}
   $db=Database::connection();$db->beginTransaction();try{

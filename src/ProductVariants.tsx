@@ -1,6 +1,11 @@
 import {money} from './api';
 import type {ProductVariant} from './types';
+import type {Product} from './types';
 import './product-variants.css';
+
+/** Sold out in Dropi: stock exactly 0, or every variant at 0. Unknown stock is not sold out (same rule as the server). */
+export function isSoldOut(p:Pick<Product,'stock'|'variants'>){const v=p.variants||[];return v.length?v.every(x=>x.stock===0):p.stock===0;}
+export const SoldOutBadge=({className=''}:{className?:string})=><span className={'sold-out-badge '+className}>Agotado</span>;
 
 /** Variants of a Dropi product: its options as chips and a compact table with price, suggested price and stock. */
 export function ProductVariants({variants}:{variants:ProductVariant[]}){

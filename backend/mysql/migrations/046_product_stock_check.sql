@@ -1,0 +1,1 @@
+ALTER TABLE selected_products ADD COLUMN stock_checked_at DATETIME(6) NULL

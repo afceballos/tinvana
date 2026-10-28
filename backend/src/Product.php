@@ -30,6 +30,12 @@ final class Product {
   }
   return $out;
  }
+ /** Sold out in Dropi: stock exactly 0, or every variant at 0. Unknown stock (null) is not sold out. */
+ public static function soldOut(array $mapped): bool {
+  $variants=is_array($mapped['variants']??null)?$mapped['variants']:[];
+  if($variants){foreach($variants as $v)if(($v['stock']??null)===null||(float)$v['stock']>0)return false;return true;}
+  return ($mapped['stock']??null)!==null&&(float)$mapped['stock']<=0;
+ }
  public static function map(array $r): array {
   $gallery=$r['gallery']??[];usort($gallery,fn($a,$b)=>(int)!in_array($a['main']??false,[true,1,'1'],true)<=>(int)!in_array($b['main']??false,[true,1,'1'],true));
   $images=array_values(array_unique(array_filter(array_map(fn($i)=>self::image($i['urlS3']??null)??self::image($i['url']??null),$gallery))));

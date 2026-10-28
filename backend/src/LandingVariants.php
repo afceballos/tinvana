@@ -54,7 +54,6 @@ final class LandingVariants {
   elseif(is_array($b['variant_option']??null)){$want=$b['variant_option'];foreach($list as $v){$ok=true;foreach($v['options'] as $n=>$val)if(($want[$n]??null)!==$val)$ok=false;if($ok){$picked=$v;break;}}}
   if(!$picked)throw new HttpError(422,'Elige '.mb_strtolower(implode(' y ',array_keys(self::options($list)))).' antes de enviar tu pedido.');
   if(!$picked['available'])throw new HttpError(422,'Esa opción está agotada. Elige otra, por favor.');
-  if($picked['price']===null)throw new HttpError(422,'Esta opción aún no tiene precio. Escríbenos para ayudarte.');
   return $picked;
  }
  /** Picker for the purchase dialog: one group of choices per option, plus the data the runtime uses. */

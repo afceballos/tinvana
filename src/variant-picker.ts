@@ -41,5 +41,7 @@ export function initVariantPicker(root:HTMLElement,onChange:(variant:PickedVaria
    return false;
   },
   get variant(){return current;},
+  /** Stock just read from Dropi: variants that ran out are marked as sold out (and unchosen if they were chosen). */
+  setAvailability(map:Record<string,boolean>){for(const v of variants)if(v.id in map)v.available=map[v.id];refresh();},
  };
 }

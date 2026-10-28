@@ -31,7 +31,31 @@ const purchase=document.querySelector<HTMLDialogElement>('#purchase-dialog');
 let trigger:HTMLElement|null=null;let closing=false;let overflow='';
 // Resolves once the dialog is really closed and the page scroll restored, so anything opened next sees the true state.
 function closePurchase():Promise<void>{if(!purchase?.open||closing)return Promise.resolve();closing=true;const finish=()=>{purchase.close();document.body.style.overflow=overflow;trigger?.focus();closing=false;};if(reduced()){finish();return Promise.resolve();}return purchase.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(12px)'}],{duration:170,easing:'ease-in'}).finished.then(finish,finish);}
-document.querySelectorAll<HTMLButtonElement>('[data-buy]').forEach(button=>button.addEventListener('click',()=>{if(!purchase||purchase.open)return;setQuantity(quantity);trigger=button;overflow=document.body.style.overflow;document.body.style.overflow='hidden';purchase.showModal();purchase.querySelector<HTMLInputElement>('input[name=first_name]')?.focus();if(!reduced())purchase.animate([{opacity:0,transform:'translateY(24px) scale(.98)'},{opacity:1,transform:'none'}],{duration:320,easing:ease});}));
+function openPurchase(button:HTMLElement){if(!purchase||purchase.open)return;setQuantity(quantity);trigger=button;overflow=document.body.style.overflow;document.body.style.overflow='hidden';purchase.showModal();purchase.querySelector<HTMLInputElement>('input[name=first_name]')?.focus();if(!reduced())purchase.animate([{opacity:0,transform:'translateY(24px) scale(.98)'},{opacity:1,transform:'none'}],{duration:320,easing:ease});}
+// Stock: the page starts from the saved copy (data-stock); tapping «Comprar» asks the server, which checks Dropi at most
+// once per 10 minutes per product. Sold out: the buy buttons look disabled, the form does not open and a short notice
+// explains why. If the check fails the form opens as usual (the server checks again when the form is sent).
+const stockUrl=document.querySelector<HTMLFormElement>('#lead-form')?.action.replace(/\/lead$/,'/stock')||'';let stockCheckedAt=0;let toastTimer=0;
+function stockNotice(text:string){let toast=document.querySelector<HTMLElement>('.stock-toast');if(!toast){toast=document.createElement('div');toast.className='stock-toast';toast.setAttribute('role','status');toast.setAttribute('aria-live','polite');document.body.append(toast);}toast.textContent=text;toast.classList.add('is-visible');window.clearTimeout(toastTimer);toastTimer=window.setTimeout(()=>toast?.classList.remove('is-visible'),3800);}
+function markSoldOut(){document.body.dataset.stock='out';document.querySelectorAll<HTMLButtonElement>('[data-buy]').forEach(button=>{button.setAttribute('aria-disabled','true');button.classList.add('is-sold-out');if(!button.dataset.label)button.dataset.label=button.innerHTML;button.textContent='Agotado';});}
+// Back in stock: the buttons recover their original label and work again.
+function markInStock(){document.body.dataset.stock='in';document.querySelectorAll<HTMLButtonElement>('[data-buy]').forEach(button=>{button.removeAttribute('aria-disabled');button.classList.remove('is-sold-out');if(button.dataset.label){button.innerHTML=button.dataset.label;delete button.dataset.label;}});}
+const soldOutText='Este producto no tiene unidades disponibles por ahora.';
+if(document.body.dataset.stock==='out'&&!preview)markSoldOut();
+document.querySelectorAll<HTMLButtonElement>('[data-buy]').forEach(button=>button.addEventListener('click',async()=>{
+ if(button.getAttribute('aria-busy')==='true')return;
+ // A sold-out page also asks again (the server reuses Dropi's answer 10 minutes), so restocked products sell again.
+ if(document.body.dataset.stock==='out'&&!preview&&Date.now()-stockCheckedAt<=600000){stockNotice(soldOutText);return;}
+ if(!preview&&stockUrl&&Date.now()-stockCheckedAt>600000){
+  let label=button.innerHTML;button.setAttribute('aria-busy','true');button.style.minWidth=button.offsetWidth+'px';button.textContent='Verificando…';
+  const ctl=new AbortController();const timer=window.setTimeout(()=>ctl.abort(),7000);
+  try{const r=await fetch(stockUrl,{credentials:'same-origin',signal:ctl.signal,headers:{Accept:'application/json'}});const s=await r.json();if(r.ok){stockCheckedAt=Date.now();if(s.available===false){button.innerHTML=label;button.removeAttribute('aria-busy');markSoldOut();stockNotice(s.message||soldOutText);return;}if(document.body.dataset.stock==='out'){label=button.dataset.label||label;markInStock();}if(s.variants)variantPicker?.setAvailability(s.variants);}}
+  catch{/* Unknown stock: the form opens and the server checks again on submit. */}
+  finally{window.clearTimeout(timer);if(button.getAttribute('aria-busy')==='true'){button.innerHTML=label;button.removeAttribute('aria-busy');button.style.minWidth='';}}
+ }
+ if(document.body.dataset.stock==='out'&&!preview){stockNotice(soldOutText);return;}
+ openPurchase(button);
+}));
 purchase?.addEventListener('cancel',event=>{event.preventDefault();closePurchase();});
 document.querySelector('[data-close-purchase]')?.addEventListener('click',closePurchase);
 purchase?.addEventListener('click',event=>{if(event.target===purchase){const r=purchase.getBoundingClientRect();const e=event as MouseEvent;if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closePurchase();}});
@@ -51,7 +75,7 @@ form?.addEventListener('submit',async event=>{
  event.preventDefault();if(submitting||preview)return;if(variantPicker&&!variantPicker.validate())return;setQuantity(quantity);submitting=true;
  const status=document.querySelector<HTMLElement>('#lead-status')!;const button=form.querySelector<HTMLButtonElement>('button[type=submit]')!;
  button.disabled=true;button.textContent='Enviando solicitud…';form.setAttribute('aria-busy','true');status.dataset.state='pending';status.textContent='Guardando tu solicitud…';
- try{const payload=Object.fromEntries(new FormData(form));const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':String(payload.csrf)},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok)throw new Error(result.error||'No se pudo guardar la solicitud.');status.dataset.state='success';status.textContent=result.message;button.textContent='Solicitud recibida';form.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input:not([type=hidden]),select').forEach(input=>input.disabled=true);form.dispatchEvent(new Event('lead-saved'));if(purchase?.open){const returnTo=trigger;void closePurchase().then(()=>showLeadSuccess(reduced(),returnTo,result.whatsapp?.link?result.whatsapp:null));}}
+ try{const payload=Object.fromEntries(new FormData(form));const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':String(payload.csrf)},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok){if(result.sold_out){markSoldOut();window.setTimeout(()=>{void closePurchase().then(()=>stockNotice(soldOutText));},1600);}if(result.sold_out_variant)variantPicker?.setAvailability({[result.sold_out_variant]:false});throw new Error(result.error||'No se pudo guardar la solicitud.');}status.dataset.state='success';status.textContent=result.message;button.textContent='Solicitud recibida';form.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input:not([type=hidden]),select').forEach(input=>input.disabled=true);form.dispatchEvent(new Event('lead-saved'));if(purchase?.open){const returnTo=trigger;void closePurchase().then(()=>showLeadSuccess(reduced(),returnTo,result.whatsapp?.link?result.whatsapp:null));}}
  catch(error){status.dataset.state='error';status.textContent=(error as Error).message;button.disabled=false;button.textContent='Reintentar solicitud';submitting=false;}
  finally{form.setAttribute('aria-busy','false');}
 });

@@ -802,6 +802,13 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Datos reales:** ninguno. El formato de las variantes viene del diagnóstico real del producto 2261687.
 - **Siguiente paso:** desplegar, «Actualizar desde Dropi» en el producto con variantes, ajustar precios y fotos en su landing y hacer un pedido de prueba.
 
+### 2026-10-28 · Productos agotados
+- **Pedido del usuario:** no vender productos agotados: botón desactivado, sin abrir el formulario y con un aviso pequeño; revisar el stock al tocar «Comprar» y al enviar el formulario (no en cada visita), y no dejar agregar productos agotados.
+- **Cambio:** revisión con Dropi al tocar «Comprar» (reutilizada 10 minutos por producto) y siempre al enviar el formulario; la copia nueva actualiza el producto y sus landings; landing agotada con botones «Agotado» y aviso; Explorar productos, Mis productos y el editor marcan «Agotado». Migración PostgreSQL 029 / MySQL 046. Detalle en [BUILDER.md](BUILDER.md).
+- **Comprobado (local, servidor aislado en 8091, catálogo de Dropi simulado):** `landing-stock.mjs` 24 (nueva; incluye la reactivación cuando vuelve el stock), `run.php` 80; `landing-variants` 33, `whatsapp-confirm` 59, `orders` 38, `order-editing` 52, `dropi-orders` 36, `dropi-shipping` 20, `order-mail` 23, `lead-success` 12, `builder`, `landing-design` 40, `product-list`, `delivery-ui`.
+- **Datos reales:** ninguno. En producción cada revisión es una búsqueda de solo lectura en el catálogo de Dropi con el token de la tienda.
+- **Siguiente paso:** desplegar y aplicar `migrate` (MySQL 043 a 046).
+
 ### Plantilla para la próxima actualización
 
 ```text

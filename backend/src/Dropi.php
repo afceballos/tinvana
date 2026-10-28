@@ -43,7 +43,8 @@ final class Dropi {
   }
   return is_string($value)&&$secret!==''?str_replace($secret,'[redacted]',$value):$value;
  }
- public static function request(array $integration,array $params=[],bool $categories=false): array {
+ /** $timeout: total seconds for the call (the stock check from a landing uses a short one). */
+ public static function request(array $integration,array $params=[],bool $categories=false,int $timeout=20): array {
   $token=Crypto::decrypt($integration['token_ciphertext'],$integration['id'].':'.$integration['user_id']);
   if($token===''||strlen($token)>4096||preg_match('/[\r\n]/',$token))throw new HttpError(422,'Token de integración inválido.');
   $payload=$categories?null:self::payload($params);
@@ -52,7 +53,7 @@ final class Dropi {
   $test=Support::env('DROPI_CATALOG_URL');if(!$categories&&$test!==''&&Support::env('APP_ENV')!=='production'&&preg_match('~^https://127\.0\.0\.1:[0-9]{2,5}/[a-z/]*$~D',$test))$url=$test;
   $c=curl_init($url);
   curl_setopt_array($c,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_ENCODING=>'',CURLOPT_HTTP_VERSION=>CURL_HTTP_VERSION_1_1,
-   CURLOPT_CONNECTTIMEOUT=>8,CURLOPT_TIMEOUT=>20,CURLOPT_USERAGENT=>'WordPress/6.5; https://zenzales.com',
+   CURLOPT_CONNECTTIMEOUT=>min(8,$timeout),CURLOPT_TIMEOUT=>$timeout,CURLOPT_USERAGENT=>'WordPress/6.5; https://zenzales.com',
    CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,
    CURLOPT_HTTPHEADER=>['Content-Type: application/json','Accept: application/json','dropi-integration-key: '.$token]]);
   if(Support::env('HTTP_CA_BUNDLE')!=='')curl_setopt($c,CURLOPT_CAINFO,Support::env('HTTP_CA_BUNDLE'));
@@ -65,9 +66,9 @@ final class Dropi {
   if(!is_array($json)||($json['isSuccess']??true)===false||!isset($json['objects'])||!is_array($json['objects']))throw new HttpError(502,'Dropi no devolvió una respuesta de productos válida.');
   return $json;
  }
- public static function find(array $integration,string $id): array {
+ public static function find(array $integration,string $id,int $timeout=20): array {
   // Query a bounded search, then verify the exact ID. Never trust client-supplied product snapshots.
-  $r=self::request($integration,['keywords'=>$id]);
+  $r=self::request($integration,['keywords'=>$id],false,$timeout);
   foreach($r['objects'] as $p)if((string)($p['id']??'')===$id)return $p;
   throw new HttpError(422,'Dropi no devolvió ese ID al buscarlo. Selecciona el producto desde una página reciente del catálogo.');
  }

@@ -24,7 +24,7 @@ try {
    $main=rtrim((string)Support::env('APP_URL'),'/');if(preg_match('~^https?://[^/]+$~',$main))header("Content-Security-Policy: default-src 'self'; img-src 'self' https: http: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ".$main."; form-action 'self'; frame-ancestors 'self'; base-uri 'none'");
    $storeOwner=preg_match('/^[a-z0-9-]+$/',$label)?Store::owner($label):null;
    if($storeOwner===null)throw new HttpError(404,'Tienda no encontrada.');
-   if(preg_match('~^/p/([a-z0-9]+(?:-[a-z0-9]+)*)(?:/lead|/shipping)?$~',$path,$mine)){
+   if(preg_match('~^/p/([a-z0-9]+(?:-[a-z0-9]+)*)(?:/lead|/shipping|/stock)?$~',$path,$mine)){
     if(!Database::one("SELECT id FROM landing_pages WHERE COALESCE(published_slug,slug)=? AND user_id=? AND status='published'",[$mine[1],$storeOwner]))throw new HttpError(404,'Producto no encontrado.');
    }elseif($path==='/')throw new HttpError(404,'Esta tienda aún no tiene página de inicio.');
   }
@@ -79,9 +79,15 @@ try {
   echo Support::json(['owner'=>$owner,'edit'=>$owner?rtrim((string)Support::env('APP_URL'),'/').'/panel/landings/'.$m[1]:null]);exit;
  }
  if($api){header('Content-Type: application/json; charset=utf-8');echo Support::json(Api::handle($path,$method));exit;}
- if(preg_match('~^/p/([a-z0-9]+(?:-[a-z0-9]+)*)(/lead|/shipping)?$~',$path,$m)){
+ if(preg_match('~^/p/([a-z0-9]+(?:-[a-z0-9]+)*)(/lead|/shipping|/stock)?$~',$path,$m)){
   // Landings of suspended accounts are offline (pages, lead form and freight quote).
   $r=Database::one("SELECT * FROM landing_pages WHERE COALESCE(published_slug,slug)=? AND status='published' AND user_id IN (SELECT id FROM users WHERE status='active')",[$m[1]]);if(!$r)throw new HttpError(404,'Producto no encontrado.');$r=Landing::published($r);
+  if(($m[2]??'')==='/stock'){
+   // Stock check of the buy button: Dropi at most once per 10 minutes per product; limited per IP. Read-only.
+   if($method!=='GET')throw new HttpError(405,'Método no permitido.');Auth::limit('stock-ip:'.($_SERVER['REMOTE_ADDR']??''),120,3600);
+   $s=App\LandingStock::check($r);header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store');
+   echo Support::json(['available'=>$s['available'],'variants'=>(object)$s['variants'],'message'=>$s['available']?null:App\LandingStock::SOLD_OUT]);exit;
+  }
   if(($m[2]??'')==='/shipping'){
    // Buyer-city freight quote with the owner's token, server side only; limited per IP because it calls Dropi.
    if($method!=='POST')throw new HttpError(405,'Método no permitido.');Auth::csrf();Auth::limit('shipping-ip:'.($_SERVER['REMOTE_ADDR']??''),60,3600);

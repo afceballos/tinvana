@@ -563,3 +563,13 @@ a.selected-product-card:hover .selected-product-link .block-icon{transform:trans
 [data-theme=bold] .vp-choice.is-out span{border-style:dashed}
 @media (max-width:640px){.vp{padding:14px}.vp-choice span{padding:0 14px}}
 @media (prefers-reduced-motion:reduce){.vp,.vp-choice span{transition:none}.vp-choice:active span{transform:none}}
+/* Sold out: buy buttons look disabled (still focusable, a tap explains why) and a short notice appears at the bottom. */
+.buy-trigger.is-sold-out,.buy-trigger.is-sold-out:hover{opacity:.55;cursor:not-allowed;transform:none!important;box-shadow:none!important;filter:grayscale(.35)}
+.buy-trigger[aria-busy=true]{cursor:progress;opacity:.8}
+.stock-toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));z-index:60;width:max-content;max-width:min(420px,calc(100vw - 32px));padding:12px 18px;border-radius:14px;background:#151311;color:#fff;font-size:15px;font-weight:600;line-height:1.4;text-align:center;box-shadow:0 14px 40px #14100c40;opacity:0;pointer-events:none;transform:translate(-50%,12px);transition:opacity .2s,transform .2s}
+.stock-toast.is-visible{opacity:1;transform:translate(-50%,0)}
+.has-sticky-buy .stock-toast{bottom:calc(96px + env(safe-area-inset-bottom))}
+[data-theme=bold] .stock-toast{border:2px solid #151311;border-radius:var(--r-sm);background:#fff;color:#151311;box-shadow:4px 4px 0 #151311}
+[data-theme=warm] .stock-toast{border-radius:var(--r-md)}
+@media (prefers-reduced-motion:reduce){.stock-toast{transition:none}}
+[data-stock=out] .quantity-control{opacity:.5;pointer-events:none}

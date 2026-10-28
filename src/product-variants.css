@@ -29,3 +29,7 @@
 @media (max-width:640px){.pv{padding:14px}.pv-option{grid-template-columns:1fr;gap:4px}.pv-option>span{padding-top:0}.pv-table th,.pv-table td{padding:8px 9px}}
 @media (prefers-reduced-motion:reduce){.pv-details summary::after{transition:none}}
 .modal-layout .price .price-from{font-size:.5em;vertical-align:.2em}
+.sold-out-badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;background:#fee4e2;color:#b42318;font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase}
+.sold-out-badge.on-card,.sold-out-badge.on-media{position:absolute;top:12px;left:12px;z-index:1}
+.sold-out-badge.on-media{top:auto;bottom:10px;left:10px}
+:root[data-theme=dark] .sold-out-badge{background:#3a1715;color:#fca5a5}

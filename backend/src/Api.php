@@ -96,6 +96,7 @@ final class Api {
     $raw=null;foreach($_SESSION['catalog_pages'][$integration['id']]??[] as $page)if($page['at']>time()-900)foreach($page['objects'] as $p)if((string)$p['id']===$id)$raw=$p;
     if(!Database::one('SELECT id FROM selected_products WHERE integration_id=? AND dropi_id=? AND user_id=?',[$integration['id'],$id,$owner]))Entitlements::ensureRoom($owner,'products');
     if(!$raw)$raw=Dropi::find($integration,$id);
+    if(Product::soldOut(Product::map($raw)))throw new HttpError(409,'Este producto está agotado en Dropi. Elige otro o vuelve cuando tenga stock.');
     $r=Database::one('INSERT INTO selected_products(id,user_id,integration_id,dropi_id,original_data,mapped_data) VALUES(?,?,?,?,?::jsonb,?::jsonb) ON CONFLICT(integration_id,dropi_id) DO UPDATE SET updated_at=selected_products.updated_at RETURNING id',[Support::uuid(),$owner,$integration['id'],$id,Support::json($raw),Support::json(Product::map($raw))]);return ['id'=>$r['id']];
    }
   }
@@ -104,8 +105,9 @@ final class Api {
    if($method==='DELETE'&&$action===''){if(Database::one('SELECT id FROM landing_pages WHERE selected_product_id=?',[$p['id']]))throw new HttpError(409,'El producto tiene una landing. Conserva su selección para mantener el historial.');Database::query('DELETE FROM selected_products WHERE id=? AND user_id=?',[$p['id'],$owner]);return ['ok'=>true];}
    if($method==='POST'&&$action==='landing'){$r=Database::one('SELECT * FROM landing_pages WHERE selected_product_id=? AND user_id=?',[$p['id'],$owner]);if(!$r){Entitlements::ensureRoom($owner,'landings');$r=Landing::create($p,$owner);}return ['landing'=>Landing::decode($r)];}
    if($method==='POST'&&$action==='refresh'){
-    $integration=self::owned('integrations',$p['integration_id'],$owner);$raw=Dropi::find($integration,(string)$p['dropi_id']);$mapped=Support::json(Product::map($raw));$db=Database::connection();$db->beginTransaction();try{Database::query('UPDATE selected_products SET original_data=?::jsonb,mapped_data=?::jsonb,updated_at=now() WHERE id=?',[Support::json($raw),$mapped,$p['id']]);// Published landings take the new variants, prices and stock too; the store's content stays as it is.
-Database::query('UPDATE landing_pages SET product_snapshot=?::jsonb,published_product_snapshot=CASE WHEN published_product_snapshot IS NULL THEN NULL ELSE ?::jsonb END,updated_at=now() WHERE selected_product_id=? AND user_id=?',[$mapped,$mapped,$p['id'],$owner]);$db->commit();}catch(\Throwable $e){$db->rollBack();throw $e;}return ['ok'=>true,'message'=>'Datos originales actualizados; contenido comercial conservado.'];
+    $integration=self::owned('integrations',$p['integration_id'],$owner);$raw=Dropi::find($integration,(string)$p['dropi_id']);
+    // Published landings take the new variants, prices and stock too; the store's content stays as it is.
+    LandingStock::store($p,$raw,true);return ['ok'=>true,'message'=>'Datos originales actualizados; contenido comercial conservado.'];
    }
   }
   if($path==='/api/template-settings'){

@@ -91,6 +91,12 @@ check('every variant starts with the product photo',$v['variants'][2]['image']==
 check('deleted variants are left out',count($v['variants'])===3);
 check('same prices give no range',Product::map(['variations'=>[$variation(1,'NEGRO','L','23000.00',1),$variation(2,'BLANCO','M','23000.00',1)]]+$var)['priceMax']===null);
 check('order variant labels use the options too',array_column(App\ProductOffers::variants(['mapped_data'=>Support::json(['variations'=>$var['variations']])]),'label')===['Negro · L','Blanco · 2XL','Beige · S']);
+check('only an explicit zero is sold out',Product::soldOut(['stock'=>0.0])&&!Product::soldOut(['stock'=>null])&&!Product::soldOut(['stock'=>3.0]));
+check('a variable product is sold out only when every variant is at zero',!Product::soldOut($v)&&Product::soldOut(['variants'=>[['stock'=>0.0],['stock'=>0]]])&&!Product::soldOut(['variants'=>[['stock'=>0.0],['stock'=>null]]]));
+$content=['publicPrice'=>59900.0,'variants'=>['items'=>[1=>['price'=>null,'image'=>'','hidden'=>true]]]];
+check('a landing sells while one visible variant has stock',App\LandingStock::availability($content,$v)['available']===true&&App\LandingStock::availability($content,$v)['variants']==['2'=>true,'3'=>true]);
+$content['variants']['items']=[1=>['price'=>null,'image'=>'','hidden'=>true],2=>['price'=>null,'image'=>'','hidden'=>true],3=>['price'=>null,'image'=>'','hidden'=>true]];
+check('a landing whose variants are all hidden does not sell',App\LandingStock::availability($content,$v)['available']===false);
 $mediaId='11111111-1111-4111-8111-111111111111';$canonical=rtrim(App\Support::env('APP_URL'),'/');
 check('own local upload follows current public origin',App\Media::rebase('http://127.0.0.1:8080/media/'.$mediaId.'.webp')===$canonical.'/media/'.$mediaId.'.webp');
 check('old temporary upload follows current origin',App\Media::rebase(['blocks'=>[['image'=>'https://old-demo.trycloudflare.com/media/'.$mediaId.'.webp']]])['blocks'][0]['image']===$canonical.'/media/'.$mediaId.'.webp');
