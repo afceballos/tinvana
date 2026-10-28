@@ -780,6 +780,13 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **No comprobado:** MySQL 043–045 en MariaDB local; enlace `wa.me` y mensaje interactivo con números reales.
 - **Datos reales:** ninguno.
 
+### 2026-10-27 · Diagnóstico de productos de Dropi (galería y variantes)
+- **Reporte del usuario:** la galería de Dropi no se ve en Explorar productos y los productos con variantes (por ejemplo 2261687) aparecen como «No disponible».
+- **Revisión del código (sin datos reales todavía):** `Product::map` ya toma `gallery` (principal primero) y el detalle de Explorar productos muestra miniaturas; la tarjeta usa solo la primera foto. «No disponible» es el texto de `money(null)` y del stock nulo: un producto variable suele traer `sale_price` y stock por variante, y Tinvana solo lee los del producto (la búsqueda del catálogo usa `get_stock:false`). Las variantes se muestran en bruto («Variaciones originales») y las landings no tienen selector de variante.
+- **Cambio:** comando de solo lectura `dropi:product-probe email id_producto` (`DropiProductProbe`): repite la búsqueda del catálogo (`POST products/index` con el ID como palabra clave) con `get_stock` falso y verdadero y muestra claves, precio, galería, stock por bodega y cada variación (precio, stock, fotos y atributos), sin token ni datos del proveedor. En GoDaddy se ejecuta con un cron de un solo uso que guarda la salida en un archivo.
+- **Comprobado (local):** sintaxis y validaciones (ID inválido, usuario inexistente). No se contactó a Dropi.
+- **Siguiente paso:** el propietario lo ejecuta en producción para el producto 2261687; con la salida se corrigen precio/stock de variables, galería y luego las variantes en las landings.
+
 ### Plantilla para la próxima actualización
 
 ```text
