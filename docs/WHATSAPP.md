@@ -288,6 +288,10 @@ Documentación oficial consultada el 2026-10-27 (mensajes interactivos con boton
 - **Contador del menú:** solo lo urgente (chats esperando asesor + novedades), cada minuto con la pestaña visible y al marcar un ítem.
 
 
+### Guía para conectar el número (2026-10-28)
+
+- En WhatsApp → Conexión, «Cómo conectar tu número de Meta» (`WhatsAppGuide.tsx`): pestañas «Número de prueba» (7 pasos) y «Mi número propio» (9 pasos: preparar el número, agregarlo y verificarlo, método de pago, publicar la app). Cada paso dice qué pegar en Tinbana y enlaza a Meta. Abierta mientras no hay número conectado; plegada después. Los nombres de los menús se contrastaron con la guía oficial «Get started» de Meta (2026-10-28); los de publicar la app, método de pago y verificación del negocio no salen en esa página.
+
 ### Configuración en Meta (cuando se autorice el piloto real)
 
 1. En la app de Meta: WhatsApp → Configuración → Webhook: URL `https://<dominio>/whatsapp/webhook` y el mismo `WHATSAPP_VERIFY_TOKEN` del servidor; suscribir el campo `messages`.

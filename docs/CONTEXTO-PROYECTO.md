@@ -905,6 +905,13 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Datos reales:** ninguno.
 - **Siguiente paso:** etapa 7 (copia opcional a GHL y regresión completa en MariaDB); baja por correo pendiente.
 
+### 2026-10-28 · Guía paso a paso para conectar el número de Meta
+- **Pedido del usuario:** indicar en la conexión de WhatsApp el paso a paso para configurar el número de Meta, de prueba o propio.
+- **Cambio:** guía con dos pestañas en Conexión, con lo que se pega en cada campo de Tinbana y enlaces a Meta. Detalle en [WHATSAPP.md](WHATSAPP.md).
+- **Comprobado (local):** `whatsapp-connection.mjs` 54 (2 nuevas). Antes se borraron 25 eventos de webhook de una cuenta de prueba `@example.test` del 2026-10-27 que quedaron en la base local y hacían fallar el conteo global de esa suite.
+- **Limitaciones:** los pasos no se recorrieron en una cuenta real de Meta desde esta sesión.
+- **Datos reales:** ninguno.
+
 ### Plantilla para la próxima actualización
 
 ```text

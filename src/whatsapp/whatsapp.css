@@ -30,3 +30,27 @@
 .wa-sub-ok{display:flex;align-items:center;gap:6px;font-weight:700;color:#15803d}
 .wa-sub-ok .icon{width:16px;height:16px}
 :root[data-theme=dark] .wa-sub-ok{color:#4ade80}
+
+/* Step-by-step guide to connect a Meta number (test or own). */
+.wa-guide{display:grid;gap:14px}
+.wa-guide>summary{display:flex;align-items:center;gap:14px;cursor:pointer;list-style:none}
+.wa-guide>summary::-webkit-details-marker{display:none}
+.wa-guide>summary>span:nth-child(2){display:grid;gap:2px}
+.wa-guide>summary strong{font-size:18px}
+.wa-guide-chevron{margin-left:auto;transition:transform .2s}
+.wa-guide[open] .wa-guide-chevron{transform:rotate(90deg)}
+.wa-guide>summary:focus-visible{outline:3px solid #ffba3d;outline-offset:4px;border-radius:12px}
+.wa-guide-tabs{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:999px;background:var(--surface,#fff);justify-self:start}
+.wa-guide-tabs button{min-height:40px;padding:6px 16px;border:0;border-radius:999px;background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer}
+.wa-guide-tabs button.is-on{background:var(--brand-accent,#ff6a00);color:#1e1e1e}
+.wa-guide-steps{display:grid;gap:12px;margin:0;padding:0;list-style:none}
+.wa-guide-steps>li{display:grid;grid-template-columns:32px 1fr;gap:12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface,#fff)}
+.wa-guide-n{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:color-mix(in srgb,var(--brand-accent,#ff6a00) 15%,transparent);color:#c2410c;font-weight:800}
+.wa-guide-steps p{margin:4px 0 0;font-size:14px;line-height:1.6;overflow-wrap:anywhere}
+.wa-guide-here{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border-radius:10px;background:#e9f8ef;color:#14532d}
+.wa-guide-here .icon{flex:none;width:16px;height:16px;margin-top:3px}
+.wa-guide-link{display:inline-flex;align-items:center;gap:6px;margin-top:8px;min-height:36px;padding:4px 12px;font-size:13px;text-decoration:none}
+.wa-guide-link .icon{width:14px;height:14px}
+:root[data-theme=dark] .wa-guide-n{color:#fdba74}
+:root[data-theme=dark] .wa-guide-here{background:#123222;color:#86efac}
+@media (max-width:640px){.wa-guide-tabs{justify-self:stretch}.wa-guide-tabs button{flex:1}}

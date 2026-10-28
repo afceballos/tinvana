@@ -4,6 +4,7 @@ import {useFeedbackState} from '../Notifications';
 import {InlineLoading} from '../Loading';
 import {Icon} from '../ui';
 import {WhatsAppTabs} from './WhatsAppTabs';
+import {WhatsAppGuide} from './WhatsAppGuide';
 
 type Account={id:string;phone_number_id:string;waba_id:string;display_phone:string|null;verified_name:string|null;quality_rating:string|null;status:'pending'|'connected'|'error';last_error:string|null;last_tested_at:string|null;source:string;token_configured:boolean;own_app:boolean;verify_token:string|null};
 type Platform={webhook_url:string;verify_token_configured:boolean;app_secret_configured:boolean;graph_version:string};
@@ -26,6 +27,7 @@ export function WhatsAppConnection(){
  return <>
   <WhatsAppTabs/>
   <p className="muted">Cada tienda conecta su propio número de WhatsApp Business. Los mensajes llegan directo a Tinbana por la API oficial de Meta; el token se guarda cifrado en el servidor y nunca se muestra.</p>
+  <WhatsAppGuide open={!a||a.status!=='connected'}/>
   {a&&<section className="panel narrow webhook-current wa-account">
    <div className="webhook-head"><span className="webhook-logo wa-logo" aria-hidden="true"><Icon name="whatsapp"/></span><div><span className="eyebrow">WhatsApp Business</span><h2>{a.display_phone||'Número sin verificar'}{a.verified_name?' · '+a.verified_name:''}</h2></div><span className={'webhook-state '+states[a.status][0]}>{states[a.status][1]}</span></div>
    <dl className="wa-facts">
