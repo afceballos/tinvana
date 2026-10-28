@@ -1,0 +1,1 @@
+ALTER TABLE whatsapp_order_confirmations ADD COLUMN code VARCHAR(16) NULL, ADD COLUMN channel VARCHAR(16) NULL, ADD COLUMN send_after DATETIME(6) NULL, ADD UNIQUE KEY whatsapp_order_confirmations_code_uq (user_id,code)

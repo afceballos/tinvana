@@ -202,6 +202,16 @@ Servicio `WhatsAppOrderConfirm`; tablas `whatsapp_confirm_settings` y `whatsapp_
 - Comprobado (local, Meta y Dropi simulados): `whatsapp-confirm.mjs` 41 (validación de plantillas, CSRF, aislamiento, aviso del formulario, cotización y plantilla, toques falsos o de otro número, confirmación con evidencia, repetición, cambios, resumen vencido y reenvío desde el pedido, envío automático a Dropi, sin envío de Dropi, rechazo de Meta, apagado, panel y móvil). Puertos movibles con `TEST_BASE_URL`, `WA_GRAPH_PORT`, `DROPI_QUOTE_PORT` y `DROPI_ORDERS_PORT`. MySQL 043–044 sin comprobar en MariaDB local.
 
 
+### El cliente escribe primero (2026-10-27, PostgreSQL `028`, MySQL `045`)
+
+Documentación oficial consultada el 2026-10-27 (mensajes interactivos con botones de respuesta): `type: interactive`, `interactive.type: button`, `body.text` hasta 1024, `footer.text` hasta 60, hasta 3 botones `reply` con `id` hasta 256 y `title` hasta 20 caracteres únicos. El toque llega como `type: interactive`, `interactive.type: button_reply` con `button_reply.id`/`title` y `context.id` del mensaje original. Solo se puede enviar con la ventana de 24 h abierta.
+- Ajuste «Primero invitar al cliente a escribirte» (activo por defecto) y espera antes de la plantilla (5, 10, 15, 30, 60 o 120 min; 15 por defecto). La plantilla pasa a ser respaldo opcional. Necesita el número que guarda «Probar conexión».
+- Cada pedido recibe un código `TV-XXXXXX` (6 caracteres sin 0/O/1/I/L, único por tienda). La respuesta del formulario trae `whatsapp: {link, code}` y el popup muestra «Confirmar por WhatsApp» (abre `https://wa.me/{número}?text=Hola, quiero confirmar mi pedido TV-…` en otra pestaña), el código y «Ahora no».
+- Un mensaje de texto con un código en espera asocia la confirmación a ese chat y la envía al instante como mensaje interactivo (texto de la plantilla elegida o el resumen predeterminado, pie «Pago contra entrega»), al número que escribió. La IA no responde ese mensaje. Repetir el código después no envía nada.
+- Si el cliente no escribe, a la hora fijada sale la plantilla (cron `whatsapp:work`); sin plantilla queda «No enviada» con el motivo. Desde el pedido se puede enviar ya («Enviar el resumen ahora») después de cotizar; con el chat abierto sale con botones, si no con la plantilla.
+- Comprobado (local): `whatsapp-confirm.mjs` 59 (enlace y código, nada antes de que escriba, mensaje interactivo al número que escribió, código repetido, contexto ajeno, confirmación por botón interactivo, respaldo con plantilla, envío inmediato desde el pedido, sin plantilla, popup y «Ahora no»).
+
+
 ### Configuración en Meta (cuando se autorice el piloto real)
 
 1. En la app de Meta: WhatsApp → Configuración → Webhook: URL `https://<dominio>/whatsapp/webhook` y el mismo `WHATSAPP_VERIFY_TOKEN` del servidor; suscribir el campo `messages`.

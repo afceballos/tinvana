@@ -67,6 +67,11 @@ if($op==='confirmations'){
  // The owner's order confirmations (for the WhatsApp confirmation tests).
  echo Support::json(Database::all('SELECT id,order_id,status,origin,error,reply,reply_pending,conversation_id,quote_id,order_version FROM whatsapp_order_confirmations WHERE user_id=? ORDER BY created_at,id',[$fixture['owner']]));exit;
 }
+if($op==='confirm-due'){
+ // Makes the owner's confirmations that wait for the customer due now (the template fallback time has come).
+ Database::query("UPDATE whatsapp_order_confirmations SET send_after=now()-interval '1 minute' WHERE user_id=? AND status='queued'",[$fixture['owner']]);
+ echo 'ok';exit;
+}
 if($op==='confirm-work'){echo Support::json(App\WhatsAppOrderConfirm::runDue(20));exit;}
 if($op==='feature'){
  $on=($argv[2]??'')==='on';

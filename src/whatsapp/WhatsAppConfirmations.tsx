@@ -10,11 +10,11 @@ import './agent.css';
 import './templates.css';
 import './confirmations.css';
 
-type Settings={enabled:boolean;template_id:string|null;auto_dropi:boolean;messages:{confirmed:string;change:string}};
+type Settings={enabled:boolean;customer_first:boolean;wait_minutes:number;template_id:string|null;auto_dropi:boolean;messages:{confirmed:string;change:string}};
 type Tpl={id:string;name:string;status:string;body:string;footer:string|null;buttons:string[];purpose:string;problem:string|null};
 type Recent={id:string;order_id:string;status:string;origin:string;error:string|null;reply:string|null;conversation_id:string|null;sent_at:string|null;replied_at:string|null;created_at:string;customer:string;product:string;quantity:number};
-type View={settings:Settings;built_in:Settings;connected:boolean;active:boolean;values:Record<string,string>;templates:Tpl[];recent:Recent[];message?:string};
-export const CONFIRM_STATUS:Record<string,[string,string]>={queued:['is-muted','En cola'],sending:['is-muted','Enviando'],sent:['is-warn','Esperando respuesta'],failed:['is-bad','No se envió'],skipped:['is-muted','No enviada'],confirmed:['is-ok','Confirmado por el cliente'],change:['is-warn','Pidió cambios'],stale:['is-bad','Confirmó un resumen vencido']};
+type View={settings:Settings;built_in:Settings;connected:boolean;active:boolean;values:Record<string,string>;waits:number[];business_phone:string|null;summary:string;buttons:string[];templates:Tpl[];recent:Recent[];message?:string};
+export const CONFIRM_STATUS:Record<string,[string,string]>={queued:['is-muted','Esperando al cliente'],sending:['is-muted','Enviando'],sent:['is-warn','Esperando respuesta'],failed:['is-bad','No se envió'],skipped:['is-muted','No enviada'],confirmed:['is-ok','Confirmado por el cliente'],change:['is-warn','Pidió cambios'],stale:['is-bad','Confirmó un resumen vencido']};
 const EXAMPLE:Record<string,string>={nombre:'Laura',apellido:'Gómez',producto:'Picatodo eléctrico',variante:'Única',cantidad:'1',precio:'$59.900',envio:'$8.100',total:'$68.000',direccion:'Cra 7 # 19-40',ciudad:'Pereira',departamento:'Risaralda',pedido:'3F2A91C0',tienda:'Tu tienda'};
 const when=(v:string|null)=>v?new Date(v).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}):'';
 
@@ -32,12 +32,18 @@ export function WhatsAppConfirmationsPage(){
  async function save(){if(!draft)return;setBusy(true);setError('');try{const r=await api<View>('/api/whatsapp/confirmations',{method:'PUT',body:JSON.stringify(draft)});load(r);setNotice(r.message||'Ajustes guardados.');}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
  return <>
   <WhatsAppTabs/>
-  <p className="muted">Cuando llega un pedido de tus landings, Tinvana le envía al cliente el resumen con el precio de la landing y el envío cotizado con Dropi, y dos botones: «Confirmar pedido» y «Cambiar algo». La respuesta queda guardada en el pedido como evidencia.</p>
+  <p className="muted">Cuando llega un pedido de tus landings, el cliente recibe por WhatsApp el resumen con el precio de la landing y el envío cotizado con Dropi, y dos botones: «Confirmar pedido» y «Cambiar algo». La respuesta queda guardada en el pedido como evidencia.</p>
   <section className="panel webhook-current">
    <div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name="check"/></span><div><span className="eyebrow">Estado</span><h2>{view.active?'Las confirmaciones se están enviando':'Las confirmaciones están apagadas'}</h2></div><span className={'webhook-state '+(view.active?'on':'off')}>{view.active?'Activa':'Inactiva'}</span></div>
    <div className="wa-agent-form">
     <label className="wa-switch"><input type="checkbox" checked={draft.enabled} onChange={e=>set({enabled:e.target.checked})}/><span><strong>Enviar la confirmación por WhatsApp a cada pedido nuevo</strong><small>El formulario de tus landings mostrará «Te enviaremos la confirmación de tu pedido por WhatsApp».</small></span></label>
-    <fieldset><legend>Plantilla</legend>
+    <fieldset><legend>Cómo le llega el resumen</legend>
+     <label className="wa-switch"><input type="checkbox" checked={draft.customer_first} onChange={e=>set({customer_first:e.target.checked})}/><span><strong>Primero invitar al cliente a escribirte</strong><small>Al enviar el formulario ve el botón «Confirmar por WhatsApp» con su código. Cuando te escribe, le respondes con botones sin plantilla y sin costo de plantilla.</small></span></label>
+     {draft.customer_first&&!view.business_phone&&<p className="store-warning">Pulsa «Probar conexión» en <Link to="/panel/whatsapp/conexion">Conexión</Link> para que Tinvana conozca tu número y arme el enlace de WhatsApp.</p>}
+     {draft.customer_first&&<label>Si el cliente no escribe, enviar la plantilla después de<select value={draft.wait_minutes} onChange={e=>set({wait_minutes:Number(e.target.value)})}>{view.waits.map(m=><option key={m} value={m}>{m<60?m+' minutos':m/60+(m===60?' hora':' horas')}</option>)}</select><span className="small muted">{draft.template_id?'Se envía la plantilla elegida abajo.':'Sin plantilla elegida, si el cliente no escribe no se le envía nada.'}</span></label>}
+     {draft.customer_first&&(chosen?<p className="small muted">Cuando el cliente escribe recibe el mismo texto de la plantilla elegida abajo, con sus dos botones.</p>:<div className="wc-preview"><span className="eyebrow">Respuesta cuando el cliente escribe</span><TemplatePreview body={view.summary} footer="Pago contra entrega" buttons={view.buttons} values={EXAMPLE}/></div>)}
+    </fieldset>
+    <fieldset><legend>Plantilla {draft.customer_first?<span className="muted">(respaldo, opcional)</span>:null}</legend>
      {!view.templates.length?<p className="store-warning">Aún no tienes plantillas. Crea la sugerida «Confirmación de pedido» en <Link to="/panel/whatsapp/plantillas">Plantillas</Link> y espera la aprobación de Meta.</p>:<>
       <label>Plantilla de confirmación<select value={draft.template_id||''} onChange={e=>set({template_id:e.target.value||null})}><option value="">Elige una plantilla</option>{view.templates.map(t=><option key={t.id} value={t.id} disabled={!!t.problem}>{t.name}{t.problem?' · '+(t.status==='APPROVED'?'no sirve':'sin aprobar'):''}</option>)}</select></label>
       {!usable.length&&<p className="store-warning">Ninguna plantilla sirve todavía. Debe estar aprobada por Meta, tener dos botones (el primero confirma y el segundo pide cambios) y usar solo variables del pedido.</p>}

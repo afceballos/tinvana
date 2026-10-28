@@ -2,7 +2,7 @@ import {Link} from 'react-router-dom';
 import {Icon} from './ui';
 
 export type WhatsAppConfirmation={enabled:boolean;status:'queued'|'sending'|'sent'|'failed'|'skipped'|'confirmed'|'change'|'stale'|null;origin:string|null;error:string|null;reply:string|null;conversation_id:string|null;sent_at:string|null;replied_at:string|null;can_send:boolean;hint:string|null};
-const labels:Record<string,[string,string]>={queued:['is-muted','En cola'],sending:['is-muted','Enviando'],sent:['is-warn','Esperando respuesta'],failed:['is-bad','No se envió'],skipped:['is-muted','No enviada'],confirmed:['is-ok','Confirmado por el cliente'],change:['is-warn','Pidió cambios'],stale:['is-bad','Confirmó un resumen vencido']};
+const labels:Record<string,[string,string]>={queued:['is-warn','Esperando al cliente'],sending:['is-muted','Enviando'],sent:['is-warn','Esperando respuesta'],failed:['is-bad','No se envió'],skipped:['is-muted','No enviada'],confirmed:['is-ok','Confirmado por el cliente'],change:['is-warn','Pidió cambios'],stale:['is-bad','Confirmó un resumen vencido']};
 const when=(v:string|null)=>v?new Date(v).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}):'';
 
 /** WhatsApp confirmation of the order: what was sent, the customer's answer and sending the current summary. */
@@ -16,6 +16,6 @@ export function OrderWhatsApp({state,busy,onSend}:{state:WhatsAppConfirmation;bu
   {state.status==='stale'&&<p className="muted">El cliente confirmó un resumen que ya había cambiado o vencido. Cotiza de nuevo y envía otro resumen.</p>}
   {state.error&&['failed','skipped','stale'].includes(state.status||'')&&<p className="od-note">{state.error}</p>}
   {state.hint&&<p className="od-note">{state.hint}{!state.enabled&&<> <Link className="od-link" to="/panel/whatsapp/confirmaciones">Configurar</Link></>}</p>}
-  <div className="row">{state.can_send&&<button className="primary" disabled={busy} onClick={onSend}>{busy?'Enviando…':state.status?'Enviar nuevo resumen':'Enviar resumen por WhatsApp'}</button>}{state.conversation_id&&<Link className="secondary" to={'/panel/whatsapp/'+state.conversation_id}>Abrir chat</Link>}</div>
+  <div className="row">{state.can_send&&<button className="primary" disabled={busy} onClick={onSend}>{busy?'Enviando…':state.status==='queued'?'Enviar el resumen ahora':state.status?'Enviar nuevo resumen':'Enviar resumen por WhatsApp'}</button>}{state.conversation_id&&<Link className="secondary" to={'/panel/whatsapp/'+state.conversation_id}>Abrir chat</Link>}</div>
  </section>;
 }

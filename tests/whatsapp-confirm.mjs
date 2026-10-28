@@ -22,6 +22,8 @@ const graph=createServer(tls,(req,res)=>{let raw='';req.on('data',c=>raw+=c);req
   if(req.method==='POST'){const b=JSON.parse(raw);const id=String(9100+meta.templates.length);meta.templates.push({id,name:b.name,language:b.language,status:'PENDING',category:b.category.toUpperCase(),components:b.components});return send(200,{id,status:'PENDING'});}
   if(req.method==='GET')return send(200,{data:meta.templates.map(t=>({...t}))});
  }
+ if(req.method==='GET'&&url.pathname==='/'+PHONE)return send(200,{verified_name:'Tienda Prueba',display_phone_number:'+57 300 000 0000',quality_rating:'GREEN',id:PHONE});
+ if(url.pathname==='/'+WABA+'/subscribed_apps')return send(200,req.method==='POST'?{success:true}:{data:[]});
  if(req.method==='POST'&&url.pathname==='/'+PHONE+'/messages'){const b=JSON.parse(raw);meta.sends.push(b);if(metaDown)return send(400,{error:{message:'(#131026) Message undeliverable',code:131026}});b.wamid='wamid.OUT'+(++seq);return send(200,{messaging_product:'whatsapp',contacts:[{input:b.to,wa_id:b.to}],messages:[{id:b.wamid}]});}
  send(400,{error:{message:'Unsupported',code:100}});
 });});
@@ -53,16 +55,17 @@ try{
  await owner.ctx.post('/api/whatsapp/templates',{headers:owner.H,data:{name:'variable_rara',category:'utility',language:'es_CO',body:'Hola {{apodo}}',examples:{apodo:'Ana'},buttons:['Sí','No']}});
  v=await(await owner.ctx.get('/api/whatsapp/confirmations')).json();const tpl=v.templates.find(t=>t.name==='confirmacion_pedido');
  check('confirmations are off by default with manual review',v.settings.enabled===false&&v.settings.auto_dropi===false&&v.active===false);
- check('a template waiting for Meta cannot be used',/aprueba/.test(tpl.problem)&&(await settings({...v.settings,enabled:true,template_id:tpl.id})).status()===422);
+ check('a template waiting for Meta cannot be used',/aprueba/.test(tpl.problem)&&(await settings({...v.settings,customer_first:false,enabled:true,template_id:tpl.id})).status()===422);
  for(const t of meta.templates)t.status='APPROVED';
  await owner.ctx.post('/api/whatsapp/templates/sync',{headers:owner.H});
  v=await(await owner.ctx.get('/api/whatsapp/confirmations')).json();
  check('templates need exactly two buttons and known variables',/dos botones/.test(v.templates.find(t=>t.name==='tres_botones').problem)&&/apodo/.test(v.templates.find(t=>t.name==='variable_rara').problem)&&v.templates.find(t=>t.name==='confirmacion_pedido').problem===null);
- check('turning it on requires a template',(await settings({...v.settings,enabled:true,template_id:null})).status()===422);
+ check('turning it on requires a template, or the number for the customer-first link',(await settings({...v.settings,customer_first:false,enabled:true,template_id:null})).status()===422&&(await settings({...v.settings,customer_first:true,enabled:true,template_id:null})).status()===422);
+ check('the customer-first step is on by default with a 15-minute wait',v.settings.customer_first===true&&v.settings.wait_minutes===15);
  check('saving requires CSRF',(await owner.ctx.put('/api/whatsapp/confirmations',{headers:{'X-CSRF-Token':'bad'},data:{...v.settings,enabled:true,template_id:tpl.id}})).status()===419);
  let page=await(await visitor.get('/p/'+f.slug)).text();
  check('without confirmations the form has no WhatsApp notice',!page.includes('order-whatsapp-note'));
- let r=await settings({...v.settings,enabled:true,template_id:tpl.id});v=await r.json();
+ let r=await settings({...v.settings,customer_first:false,enabled:true,template_id:tpl.id});v=await r.json();
  check('the store turns confirmations on',r.ok()&&v.active===true&&v.settings.template_id===tpl.id);
  check('another store cannot see these settings',(await(await other.ctx.get('/api/whatsapp/confirmations')).json()).settings.enabled===false);
  page=await(await visitor.get('/p/'+f.slug)).text();token=page.match(/name="csrf" value="([^"]+)"/)[1];
@@ -113,11 +116,11 @@ try{
  d=await detail(o3.id);
  check('confirming a summary that changed does not confirm the order',d.order.sale_status==='draft'&&d.whatsapp.status==='stale'&&/cambió/.test(lastText('573003334455')));
  r=await owner.ctx.post('/api/orders/'+o3.id+'/whatsapp',{headers:owner.H,data:{version:d.order.version}});d=await r.json();
- const w3b=templateSend('573003334455').wamid;
- check('the store sends the new summary from the order',r.ok()&&d.whatsapp.status==='sent'&&d.whatsapp.origin==='manual'&&templateSend('573003334455').template.components[0].parameters[2].text==='3');
+ const resent=meta.sends.filter(x=>x.to==='573003334455').at(-1),w3b=resent.wamid;
+ check('the store sends the new summary from the order; with the chat open it uses buttons, not a template',r.ok()&&d.whatsapp.status==='sent'&&d.whatsapp.origin==='manual'&&d.whatsapp.channel==='interactive'&&resent.type==='interactive'&&/\(3 und\.\)/.test(resent.interactive.body.text));
  await tap('573003334455','tvc:'+c3.id+':ok','Confirmar pedido',w3);
  check('a tap on the old summary no longer confirms',(await detail(o3.id)).order.sale_status==='draft');
- await tap('573003334455','tvc:'+c3.id+':ok','Confirmar pedido',w3b);
+ await hook({contacts:[{profile:{name:'Ana Pedido'},wa_id:'573003334455'}],messages:[{from:'573003334455',id:'wamid.IN'+randomUUID(),timestamp:String(Math.floor(Date.now()/1000)),type:'interactive',interactive:{type:'button_reply',button_reply:{id:'tvc:'+c3.id+':ok',title:'Confirmar pedido'}},context:{from:'15551550926',id:w3b}}]});
  check('a tap on the new summary confirms',(await detail(o3.id)).order.sale_status==='confirmed');
 
  // 6. Automatic submission to Dropi
@@ -142,7 +145,48 @@ try{
  check('turned off: no notice and no confirmation',!page.includes('order-whatsapp-note')&&(await r.json()).whatsapp_confirmation===false&&!templateSend('573007778899'));
  await settings({...v.settings,enabled:true});
 
- // 9. Panel
+ // 9. Customer writes first: link in the response, code message, interactive buttons without a template
+ const text=(from,body,id='wamid.IN'+randomUUID())=>hook({contacts:[{profile:{name:'Ana Pedido'},wa_id:from}],messages:[{from,id,timestamp:String(Math.floor(Date.now()/1000)),type:'text',text:{body}}]});
+ const press=(from,id,title,context)=>hook({contacts:[{profile:{name:'Ana Pedido'},wa_id:from}],messages:[{from,id:'wamid.IN'+randomUUID(),timestamp:String(Math.floor(Date.now()/1000)),type:'interactive',interactive:{type:'button_reply',button_reply:{id,title}},context:{from:'15551550926',id:context}}]});
+ const poke=()=>hook({statuses:[{id:'wamid.UNKNOWN-'+randomUUID(),status:'delivered',timestamp:String(Math.floor(Date.now()/1000)),recipient_id:'573000000001'}]});
+ check('«Probar conexión» stores the number for the WhatsApp link',(await owner.ctx.post('/api/whatsapp/account/test',{headers:owner.H})).ok());
+ v=await(await owner.ctx.get('/api/whatsapp/confirmations')).json();r=await settings({...v.settings,customer_first:true,wait_minutes:15,auto_dropi:false});
+ check('the store turns on the customer-first step',r.ok()&&(await r.json()).settings.customer_first===true);
+ page=await(await visitor.get('/p/'+f.slug)).text();token=page.match(/name="csrf" value="([^"]+)"/)[1];
+ let res=await(await lead('3008889900','wa8@example.test')).json();const o8=await orderOf('wa8@example.test');d=await detail(o8.id);
+ const code=res.whatsapp?.code;
+ check('the form response brings the WhatsApp link with the order code',/^TV-[A-Z2-9]{6}$/.test(code)&&res.whatsapp.link==='https://wa.me/573000000000?text='+encodeURIComponent('Hola, quiero confirmar mi pedido '+code));
+ check('nothing is sent until the customer writes',!meta.sends.some(s=>s.to==='573008889900')&&d.whatsapp.status==='queued'&&d.whatsapp.waiting_customer===true&&d.whatsapp.hint.includes(code)&&d.order.quote_id===null);
+ await text('573118887766','Hola, quiero confirmar mi pedido '+code.toLowerCase());
+ const inter=meta.sends.filter(s=>s.to==='573118887766').at(-1);d=await detail(o8.id);
+ check('when the customer sends the code the summary goes out with buttons and no template',inter?.type==='interactive'&&inter.interactive.type==='button'&&inter.interactive.action.buttons.map(b=>b.reply.title).join('|')==='Confirmar pedido|Cambiar algo'&&/Ana/.test(inter.interactive.body.text)&&d.whatsapp.status==='sent'&&d.whatsapp.channel==='interactive'&&d.order.quote_id!==null);
+ check('the reply goes to the number that wrote, even if the form had another one',!meta.sends.some(s=>s.to==='573008889900'));
+ chat=await(await owner.ctx.get('/api/whatsapp/conversations/'+d.whatsapp.conversation_id)).json();
+ check('the AI did not answer the code message',!chat.messages.some(m=>m.sender==='ai'));
+ const n=meta.sends.length;await text('573118887766','Hola, quiero confirmar mi pedido '+code);
+ check('sending the code again does not resend the summary',meta.sends.length===n);
+ await press('573118887766',inter.interactive.action.buttons[0].reply.id,'Confirmar pedido','wamid.NOT-OURS');
+ check('an interactive tap with a foreign context does not confirm',(await detail(o8.id)).order.sale_status==='draft');
+ await press('573118887766',inter.interactive.action.buttons[0].reply.id,'Confirmar pedido',inter.wamid);d=await detail(o8.id);
+ check('the interactive «Confirmar pedido» confirms the order with that evidence',d.order.sale_status==='confirmed'&&d.order.confirmation.method==='whatsapp_button'&&d.order.confirmation.template_wamid===inter.wamid&&/confirmado/.test(lastText('573118887766')));
+ // Fallback: the customer does not write
+ res=await(await lead('3009990000','wa9@example.test')).json();const o9=await orderOf('wa9@example.test');
+ await helper('confirm-due');await poke();d=await detail(o9.id);
+ check('if the customer does not write, the template goes out after the wait',templateSend('573009990000')?.template.name==='confirmacion_pedido'&&d.whatsapp.status==='sent'&&d.whatsapp.channel==='template');
+ check('the old code no longer triggers anything after the template',await text('573009990000','Hola, quiero confirmar mi pedido '+res.whatsapp.code).then(()=>meta.sends.filter(s=>s.to==='573009990000').length===1));
+ // The store sends now from the order while waiting for the customer
+ await lead('3001010101','wa11@example.test');const o11=await orderOf('wa11@example.test');d=await detail(o11.id);
+ await owner.ctx.post('/api/orders/'+o11.id+'/quote',{headers:owner.H,data:{version:d.order.version,quantity:d.order.quantity,unit_price:d.order.unit_price,shipping_price:d.order.shipping_price,notes:''}});d=await detail(o11.id);
+ check('while waiting, the store can send the summary now from the order',d.whatsapp.can_send===true&&(await(await owner.ctx.post('/api/orders/'+o11.id+'/whatsapp',{headers:owner.H,data:{version:d.order.version}})).json()).whatsapp.status==='sent'&&templateSend('573001010101'));
+ // Without a fallback template
+ v=await(await owner.ctx.get('/api/whatsapp/confirmations')).json();r=await settings({...v.settings,template_id:null});
+ res=await(await lead('3002020202','wa10@example.test')).json();const o10=await orderOf('wa10@example.test');
+ check('without a template the step still works and nothing else is sent',r.ok()&&(await r.json()).active===true&&/^TV-/.test(res.whatsapp.code));
+ await helper('confirm-due');await poke();d=await detail(o10.id);
+ check('without a template, a customer who never writes gets nothing',d.whatsapp.status==='skipped'&&/no escribió/.test(d.whatsapp.error)&&!meta.sends.some(s=>s.to==='573002020202'));
+ await settings({...v.settings,template_id:tpl.id});
+
+ // 10. Panel
  browser=await chromium.launch({channel:'msedge',headless:true});const ctx=await browser.newContext({viewport:{width:1280,height:900},reducedMotion:'reduce'});
  const st=await owner.ctx.storageState();await ctx.addCookies(st.cookies);const p=await ctx.newPage();const errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.goto(base+'/panel/whatsapp/confirmaciones');await p.getByRole('heading',{name:'Confirmaciones enviadas'}).waitFor();
@@ -157,6 +201,16 @@ try{
  const lp=await ctx.newPage();await lp.goto(base+'/p/'+f.slug);await lp.locator('[data-buy]').first().click();await lp.locator('#purchase-dialog .order-whatsapp-note').waitFor();
  check('the notice is visible in the purchase form',await lp.locator('#purchase-dialog .order-whatsapp-note').isVisible());
  await lp.locator('#purchase-dialog .order-whatsapp-note').screenshot({path:'test-results/whatsapp-confirm-notice.png'});
+ // Success popup with the WhatsApp button (the lead request is answered by the browser route, nothing is stored).
+ const wa={link:'https://wa.me/573000000000?text='+encodeURIComponent('Hola, quiero confirmar mi pedido TV-ABC234'),code:'TV-ABC234'};
+ await lp.route('**/lead',x=>x.fulfill({status:202,contentType:'application/json',body:JSON.stringify({saved:true,whatsapp_confirmation:true,whatsapp:wa,delivery_status:'pending',message:'Tu consulta fue guardada.'})}));
+ const m=lp.locator('#purchase-dialog');await m.locator('.iti').waitFor();
+ await m.locator('[name=first_name]').fill('Ana');await m.locator('[name=last_name]').fill('Popup');await m.locator('[name=email]').fill('popup@example.test');await m.locator('[name=phone]').fill('3001234567');
+ await m.locator('[name=department_code]').selectOption('11');await m.locator('[name=city_code]').selectOption('11001');await m.locator('[name=address]').fill('Calle 10 # 20-30');
+ await m.getByRole('button',{name:/Enviar solicitud/}).click();const pop=lp.locator('dialog.lead-success');await pop.locator('.ls-wa').waitFor();
+ check('the success popup invites the customer to confirm by WhatsApp with the code',await pop.locator('.ls-wa').getAttribute('href')===wa.link&&await pop.locator('.ls-wa').getAttribute('target')==='_blank'&&(await pop.locator('.ls-code').innerText()).includes('TV-ABC234')&&await pop.getByRole('button',{name:'Ahora no'}).isVisible());
+ await lp.waitForTimeout(1500);await pop.screenshot({path:'test-results/whatsapp-confirm-popup.png'});
+ await pop.getByRole('button',{name:'Ahora no'}).click();await pop.waitFor({state:'detached'});check('«Ahora no» closes the popup',await pop.count()===0);
  check('no browser errors',errors.length===0);
  console.log(`${checks} WhatsApp order confirmation checks passed. Nothing reached Meta or Dropi.`);
 }finally{await orders('shipping-setup','off').catch(()=>{});await helper('reset').catch(()=>{});await browser?.close();graph.close();quotes.close();dropi.close();}
