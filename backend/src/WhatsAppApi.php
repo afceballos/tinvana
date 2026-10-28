@@ -13,7 +13,7 @@ final class WhatsAppApi {
   }
   if($path==='/api/whatsapp/account/test'&&$method==='POST'){Auth::limit('whatsapp-test:'.$owner,10,600);return WhatsAppAccount::test($owner);}
   if($path==='/api/whatsapp/account/subscribe'&&$method==='POST'){Auth::limit('whatsapp-subscribe:'.$owner,10,600);return WhatsAppAccount::subscribe($owner);}
-  if($path==='/api/whatsapp/agent'||str_starts_with($path,'/api/whatsapp/sheets'))return self::agent($owner,$path,$method);
+  if($path==='/api/whatsapp/agent'||str_starts_with($path,'/api/whatsapp/sheets')||str_starts_with($path,'/api/whatsapp/knowledge'))return self::agent($owner,$path,$method);
   if($path==='/api/whatsapp/ads'){
    if($method==='GET')return WhatsAppOffers::list($owner);
    if($method==='POST'){Auth::limit('whatsapp-ads:'.$owner,60,600);return WhatsAppOffers::addAd($owner,Api::body());}
@@ -54,6 +54,9 @@ final class WhatsAppApi {
    return WhatsAppAgentSettings::forUser($owner)+['defaults'=>WhatsAppAgentSettings::defaults(),'catalog'=>WhatsAppAgentSettings::catalog(),
     'status'=>['unavailable'=>WhatsAppAgent::unavailable($owner),'provider'=>AiConnections::activeProvider($owner),'used_this_month'=>Entitlements::aiConversationsThisMonth($owner),'monthly_limit'=>$e['limits']['whatsapp_ai_conversations']??null,'sellable'=>count(WhatsAppSheets::sellable($owner))]];
   }
+  // Learnings of the store (question → answer), also saved from an advisor's message in the chat.
+  if($path==='/api/whatsapp/knowledge'){if($method==='GET')return WhatsAppKnowledge::list($owner);if($method==='POST'){Auth::limit('whatsapp-knowledge:'.$owner,120,600);return WhatsAppKnowledge::save($owner,null,Api::body(),$owner);}}
+  if(preg_match('~^/api/whatsapp/knowledge/([a-f0-9-]{36})$~D',$path,$m)){if($method==='PUT')return WhatsAppKnowledge::save($owner,$m[1],Api::body(),$owner);if($method==='DELETE')return WhatsAppKnowledge::delete($owner,$m[1]);}
   if($path==='/api/whatsapp/sheets'&&$method==='GET')return WhatsAppSheets::list($owner);
   if(preg_match('~^/api/whatsapp/sheets/([a-f0-9-]{36})(?:/(approve|generate))?$~D',$path,$m)){
    $action=$m[2]??'';

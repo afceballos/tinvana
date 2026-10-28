@@ -234,6 +234,24 @@ Documentación oficial consultada el 2026-10-27 (mensajes interactivos con boton
 - **Chats abiertos por la confirmación de pedido** empiezan con la IA cuando está disponible (antes, con un asesor). Ya no se pasa a un asesor cuando el cliente escribe mientras espera la confirmación.
 
 
+### Instrucciones generales y aprendizajes (2026-10-28, PostgreSQL `032`, MySQL `049`)
+
+- **Superadmin → Administración → «IA de WhatsApp»** (`/panel/admin/ia`): instrucciones generales (hasta 4000 caracteres, `app_settings.whatsapp_agent_prompt`) que se suman a las de cada tienda, y aprendizajes de la plataforma (hasta 1000). Cada cambio queda en la auditoría. API: `GET/PUT /api/admin/whatsapp-ai`, `POST /api/admin/whatsapp-knowledge`, `PUT/DELETE /api/admin/whatsapp-knowledge/{id}`.
+- **Tienda → Agente IA → «Aprendizajes»** (hasta 500): pregunta → respuesta aprobada. En la Bandeja, cada mensaje de un asesor tiene «Guardar como aprendizaje», que abre la pregunta del cliente y la respuesta para editarlas antes de guardar (queda marcado «Desde un chat»). API: `GET/POST /api/whatsapp/knowledge`, `PUT/DELETE /api/whatsapp/knowledge/{id}`; requieren el permiso del agente de IA y están aisladas por tienda.
+- **Cómo los usa la IA:** recibe en `knowledge` hasta 12 aprendizajes (de la tienda y de la plataforma) que comparten palabras con el último mensaje y la memoria; si hay 12 o menos, van todos. En empate gana el de la tienda. La IA no se modifica sola: solo reutiliza lo aprobado por una persona. Tabla `whatsapp_knowledge` (`user_id` NULL = plataforma).
+
+
+### Cierre de conversaciones y borrado (2026-10-28, PostgreSQL `033`, MySQL `050`)
+
+- **Evidencia legible:** la confirmación escrita queda como «El cliente respondió «1 SÍ»…» (o «sí» / «dale» con «equivale a 1 SÍ»); el «no» registra «2 NO» en el evento.
+- **Después de confirmar** (por botón o por «1»), el mensaje de confirmado termina con «¿Tienes alguna otra pregunta? … Si no, responde *no* y cerramos este chat.» (`pending.type=after_confirm`, 24 horas). Una respuesta de cierre («no», «gracias», «listo 👍», «nada más, gracias»; sin «?» ni otras palabras) envía la despedida y cierra el chat sin IA. Cualquier otro mensaje borra la pregunta y lo responde el agente.
+- **Cierre por inactividad:** el cron `whatsapp:work` cierra los chats sin mensajes en 24 horas, salvo los que esperan a un asesor (con asesor y mensajes sin leer). Un «1 SÍ / 2 NO» pendiente se conserva, así que una respuesta tardía sigue contando.
+- **Reapertura:** si el cliente vuelve a escribir, el chat se abre de nuevo (con la IA si está disponible) y el agente solo lee desde el cierre (`opened_at`); conserva la memoria resumida y los pedidos.
+- **Borrado:** 30 días después del cierre se borran los mensajes y los datos del chat (memoria, datos capturados, cotización); queda la fila de la conversación (contacto, entrada de anuncio, enlace a pedidos) y sale de la Bandeja. No se borran mensajes del mes en curso porque cuentan para el límite mensual de la IA. Los pedidos guardan su propia evidencia de confirmación.
+- **Bandeja:** etiqueta «Cerrada» en la lista y aviso con fecha y motivo dentro del chat.
+- **IA:** si el cliente solo agradece o se despide, responde con una despedida breve y no ofrece productos que no pidió.
+
+
 ### Configuración en Meta (cuando se autorice el piloto real)
 
 1. En la app de Meta: WhatsApp → Configuración → Webhook: URL `https://<dominio>/whatsapp/webhook` y el mismo `WHATSAPP_VERIFY_TOKEN` del servidor; suscribir el campo `messages`.

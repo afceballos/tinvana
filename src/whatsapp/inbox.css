@@ -128,3 +128,14 @@
 .wa-new-chat:focus-visible{outline:2px solid var(--brand-accent);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){.wa-new-chat{transition:none}.wa-new-chat:active{transform:none}}
 .wa-send-template{min-height:32px;padding:3px 10px;font-size:13px;margin-left:6px}
+
+.wa-learn{display:inline-flex;align-items:center;gap:6px;justify-self:end;margin-top:4px;min-height:32px;padding:2px 10px;border:1px dashed color-mix(in srgb,var(--brand-accent,#ff6a00) 50%,var(--line));border-radius:999px;background:transparent;color:#c2410c;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.wa-learn .icon{width:14px;height:14px}
+.wa-learn:hover{background:color-mix(in srgb,var(--brand-accent,#ff6a00) 8%,transparent)}
+.wa-learn:focus-visible{outline:3px solid #ffba3d;outline-offset:2px}
+:root[data-theme=dark] .wa-learn{color:#fdba74}
+
+.wa-tag.is-closed{background:#eef0f3;color:#475467}
+.wa-banner.is-closed{border-color:#d0d5dd;background:#f6f7f9;color:#344054}
+:root[data-theme=dark] .wa-tag.is-closed{background:#2a2f37;color:#cbd2dc}
+:root[data-theme=dark] .wa-banner.is-closed{border-color:#3a414c;background:#20252c;color:#d6dbe2}

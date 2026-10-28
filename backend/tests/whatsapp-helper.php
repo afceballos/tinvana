@@ -21,11 +21,12 @@ if($op==='reset'){
  Database::query('DELETE FROM selected_products WHERE user_id IN (?,?) AND dropi_id=900002',$ids);
  Database::query('DELETE FROM whatsapp_agent_settings WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_order_confirmations WHERE user_id IN (?,?)',$ids);
+ Database::query('DELETE FROM whatsapp_knowledge WHERE user_id IN (?,?) OR user_id IS NULL',$ids);
  Database::query('DELETE FROM whatsapp_confirm_settings WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_product_sheets WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM ai_connections WHERE user_id IN (?,?)',$ids);
  Database::query("DELETE FROM admin_audit WHERE actor_id IN (?,?)",$ids);
- Database::query("DELETE FROM app_settings WHERE setting_key IN ('whatsapp_signature_rejected','whatsapp_agent_defaults')");
+ Database::query("DELETE FROM app_settings WHERE setting_key IN ('whatsapp_signature_rejected','whatsapp_agent_defaults','whatsapp_agent_prompt')");
  echo 'ok';exit;
 }
 if($op==='override'){
@@ -48,6 +49,14 @@ if($op==='notifications'){
  // The owner's notifications with their email queue state (for the notification tests).
  echo Support::json(Database::all('SELECT kind,title,body,link,read_at,email_status,email_to FROM notifications WHERE user_id=? ORDER BY created_at,id',[$fixture['owner']]));exit;
 }
+if($op==='close-age'){
+ // Moves one chat of the owner into the past: argv[2]=conversation, argv[3]=hours since the last message, argv[4]=days since the closing.
+ $id=(string)($argv[2]??'');$h=(int)($argv[3]??25);$d=isset($argv[4])?(int)$argv[4]:null;
+ Database::query('UPDATE whatsapp_conversations SET last_message_at=now()-make_interval(hours=>?)'.($d!==null?',closed_at=now()-make_interval(days=>?)':'').' WHERE id=? AND user_id=?',$d!==null?[$h,$d,$id,$fixture['owner']]:[$h,$id,$fixture['owner']]);
+ if($d!==null)Database::query('UPDATE whatsapp_messages SET created_at=now()-make_interval(hours=>?) WHERE conversation_id=? AND user_id=?',[$h,$id,$fixture['owner']]);
+ echo 'ok';exit;
+}
+if($op==='housekeeping'){echo Support::json(App\WhatsAppInbox::housekeeping());exit;}
 if($op==='superadmin'){
  // Temporarily makes the second fixture account a superadmin for the Administración checks.
  Database::query('UPDATE users SET role=? WHERE id=?',[($argv[2]??'')==='on'?'superadmin':'admin',$fixture['otherOwner']]);

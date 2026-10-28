@@ -46,7 +46,7 @@ final class WhatsAppInbox {
    }
   }
   // Order confirmations go before the agent: a confirmation tap must never be answered by the AI.
-  return $out+['confirmations'=>WhatsAppOrderConfirm::runDue(),'agent'=>WhatsAppAgent::runDue($agentLimit)];
+  return $out+['confirmations'=>WhatsAppOrderConfirm::runDue(),'agent'=>WhatsAppAgent::runDue($agentLimit),'housekeeping'=>self::housekeeping()];
  }
 
  /** @return array{0:string,1:string} type and visible text of an incoming message */
@@ -87,6 +87,13 @@ final class WhatsAppInbox {
     Database::query("INSERT INTO whatsapp_conversations(id,user_id,account_id,contact_id,captured,owner_mode,handoff_reason) VALUES(?,?,?,?,?::jsonb,?,?)",[$id,$owner,$account['id'],$contact,'{}',$mode,$reason]);
     $conv=Database::one('SELECT * FROM whatsapp_conversations WHERE id=? FOR UPDATE',[$id]);
     if($mode==='human')Notifications::notify($owner,'new_chat',WhatsAppAgent::who(['profile_name'=>$name,'phone'=>$from]).' escribió por WhatsApp',(string)$reason,'/panel/whatsapp/'.$id,$id);
+   }
+   if($conv['closed_at']!==null){
+    // A closed chat opens again: the AI reads from the closing on and takes it when available, like a new chat.
+    [$mode,$reason]=WhatsAppAgent::initialMode($owner);
+    Database::query('UPDATE whatsapp_conversations SET closed_at=NULL,closed_reason=NULL,purged_at=NULL,opened_at=?,owner_mode=?,handoff_reason=?,version=version+1,updated_at=now() WHERE id=?',[Database::timestamp((string)$conv['closed_at']),$mode,$mode==='human'?$reason:null,$conv['id']]);
+    $conv=Database::one('SELECT * FROM whatsapp_conversations WHERE id=? FOR UPDATE',[$conv['id']]);
+    if($mode==='human')Notifications::notify($owner,'new_chat',WhatsAppAgent::who(['profile_name'=>$name,'phone'=>$from]).' volvió a escribir por WhatsApp',(string)$reason,'/panel/whatsapp/'.$conv['id'],(string)$conv['id']);
    }
    Database::query("INSERT INTO whatsapp_messages(id,user_id,conversation_id,direction,type,body,payload,wamid,status,sender,created_at) VALUES(?,?,?,'in',?,?,?::jsonb,?,'received','customer',?)",
     [$messageId=Support::uuid(),$owner,$conv['id'],$type,$body,Support::json($m),$wamid,$shown]);
@@ -149,10 +156,46 @@ final class WhatsAppInbox {
   $c=Database::one('SELECT c.*,ct.phone,ct.profile_name,ct.first_origin,ct.created_at AS contact_since FROM whatsapp_conversations c JOIN whatsapp_contacts ct ON ct.id=c.contact_id AND ct.user_id=c.user_id WHERE c.id=? AND c.user_id=?'.($lock?' FOR UPDATE':''),[$id,$owner]);
   if(!$c)throw new HttpError(404,'Conversación no encontrada.');return $c;
  }
+ public const CLOSE_IDLE_HOURS=24;
+ public const PURGE_DAYS=30;
+ public const CLOSE_REASONS=['customer_done'=>'El cliente no tenía más preguntas','idle'=>'Sin mensajes en 24 horas'];
+ /**
+  * Closes a chat. The next customer message opens it again and the AI reads only from there. A «1 SÍ / 2 NO» still
+  * waiting is kept, so a late answer counts. $idle only closes it if nobody wrote in the last 24 hours.
+  */
+ public static function close(string $id,string $reason,bool $idle=false): bool {
+  $c=Database::one('SELECT id,pending FROM whatsapp_conversations WHERE id=?',[$id]);if(!$c)return false;
+  $p=json_decode((string)($c['pending']??'null'),true);$keep=is_array($p)&&($p['type']??'')==='confirm_order'&&!isset($p['answer']);
+  return Database::query('UPDATE whatsapp_conversations SET closed_at=now(),closed_reason=?,pending='.($keep?'pending':'NULL').',unread=0,version=version+1,updated_at=now() WHERE id=? AND closed_at IS NULL'
+   .($idle?" AND last_message_at<now()-interval '".self::CLOSE_IDLE_HOURS." hours' AND (owner_mode='ai' OR unread=0)":''),[$reason,$id])->rowCount()===1;
+ }
+ /**
+  * Cron (whatsapp:work): closes chats without messages for 24 hours (not those waiting for an advisor) and deletes the
+  * messages of chats closed 30 days ago. Messages of the current month stay: they count for the AI monthly limit.
+  * The conversation row stays (contact, entry, orders link); the orders keep their own confirmation evidence.
+  */
+ public static function housekeeping(): array {
+  $out=['closed'=>0,'purged'=>0];
+  foreach(Database::all("SELECT id FROM whatsapp_conversations WHERE closed_at IS NULL AND last_message_at<now()-interval '".self::CLOSE_IDLE_HOURS." hours' AND (owner_mode='ai' OR unread=0) ORDER BY last_message_at LIMIT 200") as $r)if(self::close((string)$r['id'],'idle',true))$out['closed']++;
+  $month=(string)Database::timestamp((new \DateTimeImmutable('first day of this month midnight',new \DateTimeZone('America/Bogota')))->format(\DateTimeInterface::ATOM));
+  foreach(Database::all("SELECT id,user_id FROM whatsapp_conversations WHERE purged_at IS NULL AND closed_at<now()-interval '".self::PURGE_DAYS." days' AND last_message_at<? ORDER BY closed_at LIMIT 50",[$month]) as $r){
+   $db=Database::connection();$db->beginTransaction();
+   try{
+    $c=Database::one('SELECT id FROM whatsapp_conversations WHERE id=? AND closed_at IS NOT NULL AND purged_at IS NULL FOR UPDATE',[$r['id']]);
+    if($c){
+     Database::query('DELETE FROM whatsapp_messages WHERE conversation_id=? AND user_id=?',[$r['id'],$r['user_id']]);
+     Database::query("UPDATE whatsapp_conversations SET purged_at=now(),summary=NULL,captured='{}',pending=NULL,quote=NULL,updated_at=now() WHERE id=?",[$r['id']]);
+     $out['purged']++;
+    }
+    $db->commit();
+   }catch(\Throwable $t){if($db->inTransaction())$db->rollBack();throw $t;}
+  }
+  return $out;
+ }
  public static function windowOpen(?string $lastCustomer): bool {return $lastCustomer!==null&&strtotime($lastCustomer)>time()-self::WINDOW_SECONDS;}
  private static function summary(array $c,?array $last): array {
   return ['id'=>$c['id'],'name'=>$c['profile_name'],'phone'=>$c['phone'],'owner_mode'=>$c['owner_mode'],'handoff_reason'=>$c['handoff_reason'],'unread'=>(int)$c['unread'],'stage'=>$c['stage'],
-   'last_message_at'=>$c['last_message_at'],'last_customer_at'=>$c['last_customer_at'],'window_open'=>self::windowOpen($c['last_customer_at']),
+   'last_message_at'=>$c['last_message_at'],'last_customer_at'=>$c['last_customer_at'],'closed_at'=>$c['closed_at']??null,'closed_reason'=>isset($c['closed_reason'])?(self::CLOSE_REASONS[$c['closed_reason']]??$c['closed_reason']):null,'window_open'=>self::windowOpen($c['last_customer_at']),
    'window_closes_at'=>$c['last_customer_at']?gmdate('Y-m-d\TH:i:s\Z',strtotime((string)$c['last_customer_at'])+self::WINDOW_SECONDS):null,'version'=>(int)$c['version'],
    'last'=>$last?['body'=>mb_substr((string)$last['body'],0,140),'type'=>$last['type'],'sender'=>$last['sender'],'direction'=>$last['direction'],'status'=>$last['status']]:null];
  }
@@ -162,7 +205,8 @@ final class WhatsAppInbox {
   $agg=Database::one('SELECT COUNT(*) AS n,MAX(updated_at) AS changed FROM whatsapp_conversations WHERE user_id=?',[$owner]);
   $stamp=hash('sha256',$filter.'|'.$search.'|'.$agg['n'].'|'.$agg['changed']);
   if(($q['stamp']??'')===$stamp)return ['unchanged'=>true,'stamp'=>$stamp];
-  $where=['c.user_id=?'];$args=[$owner];
+  // Chats whose messages were deleted (closed more than 30 days ago) leave the list until the customer writes again.
+  $where=['c.user_id=?','c.purged_at IS NULL'];$args=[$owner];
   if($filter==='ai')$where[]="c.owner_mode='ai'";elseif($filter==='human')$where[]="c.owner_mode='human'";elseif($filter==='unread')$where[]='c.unread>0';
   if($search!==''){$like='%'.strtr($search,['\\'=>'\\\\','%'=>'\%','_'=>'\_']).'%';$where[]='(ct.profile_name ILIKE ? OR ct.phone LIKE ?)';$args[]=$like;$args[]=$like;}
   $rows=Database::all('SELECT c.*,ct.phone,ct.profile_name FROM whatsapp_conversations c JOIN whatsapp_contacts ct ON ct.id=c.contact_id AND ct.user_id=c.user_id WHERE '.implode(' AND ',$where).' ORDER BY c.last_message_at DESC,c.updated_at DESC,c.id LIMIT 100',$args);

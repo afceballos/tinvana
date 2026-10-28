@@ -1,0 +1,1 @@
+ALTER TABLE whatsapp_conversations ADD COLUMN closed_at DATETIME(6) NULL, ADD COLUMN closed_reason VARCHAR(40) NULL, ADD COLUMN opened_at DATETIME(6) NULL, ADD COLUMN purged_at DATETIME(6) NULL, ADD KEY whatsapp_conversations_closed_idx (closed_at)

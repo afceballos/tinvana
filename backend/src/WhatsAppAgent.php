@@ -89,7 +89,8 @@ final class WhatsAppAgent {
     self::handoff($c,'Se alcanzó el límite mensual de conversaciones con IA','limit',$account,$s);return true;
    }
    if(!WhatsAppAgentSettings::inHours($s)&&$s['schedule']['off_hours']==='handoff'){self::system($account,$c,$s['messages']['off_hours']);self::handoff($c,'Mensaje fuera del horario de atención','off_hours');return true;}
-   $history=array_reverse(Database::all('SELECT direction,type,body,sender FROM whatsapp_messages WHERE conversation_id=? ORDER BY created_at DESC,id DESC LIMIT '.self::HISTORY,[$id]));
+   // After a closed chat opens again, the AI reads only from the closing on.
+   $history=array_reverse(Database::all('SELECT direction,type,body,sender FROM whatsapp_messages WHERE conversation_id=?'.($c['opened_at']?' AND created_at>=?':'').' ORDER BY created_at DESC,id DESC LIMIT '.self::HISTORY,$c['opened_at']?[$id,Database::timestamp((string)$c['opened_at'])]:[$id]));
    $last=null;foreach(array_reverse($history) as $m)if($m['direction']==='in'){$last=$m;break;}
    if($last&&!in_array($last['type'],['text','button','interactive'],true)){
     $prev=Database::one("SELECT body FROM whatsapp_messages WHERE conversation_id=? AND direction='out' ORDER BY created_at DESC,id DESC LIMIT 1",[$id]);
@@ -108,6 +109,7 @@ final class WhatsAppAgent {
    $input=['store'=>$account['verified_name']?:'la tienda','now'=>(new \DateTimeImmutable('now',new \DateTimeZone('America/Bogota')))->format('Y-m-d H:i'),'in_hours'=>WhatsAppAgentSettings::inHours($s),
     'products'=>array_map(fn($p)=>['id'=>$p['id'],'name'=>$p['name']],$products),'product'=>$productId?['id'=>$productId,'name'=>$products[array_search($productId,$ids,true)]['name']]:null,
     'sheet'=>$sheet['content']??null,'captured'=>(object)$captured,'memory'=>(string)($c['summary']??''),'orders'=>WhatsAppOrderChat::context($owner,$c),
+    'knowledge'=>WhatsAppKnowledge::relevant($owner,(string)($last['body']??'').' '.(string)($c['summary']??'')),
     'offer'=>$offer?['name'=>$offer['name'],'code'=>$offer['code'],'units'=>$offer['units'],'price_text'=>$offer['price']['text'],'certainty'=>$offer['certainty'],'came_from'=>$offer['method'],'new_entry_while_buying'=>$offer['changed']]:null,
     'history'=>array_map(fn($m)=>['from'=>$m['direction']==='in'?'cliente':'tienda','text'=>in_array($m['type'],['text','button','interactive'],true)||$m['direction']==='out'?mb_substr((string)$m['body'],0,600):'[archivo]'],$history)];
    try{$r=AiClient::structured(self::instructions($s),'whatsapp_reply',self::schema(),$input,AiConnections::credentials($owner),self::MAX_TOKENS[$s['length']],self::TIMEOUT);}
@@ -164,7 +166,8 @@ final class WhatsAppAgent {
   if($h['no_sheet'])$motives[]='el cliente pregunta por un producto que no está en "products"';
   if($h['custom']!=='')$motives[]=$h['custom'];
   return 'Eres el asesor de ventas por WhatsApp de la tienda indicada en "store", en Colombia. Tono: '.$tone.'. '.$length."\n"
-   .'Responde siempre en español. Usa solo la información de la ficha aprobada ("sheet"); no inventes características, garantías ni tiempos.'."\n"
+   .'Si el cliente solo agradece o se despide, responde con una despedida breve y amable: no ofrezcas productos ni temas que no pidió.'."\n"
+   .'Responde siempre en español. Usa solo la información de la ficha aprobada ("sheet") y de "knowledge" (respuestas aprobadas por la tienda o la plataforma: úsalas tal cual cuando apliquen); no inventes características, garantías ni tiempos.'."\n"
    .'Nunca digas ni calcules precios, costos de envío, totales, descuentos, tiempos de entrega ni disponibilidad, salvo el texto exacto de "offer.price_text" o de "sheet.price_note" si existen.'."\n"
    .'En "orders" están los pedidos de este cliente (número, producto, total, estado y si falta confirmarlo). No inventes estados ni datos de pedidos. Si pregunta por un pedido, quiere confirmarlo o ver su información, usa action "show_order" con su número en "order_number" (o "" si tiene varios y no sabes cuál): el sistema le muestra el pedido y, si falta confirmarlo, le pregunta «1 SÍ / 2 NO». No digas que un pedido quedó confirmado: eso lo hace el sistema. Si no tiene pedidos en "orders", pídele su número de pedido, que empieza por TB. No pases a un asesor por preguntas sobre pedidos; solo si reporta un problema.'."\n"
    .'En "memory" está lo que ya sabes de esta conversación; devuelve en "memory" un resumen breve y actualizado (qué quiere el cliente, sus datos, pedidos mencionados y en qué quedó), máximo 400 caracteres. Si "order_number" no aplica, déjalo en "".'."\n"
@@ -174,6 +177,7 @@ final class WhatsAppAgent {
    .($motives?'Pasa a un asesor (action "handoff", con el motivo en "handoff_reason" y un mensaje breve diciendo que un asesor le escribirá) cuando: '.implode('; ',$motives).".\n":'')
    .(!$h['unknown']?'Si algo no está en la ficha, dilo con amabilidad y ofrece ayuda con lo que sí sabes.'."\n":'')
    .'En "captured" escribe solo datos que el cliente dio explícitamente en la conversación; deja "" en lo demás. "intent" es una palabra que resuma lo que quiere el cliente.'
+   .(($general=WhatsAppKnowledge::prompt())!==''?"\nInstrucciones generales de la plataforma: ".$general:'')
    .($s['instructions']!==''?"\nInstrucciones de la tienda: ".$s['instructions']:'');
  }
 }

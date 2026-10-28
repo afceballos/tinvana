@@ -1,0 +1,24 @@
+/* Aprendizajes del agente de WhatsApp (tienda y superadmin). Tarjetas y tokens del panel. */
+.kn{display:grid;gap:12px}
+.kn-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.kn-head p{margin:0}
+.kn-count{flex:none;padding:2px 10px;border-radius:999px;background:color-mix(in srgb,var(--brand-accent,#ff6a00) 12%,transparent);color:#c2410c;font-size:12px;font-weight:700}
+.kn-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.kn-search{display:flex!important;flex-direction:row!important;align-items:center;gap:8px;flex:1 1 220px;min-height:44px;margin:0;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface,#fff)}
+.kn-search .icon{width:16px;height:16px;color:var(--muted)}
+.kn-search input{flex:1;min-width:0;min-height:40px;padding:0;border:0;background:transparent}
+.kn-search input:focus{outline:none}
+.kn-search:focus-within{border-color:var(--brand-accent,#ff6a00);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-accent,#ff6a00) 20%,transparent)}
+.kn-form{display:grid;gap:10px;padding:14px;border:1px solid color-mix(in srgb,var(--brand-accent,#ff6a00) 35%,var(--line));border-radius:14px;background:var(--surface,#fff)}
+.kn-list{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.kn-list>li{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface,#fff)}
+.kn-list>li>.kn-form{flex:1;padding:0;border:0}
+.kn-text{display:grid;gap:4px;flex:1;min-width:0}
+.kn-text strong{font-size:14px;overflow-wrap:anywhere}
+.kn-text p{margin:0;color:var(--ink);font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.kn-tag{justify-self:start;padding:1px 8px;border-radius:999px;background:#e9f8ef;color:#14532d;font-size:11px;font-weight:700}
+.kn-actions{display:flex;flex:none;gap:6px}
+.kn-actions .secondary{min-height:36px;padding:4px 10px;font-size:13px}
+:root[data-theme=dark] .kn-count{color:#fdba74}
+:root[data-theme=dark] .kn-tag{background:#123222;color:#4ade80}
+@media (max-width:640px){.kn-list>li{flex-direction:column}.kn-actions{align-self:flex-end}.kn-head{flex-direction:column}}

@@ -6,6 +6,7 @@ import {InlineLoading} from './Loading';
 import {Icon} from './ui';
 import './admin.css';
 import {AgentSettingsForm,type AgentCatalog,type AgentSettings} from './whatsapp/AgentSettingsForm';
+import {KnowledgeEditor} from './whatsapp/KnowledgeEditor';
 import './whatsapp/agent.css';
 
 type Rules={features:Record<string,boolean>;limits:Record<string,number|null>};
@@ -21,7 +22,7 @@ const when=(v:string|null)=>v?new Date(v).toLocaleString('es-CO',{dateStyle:'med
 const cash=(n:number|null,currency='COP')=>n===null?'Sin precio':new Intl.NumberFormat('es-CO',{style:'currency',currency,maximumFractionDigits:0}).format(n);
 const periods={free:'Gratis',month:'por mes',year:'por año',once:'pago único'};
 const limitText=(v:number|null|undefined)=>v===null||v===undefined?'Ilimitado':String(v);
-const actions:Record<string,string>={account_updated:'Cuenta actualizada',defaults_updated:'Valores globales actualizados',whatsapp_agent_defaults_updated:'Agente de WhatsApp: predeterminados actualizados',plan_created:'Plan creado',plan_updated:'Plan actualizado',plan_deleted:'Plan eliminado',superadmin_granted:'Superusuario asignado (consola)',superadmin_revoked:'Superusuario retirado (consola)'};
+const actions:Record<string,string>={account_updated:'Cuenta actualizada',defaults_updated:'Valores globales actualizados',whatsapp_agent_defaults_updated:'Agente de WhatsApp: predeterminados actualizados',whatsapp_agent_prompt_updated:'IA de WhatsApp: instrucciones generales actualizadas',whatsapp_knowledge_created:'IA de WhatsApp: aprendizaje agregado',whatsapp_knowledge_updated:'IA de WhatsApp: aprendizaje editado',whatsapp_knowledge_deleted:'IA de WhatsApp: aprendizaje eliminado',plan_created:'Plan creado',plan_updated:'Plan actualizado',plan_deleted:'Plan eliminado',superadmin_granted:'Superusuario asignado (consola)',superadmin_revoked:'Superusuario retirado (consola)'};
 
 function Card({icon,eyebrow,title,state,children,className=''}:{icon:string;eyebrow:string;title:string;state?:ReactNode;children:ReactNode;className?:string}){
  return <section className={'panel webhook-current admin-card '+className}><div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name={icon}/></span><div><span className="eyebrow">{eyebrow}</span><h2>{title}</h2></div>{state}</div>{children}</section>;
@@ -45,12 +46,12 @@ function LimitRules({catalog,value,inherited,inheritLabel,onChange,usage,complet
 
 export function AdminPage(){
  const {tab='cuentas'}=useParams();
- const tabs:[string,string][]=[['cuentas','Cuentas'],['planes','Planes'],['globales','Valores globales'],['auditoria','Auditoría']];
+ const tabs:[string,string][]=[['cuentas','Cuentas'],['planes','Planes'],['globales','Valores globales'],['ia','IA de WhatsApp'],['auditoria','Auditoría']];
  return <div className="admin-page">
   <div className="section-heading"><div><span className="eyebrow">Superusuario</span><h1>Administración</h1></div></div>
   <p className="muted">Administra las cuentas, los planes y lo que cada uno puede usar. Los cambios se aplican en el servidor y quedan registrados en la auditoría. Desde aquí nunca se ven contraseñas, tokens ni claves.</p>
   <nav className="admin-tabs" aria-label="Secciones de administración">{tabs.map(([key,label])=><NavLink key={key} to={'/panel/admin'+(key==='cuentas'?'':'/'+key)} end className={tab===key?'active':''}>{label}</NavLink>)}</nav>
-  {tab==='cuentas'&&<Accounts/>}{tab==='planes'&&<Plans/>}{tab==='globales'&&<><Defaults/><AgentDefaults/></>}{tab==='auditoria'&&<Audit/>}
+  {tab==='cuentas'&&<Accounts/>}{tab==='planes'&&<Plans/>}{tab==='globales'&&<><Defaults/><AgentDefaults/></>}{tab==='ia'&&<AgentKnowledge/>}{tab==='auditoria'&&<Audit/>}
  </div>;
 }
 
@@ -193,6 +194,25 @@ function Audit(){
   {!entries?<InlineLoading title="Cargando auditoría"/>:entries.length?<AuditList entries={entries}/>:<p className="muted">Aún no hay cambios registrados.</p>}
   {(page>1||next)&&<div className="admin-pager"><button className="secondary" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Anterior</button><span className="small muted">Página {page}</span><button className="secondary" disabled={!next} onClick={()=>setPage(p=>p+1)}>Siguiente</button></div>}
  </Card>;
+}
+
+// General instructions and platform learnings of the WhatsApp agent: every store's agent receives them.
+function AgentKnowledge(){
+ const [prompt,setPrompt]=useState<string|null>(null);const [saved,setSaved]=useState('');const [busy,setBusy]=useState(false);
+ const [,setError]=useFeedbackState('error');const [,setNotice]=useFeedbackState('success');
+ useEffect(()=>{api<{prompt:string}>('/api/admin/whatsapp-ai').then(r=>{setPrompt(r.prompt);setSaved(r.prompt);}).catch(e=>setError(e.message));},[]);
+ if(prompt===null)return <InlineLoading title="Cargando la IA de WhatsApp"/>;
+ async function save(){setBusy(true);setError('');try{const r=await api<{prompt:string;message:string}>('/api/admin/whatsapp-ai',{method:'PUT',body:JSON.stringify({prompt})});setPrompt(r.prompt);setSaved(r.prompt);setNotice(r.message);}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
+ return <>
+  <Card icon="automation" eyebrow="Todas las tiendas" title="Instrucciones generales de la IA">
+   <p className="muted">Se suman a las instrucciones de cada tienda en cada respuesta del agente de WhatsApp: cómo consultar, tono, reglas de la plataforma. No pongas precios ni datos de una tienda en particular.</p>
+   <label className="admin-prompt">Instrucciones<textarea rows={10} maxLength={4000} value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder={'Ej. Si el cliente pregunta por un pedido, pide su número (empieza por TB).\nNunca prometas fechas exactas de entrega.\nResponde con frases cortas y amables.'}/><span className="small muted">{prompt.length}/4000</span></label>
+   <div className="admin-actions"><button className="primary" disabled={busy||prompt===saved} onClick={()=>void save()}>{busy?'Guardando…':'Guardar instrucciones'}</button>{prompt!==saved&&<button className="secondary" disabled={busy} onClick={()=>setPrompt(saved)}>Descartar cambios</button>}</div>
+  </Card>
+  <Card icon="chat" eyebrow="Conocimiento aprobado" title="Aprendizajes de la plataforma">
+   <KnowledgeEditor list="/api/admin/whatsapp-ai" base="/api/admin/whatsapp-knowledge" scope="platform"/>
+  </Card>
+ </>;
 }
 
 // Defaults of the WhatsApp AI agent: every store uses them until it saves its own settings.

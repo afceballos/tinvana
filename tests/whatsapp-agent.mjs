@@ -155,12 +155,16 @@ try{
  check('without freight configured, the shipping is included in the public price',o1d.shipping_price==='0.00'&&o1d.quote_id!==null);
  await say('573007770001','Nora Vélez','1');
  const o1c=(await(await owner.ctx.get('/api/orders/'+o1.id)).json()).order;
- check('answering 1 confirms the order in Pedidos with the message as evidence',o1c.sale_status==='confirmed'&&o1c.confirmation.method==='whatsapp_text'&&/«1»/.test(o1c.confirmation.evidence)&&ai.length===a7&&!(await detail(nora.id)).conversation.pending);
- check('the customer gets the confirmed message',/confirmado/i.test(sends.at(-1).text.body));
+ check('answering 1 confirms the order in Pedidos; the evidence says «1 SÍ»',o1c.sale_status==='confirmed'&&o1c.confirmation.method==='whatsapp_text'&&o1c.confirmation.evidence.includes('«1 SÍ»')&&ai.length===a7);
+ check('the customer gets the confirmed message and is asked whether anything else is needed',/confirmado/i.test(sends.at(-1).text.body)&&sends.at(-1).text.body.includes('otra pregunta')&&(await detail(nora.id)).conversation.pending.type==='after_confirm');
+ await say('573007770001','Nora Vélez','Muchas gracias!!');
+ const closedNora=(await detail(nora.id)).conversation;
+ check('«gracias» after the confirmation closes the chat with a goodbye, without AI',ai.length===a7&&/cerrado este chat/.test(sends.at(-1).text.body)&&closedNora.closed_at&&/más preguntas/.test(closedNora.closed_reason)&&!closedNora.pending);
  check('a second landing order for the same phone',(await leadFor('3007770001','nora2@example.test')).status()===202);
  const o2=await orderByEmail('nora2@example.test');
  await say('573007770001','Nora Vélez','Quiero saber el estado de mi pedido');
  last=sends.at(-1).text.body;
+ check('writing again opens the closed chat',!(await detail(nora.id)).conversation.closed_at);
  check('with several orders the customer gets the list to choose from',last.includes(o1.order_number)&&last.includes(o2.order_number)&&/Escríbeme el número/.test(last));
  await say('573007770001','Nora Vélez','Es el '+o2.order_number);
  check('sending the number shows that order and asks to confirm it',sends.at(-1).text.body.includes(o2.order_number)&&sends.at(-1).text.body.includes('Responde *1*'));
@@ -169,8 +173,37 @@ try{
  check('answering 2 (no) keeps the order in draft and passes the chat to an advisor',o2c.sale_status==='draft'&&n2.owner_mode==='human'&&/cambiar/.test(n2.handoff_reason));
  await owner.ctx.post('/api/whatsapp/conversations/'+nora.id+'/release',{headers:owner.H,data:{version:n2.version}});
  const a8=ai.length;await say('573007770001','Nora Vélez','Hola, qué pedidos tengo');
+ check('after reopening, the AI history starts at the closing',!JSON.stringify(ai.at(-1).input.history).includes('Muchas gracias')&&JSON.stringify(ai.at(-1).input.history).includes('qué pedidos tengo'));
  check('the AI sees the customer\'s orders (number, status, whether to confirm) and its memory',ai.length===a8+1&&ai.at(-1).input.orders.length===2&&ai.at(-1).input.orders.some(x=>x.number===o2.order_number&&x.needs_confirmation===true)&&'memory' in ai.at(-1).input);
  check('the AI action «show_order» is answered by the server with the orders, and the memory is kept',sends.at(-1).text.body.includes(o2.order_number)&&(await detail(nora.id)).conversation.memory==='Clienta Nora; preguntó por sus pedidos.');
+ // Closing after 24 hours without messages and deleting the messages 30 days after the closing
+ await helper('close-age',nora.id,'25');let hk=JSON.parse(await helper('housekeeping'));
+ const idle=(await detail(nora.id)).conversation;
+ check('a chat without messages for 24 hours is closed by the cron',hk.closed>=1&&idle.closed_at&&/24 horas/.test(idle.closed_reason)&&!(await detail(laura.id)).conversation.closed_at);
+ await helper('close-age',nora.id,'800','31');hk=JSON.parse(await helper('housekeeping'));
+ const lst=await(await owner.ctx.get('/api/whatsapp/conversations')).json();
+ check('30 days after the closing its messages are deleted and it leaves the list',hk.purged>=1&&!lst.conversations.some(x=>x.id===nora.id)&&(await detail(nora.id)).messages.length===0);
+ const back=await(await owner.ctx.get('/api/orders/'+o1.id)).json();
+ check('the order keeps its confirmation evidence after the messages are deleted',back.order.confirmation.evidence.includes('«1 SÍ»'));
+ await say('573007770001','Nora Vélez','Hola de nuevo');
+ check('the customer writes again and the chat is back in the list, open',(await(await owner.ctx.get('/api/whatsapp/conversations')).json()).conversations.some(x=>x.id===nora.id&&!x.closed_at));
+ // Learnings and general instructions
+ const kn=data=>owner.ctx.post('/api/whatsapp/knowledge',{headers:owner.H,data});
+ check('a learning needs a question and an answer',(await kn({question:'',answer:'x'})).status()===422);
+ let kv=await(await kn({question:'¿Hacen envíos a San Andrés?',answer:'Sí, enviamos a San Andrés; tarda de 5 a 8 días hábiles.'})).json();
+ check('the store saves a learning',kv.items.length===1&&kv.items[0].question.includes('San Andrés'));
+ check('another store cannot see or change it',(await(await other.ctx.get('/api/whatsapp/knowledge')).json()).items.length===0&&(await other.ctx.delete('/api/whatsapp/knowledge/'+kv.items[0].id,{headers:other.H})).status()===404);
+ check('only a superadmin manages the platform instructions',(await owner.ctx.get('/api/admin/whatsapp-ai')).status()>=403);
+ const sa=await(await other.ctx.put('/api/admin/whatsapp-ai',{headers:other.H,data:{prompt:'Saluda siempre con «¡Hola, gracias por escribirnos!».'}})).json();
+ const pk=await(await other.ctx.post('/api/admin/whatsapp-knowledge',{headers:other.H,data:{question:'¿Cómo pago?',answer:'Pagas en efectivo cuando recibes el pedido (contra entrega).'}})).json();
+ check('the superadmin saves general instructions and a platform learning, both audited',sa.prompt.includes('gracias por escribirnos')&&pk.items.length===1&&(await(await other.ctx.get('/api/admin/audit')).json()).entries.some(e=>e.action==='whatsapp_agent_prompt_updated'));
+ const a9=ai.length;await say('573007770009','Iván Ríos','Hola, ¿hacen envíos a San Andrés?');
+ const inp=ai.at(-1);
+ check('the AI receives the store and platform learnings and the general instructions',ai.length===a9+1&&inp.input.knowledge.some(k=>k.q.includes('San Andrés'))&&inp.input.knowledge.some(k=>k.q.includes('Cómo pago'))&&inp.payload.instructions.includes('gracias por escribirnos')&&inp.payload.instructions.includes('"knowledge"'));
+ for(let i=0;i<13;i++)await kn({question:'Pregunta de relleno número '+i+' sobre colores',answer:'Respuesta de relleno '+i});
+ await kn({question:'¿Tiene garantía?',answer:'Sí, tiene garantía de 3 meses por defectos de fábrica.'});
+ await say('573007770009','Iván Ríos','¿Y la garantía cuánto dura?');
+ check('with many learnings only the related ones are sent',ai.at(-1).input.knowledge.length<=12&&ai.at(-1).input.knowledge[0].q.includes('garantía'));
  // Monthly limit
  v=await agent();await helper('override',JSON.stringify({limits:{whatsapp_ai_conversations:v.status.used_this_month}}));
  const a4=ai.length;await say('573003334455','Pedro Paz','Hola');const pedro=await convOf('573003334455');
@@ -193,6 +226,8 @@ try{
  await page.waitForTimeout(700);await page.screenshot({path:'test-results/whatsapp-agent.png',fullPage:true});
  await page.evaluate(()=>localStorage.setItem('tinvana-theme','dark'));await page.reload();await page.locator('.wa-agent-settings').waitFor();await page.waitForTimeout(700);await page.screenshot({path:'test-results/whatsapp-agent-dark.png',fullPage:true});
  await page.evaluate(()=>localStorage.setItem('tinvana-theme','light'));
+ await page.goto(base+'/panel/whatsapp/agente');await page.getByRole('heading',{name:'Aprendizajes'}).waitFor();
+ check('the Agente IA tab lists the learnings',(await page.locator('.kn-list').innerText()).includes('San Andrés'));
  await page.goto(base+'/panel/whatsapp/'+laura.id);await page.locator('.wa-context').waitFor();
  check('the chat context shows the product, the customer data and the handoff reason',(await page.locator('.wa-context').innerText()).includes('Pereira')&&(await page.locator('.wa-banner.is-handoff').innerText()).includes('quiere comprar'));
  await page.waitForTimeout(500);await page.screenshot({path:'test-results/whatsapp-agent-chat.png'});
@@ -201,6 +236,15 @@ try{
  const adminCtx=await browser.newContext({storageState:await other.ctx.storageState(),viewport:{width:1440,height:1000}});const ap=await adminCtx.newPage();
  await ap.goto(base+'/panel/admin/globales');await ap.locator('.admin-agent').waitFor();
  check('the superadmin sees the agent defaults in Valores globales',(await ap.locator('.admin-agent').innerText()).includes('Agente de IA'));await ap.waitForTimeout(500);await ap.screenshot({path:'test-results/whatsapp-agent-admin.png',fullPage:true});
+ await ap.goto(base+'/panel/admin/ia');await ap.getByRole('heading',{name:'Instrucciones generales de la IA'}).waitFor();
+ check('the superadmin «IA de WhatsApp» tab shows the general instructions and the platform learnings',(await ap.locator('.admin-prompt textarea').inputValue()).includes('gracias por escribirnos')&&(await ap.locator('.kn-list').innerText()).includes('Cómo pago'));
+ await ap.screenshot({path:'test-results/whatsapp-ai-admin.png',fullPage:true});
+ const lc=(await detail(laura.id)).conversation;await owner.ctx.post('/api/whatsapp/conversations/'+laura.id+'/messages',{headers:owner.H,data:{client_id:randomUUID(),body:'Sí, el picatodo trae 2 cuchillas de repuesto.'}});
+ await page.setViewportSize({width:1440,height:1000});await page.goto(base+'/panel/whatsapp/'+laura.id);await page.locator('.wa-learn').last().waitFor();await page.locator('.wa-learn').last().click();
+ const dlg=page.locator('dialog[aria-labelledby=learn-title]');await dlg.waitFor();
+ check('an advisor answer can be saved as a learning with the question prefilled',(await dlg.locator('textarea').nth(1).inputValue()).includes('2 cuchillas')&&(await dlg.locator('textarea').first().inputValue())!=='');
+ await dlg.screenshot({path:'test-results/whatsapp-learn-dialog.png'});const saved=page.waitForResponse(r=>r.url().endsWith('/api/whatsapp/knowledge')&&r.request().method()==='POST');await dlg.getByRole('button',{name:'Guardar aprendizaje'}).click();await saved;await dlg.waitFor({state:'hidden'});
+ check('the saved learning comes from the chat',(await(await owner.ctx.get('/api/whatsapp/knowledge')).json()).items.some(i=>i.answer.includes('2 cuchillas')&&i.from_chat));
  check('no browser errors',errors.length===0);
  console.log(`${checks} WhatsApp agent checks passed against a simulated Meta and a simulated AI. Nothing reached Meta or an AI provider.`);
 }finally{await helper('reset').catch(()=>{});await browser?.close();await owner?.ctx.dispose();await other?.ctx.dispose();await meta?.dispose();graph.close();openai.close();}

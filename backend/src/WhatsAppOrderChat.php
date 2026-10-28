@@ -12,6 +12,22 @@ final class WhatsAppOrderChat {
  private const YES='/^\s*(1|s[ií]|confirm\w*|dale|de una|ok|listo)(?![\p{L}\p{N}])/iu';
  private const NO='/^\s*(2|no)(?![\p{L}\p{N}])/iu';
  public const ASK_CONFIRM='¿Lo confirmamos? Responde *1* para SÍ o *2* para NO (si quieres cambiar algo).';
+ public const ANY_MORE='¿Tienes alguna otra pregunta? Escríbela aquí. Si no, responde *no* y cerramos este chat.';
+ public const GOODBYE='¡Con gusto! 😊 Damos por cerrado este chat. Si más adelante necesitas algo, escríbenos aquí mismo.';
+ /** Words of a «no more questions» answer; anything else (a question, «pero…», «tengo una duda») goes on to the agent. */
+ private const DONE_WORDS=['no','nop','nope','nada','ninguna','ninguno','mas','gracias','muchas','mil','muy','amable','ok','okay','okey','oki','listo','perfecto','vale','bueno','buenisimo','bien','todo','eso','es','era','seria','asi','esta','claro','chao','chau','adios','bye','hasta','luego','pronto','dios','bendiga','que','te','le','lo','la','los','por','de','ahora','igualmente','super','genial','excelente','entendido','ya','y','senor','senora','senorita','amigo','amiga','quedo','atento','atenta','pendiente'];
+ /** «1 SÍ» / «2 NO», or the typed word with its meaning, as the order evidence shows it. */
+ private static function said(string $text,bool $yes): string {
+  $t=trim($text);$meaning=$yes?'1 SÍ':'2 NO';return $t===($yes?'1':'2')?'«'.$meaning.'»':'«'.$t.'» (equivale a '.$meaning.')';
+ }
+ /** A short closing answer: thanks, «no», «listo», an emoji… with nothing else asked. */
+ public static function isDone(string $text): bool {
+  $t=trim($text);if($t===''||mb_strlen($t)>80||str_contains($t,'?'))return false;
+  $plain=mb_strtolower(strtr($t,['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ñ'=>'n','Á'=>'a','É'=>'e','Í'=>'i','Ó'=>'o','Ú'=>'u','Ñ'=>'n']));
+  preg_match_all('/\p{L}+/u',$plain,$m);
+  foreach($m[0] as $w)if(!in_array($w,self::DONE_WORDS,true))return false;
+  return true;
+ }
 
  private static function digits(string $v): string {return preg_replace('/\D/','',$v)??'';}
  /** The customer's latest orders: same phone as the chat, or linked to this chat by a WhatsApp confirmation. */
@@ -67,7 +83,16 @@ final class WhatsAppOrderChat {
  public static function inbound(array $conv,string $type,string $text,string $messageId,string $wamid): bool {
   // Only typed answers: button taps go through their own check of the message they answer (context).
   if($type!=='text')return false;
-  $p=json_decode((string)($conv['pending']??'null'),true);if(!is_array($p)||($p['type']??'')!=='confirm_order'||isset($p['answer']))return false;
+  $p=json_decode((string)($conv['pending']??'null'),true);if(!is_array($p)||isset($p['answer']))return false;
+  // Right after a confirmation the chat asks whether anything else is needed: a closing answer closes the chat; any
+  // other message clears the question and the agent answers it.
+  if(($p['type']??'')==='after_confirm'){
+   $fresh=strtotime((string)($p['at']??''))>time()-86400;
+   if(!$fresh||!self::isDone($text)){Database::query('UPDATE whatsapp_conversations SET pending=NULL WHERE id=?',[$conv['id']]);return false;}
+   Database::query('UPDATE whatsapp_conversations SET pending=?::jsonb WHERE id=?',[Support::json($p+['answer'=>'done','message_id'=>$messageId]),$conv['id']]);
+   return true;
+  }
+  if(($p['type']??'')!=='confirm_order')return false;
   $answer=preg_match(self::YES,$text)?'yes':(preg_match(self::NO,$text)?'no':null);if(!$answer)return false;
   Database::query('UPDATE whatsapp_conversations SET pending=?::jsonb WHERE id=?',[Support::json($p+['answer'=>$answer,'message_id'=>$messageId,'wamid'=>$wamid,'text'=>mb_substr($text,0,100)]),$conv['id']]);
   return true;
@@ -77,9 +102,10 @@ final class WhatsAppOrderChat {
   $c=WhatsAppInbox::conversation($owner,$conversationId);$p=json_decode((string)($c['pending']??'null'),true);
   if(!is_array($p)||!isset($p['answer']))return;
   if(Database::query('UPDATE whatsapp_conversations SET pending=NULL,updated_at=now() WHERE id=? AND pending IS NOT NULL',[$c['id']])->rowCount()!==1)return;
+  if(($p['type']??'')==='after_confirm'){if($p['answer']==='done'){self::send($owner,$c,self::GOODBYE);WhatsAppInbox::close((string)$c['id'],'customer_done');}return;}
   $ref=($n=Database::one('SELECT id,order_number FROM orders WHERE id=?',[$p['order_id']]))?Orders::displayNumber($n):'';
   if($p['answer']==='no'){
-   if($o=Database::one('SELECT * FROM orders WHERE id=? AND user_id=?',[$p['order_id'],$owner]))Orders::event($o,'whatsapp_change_requested',['conversation_id'=>$c['id'],'reply_wamid'=>$p['wamid']??null,'by'=>'text'],null);
+   if($o=Database::one('SELECT * FROM orders WHERE id=? AND user_id=?',[$p['order_id'],$owner]))Orders::event($o,'whatsapp_change_requested',['conversation_id'=>$c['id'],'reply_wamid'=>$p['wamid']??null,'by'=>'text','answer'=>self::said((string)($p['text']??'2'),false)],null);
    Database::query("UPDATE whatsapp_order_confirmations SET status='change',reply='change',replied_at=now(),updated_at=now() WHERE order_id=? AND user_id=? AND status<>'confirmed'",[$p['order_id'],$owner]);
    WhatsAppOrderConfirm::handoff($c,'Quiere cambiar algo del pedido '.$ref);
    Notifications::notify($owner,'order_change',WhatsAppAgent::who($c).' quiere cambiar algo de su pedido','Pedido '.$ref.'. Revisa el chat y corrige el pedido antes de confirmarlo.','/panel/whatsapp/'.$c['id'],(string)$c['id']);
@@ -91,7 +117,7 @@ final class WhatsAppOrderChat {
    $ok=self::confirmable($r)&&$r['quote_id']===($p['quote_id']??null)&&(int)$r['version']===(int)($p['version']??-1)&&WhatsAppOrderConfirm::quoteValid($r);
    if($ok){
     $when=(new \DateTimeImmutable('now'))->setTimezone(new \DateTimeZone('America/Bogota'))->format('Y-m-d H:i');
-    $r=Orders::confirmByCustomer($r,['quote_id'=>$r['quote_id'],'quoted_version'=>(int)$r['version'],'evidence'=>'El cliente respondió «'.($p['text']??'1').'» en WhatsApp ('.$when.', hora de Colombia) a la pregunta «¿Lo confirmamos?» con el resumen del pedido.',
+    $r=Orders::confirmByCustomer($r,['quote_id'=>$r['quote_id'],'quoted_version'=>(int)$r['version'],'evidence'=>'El cliente respondió '.self::said((string)($p['text']??'1'),true).' en WhatsApp ('.$when.', hora de Colombia) a la pregunta «¿Lo confirmamos? 1 SÍ / 2 NO» con el resumen del pedido.',
      'recorded_by'=>null,'recorded_at'=>gmdate('c'),'method'=>'whatsapp_text','conversation_id'=>$c['id'],'reply_wamid'=>$p['wamid']??null]);
     Database::query("UPDATE whatsapp_order_confirmations SET status='confirmed',reply='confirm',replied_at=now(),updated_at=now() WHERE order_id=? AND user_id=?",[$r['id'],$owner]);
    }

@@ -848,6 +848,20 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Datos reales:** ninguno.
 - **Siguiente paso:** instrucciones generales y «aprendizajes» desde superadmin; luego la etapa 5 (crear el pedido desde el chat).
 
+### 2026-10-28 · IA de WhatsApp: instrucciones generales y aprendizajes
+- **Pedido del usuario:** en superadmin, un apartado con un prompt general para que la IA sepa consultar y aprenda.
+- **Cambio:** pestaña «IA de WhatsApp» en Administración (instrucciones generales y aprendizajes de la plataforma, auditados), sección «Aprendizajes» en Agente IA de cada tienda y «Guardar como aprendizaje» en los mensajes de asesor de la Bandeja. El agente recibe las instrucciones generales y los aprendizajes relacionados con lo que pregunta el cliente. Migración PostgreSQL 032 / MySQL 049. Se corrigió el título de la cabecera, que mostraba «Integraciones de IA» en `/panel/admin/ia`. Detalle en [WHATSAPP.md](WHATSAPP.md).
+- **Comprobado (local, IA y Meta simulados):** `whatsapp-agent.mjs` 75 (11 nuevas: validación, aislamiento entre tiendas, solo superadmin, auditoría, lo que recibe la IA, selección por relevancia, pestaña, sección de la tienda y diálogo desde el chat), `admin` 39, `whatsapp-inbox` 43, `whatsapp-confirm` 64, `orders` 38, `run.php` 86.
+- **Datos reales:** ninguno.
+- **Siguiente paso:** etapa 5 (crear el pedido desde el chat).
+
+### 2026-10-28 · Cierre de conversaciones, «1 SÍ» en la evidencia y borrado de mensajes
+- **Pedido del usuario:** que el pedido muestre «1 SÍ» y no solo «1»; que tras confirmar la IA pregunte si hay más dudas y, si no, cierre el chat; cerrar también por falta de respuesta y borrar después para no ocupar espacio. Caso real: tras confirmar respondió «gracias» y la IA habló de otro producto.
+- **Cambio:** evidencia «1 SÍ» / «2 NO»; pregunta final después de confirmar y cierre con despedida ante «no», «gracias», «listo»; cierre por 24 horas sin mensajes (no los que esperan a un asesor); reapertura con historial nuevo para la IA; borrado de mensajes 30 días después del cierre (no del mes en curso); etiqueta y aviso «Cerrada» en la Bandeja; regla de despedida en las instrucciones de la IA. Migración PostgreSQL 033 / MySQL 050. Detalle en [WHATSAPP.md](WHATSAPP.md).
+- **Comprobado (local, IA y Meta simulados):** `whatsapp-agent.mjs` 82 (7 nuevas: evidencia, pregunta final, cierre con «gracias», reapertura, historial desde el cierre, cierre por inactividad, borrado a los 30 días con la evidencia del pedido intacta), `whatsapp-confirm` 65 (cierre tras el botón), `run.php` 100 (14 nuevas para las respuestas de cierre), `whatsapp-inbox` 43, `whatsapp-ads` 30, `whatsapp-notify` 27, `orders` 38, `order-lookup` 18. La traducción a MySQL de «24 hours» y «30 days» se revisó en el código, no contra una base MySQL.
+- **Datos reales:** ninguno.
+- **Siguiente paso:** etapa 5 (crear el pedido desde el chat).
+
 ### Plantilla para la próxima actualización
 
 ```text

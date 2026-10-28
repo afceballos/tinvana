@@ -48,3 +48,5 @@ button.danger{color:#b42318;border-color:color-mix(in srgb,#b42318 35%,var(--lin
 @media (max-width:560px){.admin-rule{flex-direction:column;align-items:stretch}.panel-main label.admin-rule{flex-direction:column}.admin-rule select{width:100%}.admin-limit{width:100%}.admin-limit select{flex:1}}
 .panel-main .admin-checks label.order-check{display:flex;flex-direction:row;align-items:center;gap:10px}
 .panel-main .admin-checks label.order-check input{width:18px;height:18px;flex:0 0 18px;margin:0}
+
+.admin-prompt textarea{min-height:200px;font-size:14px;line-height:1.6}

@@ -7,9 +7,11 @@ import {Icon} from '../ui';
 import {WhatsAppTabs} from './WhatsAppTabs';
 import './inbox.css';
 import {TemplateSendDialog} from './WhatsAppTemplates';
+import {useAllowed} from '../access';
+import {LearnDialog} from './KnowledgeEditor';
 
 type Last={body:string;type:string;sender:string;direction:'in'|'out';status:string};
-type Summary={id:string;name:string|null;phone:string;owner_mode:'ai'|'human';handoff_reason:string|null;unread:number;stage:string;last_message_at:string|null;last_customer_at:string|null;window_open:boolean;window_closes_at:string|null;version:number;last:Last|null};
+type Summary={id:string;name:string|null;phone:string;owner_mode:'ai'|'human';handoff_reason:string|null;unread:number;stage:string;last_message_at:string|null;last_customer_at:string|null;window_open:boolean;window_closes_at:string|null;version:number;last:Last|null;closed_at?:string|null;closed_reason?:string|null};
 type Message={id:string;direction:'in'|'out';type:string;body:string;status:string;sender:string;error:string|null;created_at:string;status_at:string|null;supported:boolean;local?:'sending'|'unconfirmed'};
 type ListView={unchanged?:boolean;stamp:string;conversations?:Summary[];counts?:{total:number;today:number;ai:number;human:number;unread:number};connected?:boolean};
 type DetailView={unchanged?:boolean;stamp:string;conversation?:Summary&{contact_since:string;has_referral:boolean;product:{id:string;name:string;sheet_version:number|null}|null;captured:{key:string;label:string;value:string}[];ai_tokens:number;memory?:string|null;pending?:{type:string;order_id:string}|null;entry:{method:string;method_label:string;certainty:string|null;ad:{name:string;ad_id:string}|null;offer:{name:string;code:string;label:string;version:number|null}|null}|null};messages?:Message[]};
@@ -87,7 +89,7 @@ export function WhatsAppInbox(){
       <span className="wa-avatar" aria-hidden="true">{initials(c)}</span>
       <span className="wa-item-main"><span className="wa-item-top"><strong>{display(c)}</strong><time dateTime={c.last_message_at||undefined}>{shortTime(c.last_message_at)}</time></span>
        <span className="wa-item-preview">{preview(c.last)}</span>
-       <span className="wa-item-tags"><span className={'wa-tag '+(c.owner_mode==='ai'?'is-ai':'is-human')}>{c.owner_mode==='ai'?'IA':'Asesor'}</span>{!c.window_open&&<span className="wa-tag is-muted">Ventana cerrada</span>}{c.unread>0&&<span className="wa-unread" aria-label={c.unread+' sin leer'}>{c.unread}</span>}</span>
+       <span className="wa-item-tags">{c.closed_at?<span className="wa-tag is-closed">Cerrada</span>:<span className={'wa-tag '+(c.owner_mode==='ai'?'is-ai':'is-human')}>{c.owner_mode==='ai'?'IA':'Asesor'}</span>}{!c.window_open&&<span className="wa-tag is-muted">Ventana cerrada</span>}{c.unread>0&&<span className="wa-unread" aria-label={c.unread+' sin leer'}>{c.unread}</span>}</span>
       </span>
      </Link></li>)}
      {!items.length&&<li className="wa-empty">{search||filter!=='all'?'No hay conversaciones con ese filtro.':'Todavía no hay conversaciones. Aparecerán aquí cuando un cliente escriba a tu número.'}</li>}
@@ -100,7 +102,7 @@ export function WhatsAppInbox(){
 
 function Conversation({id,onChange,onBack,onError}:{id:string;onChange:()=>void;onBack:()=>void;onError:(m:string)=>void}){
  const [view,setView]=useState<DetailView|null>(null);const [missing,setMissing]=useState(false);const stamp=useRef('');
- const [templateOpen,setTemplateOpen]=useState(false);const [pending,setPending]=useState<Message[]>([]);const [text,setText]=useState('');const [busy,setBusy]=useState(false);
+ const [templateOpen,setTemplateOpen]=useState(false);const learn=useAllowed('whatsapp_ai');const [learning,setLearning]=useState<{question:string;answer:string}|null>(null);const [pending,setPending]=useState<Message[]>([]);const [text,setText]=useState('');const [busy,setBusy]=useState(false);
  const scroller=useRef<HTMLDivElement>(null);const stick=useRef(true);const [,setNotice]=useFeedbackState('success');const [,tick]=useState(0);
  const load=useCallback(async()=>{
   try{const r=await poll<DetailView>(`/api/whatsapp/conversations/${id}?stamp=${stamp.current}`);if(!r||r.unchanged)return;stamp.current=r.stamp;setView(r);
@@ -140,20 +142,23 @@ function Conversation({id,onChange,onBack,onError}:{id:string;onChange:()=>void;
     {human?<button type="button" className="secondary" disabled={busy} onClick={()=>void act('release')}>Devolver a la IA</button>:<button type="button" className="primary" disabled={busy} onClick={()=>void act('take')}>Tomar conversación</button>}
    </header>
    {!human&&<p className="wa-banner" role="note">El agente de IA atiende este chat. Si quieres responder tú, pulsa «Tomar conversación»: la IA dejará de escribir aquí.</p>}
-   {human&&c.handoff_reason&&c.handoff_reason!=='Tomada por un asesor'&&<p className="wa-banner is-handoff" role="note"><strong>Necesita un asesor:</strong> {c.handoff_reason}</p>}
+   {c.closed_at&&<p className="wa-banner is-closed" role="note"><strong>Conversación cerrada</strong> el {new Date(c.closed_at).toLocaleString('es-CO',{timeZone:tz,day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}{c.closed_reason?' · '+c.closed_reason:''}. Si el cliente vuelve a escribir, se abre de nuevo. Los mensajes se borran 30 días después del cierre.</p>}
+   {!c.closed_at&&human&&c.handoff_reason&&c.handoff_reason!=='Tomada por un asesor'&&<p className="wa-banner is-handoff" role="note"><strong>Necesita un asesor:</strong> {c.handoff_reason}</p>}
    <div className="wa-messages" ref={scroller} onScroll={e=>{const el=e.currentTarget;stick.current=el.scrollHeight-el.scrollTop-el.clientHeight<80;}} aria-live="polite">
     {messages.map(m=>{const label=dayLabel(m.created_at);const sep=label!==lastDay;lastDay=label;
      return <div key={m.id} className="wa-msg-wrap">{sep&&<div className="wa-day"><span>{label}</span></div>}
       <div className={'wa-msg '+(m.direction==='in'?'is-in':'is-out')+(m.status==='failed'||m.local==='unconfirmed'?' is-failed':'')}>
-       {m.direction==='out'&&<span className="wa-msg-sender">{m.sender==='ai'?'Agente IA':m.sender==='template'?'Plantilla':'Asesor'}</span>}
+       {m.direction==='out'&&<span className="wa-msg-sender">{m.sender==='ai'?'Agente IA':m.sender==='template'?'Plantilla':m.sender==='system'?'Automático':'Asesor'}</span>}
        {m.supported?(m.type==='reaction'?<p className="wa-reaction">Reaccionó {m.body||'(quitó la reacción)'}</p>:<p>{m.body}</p>)
         :<p className="wa-unsupported"><Icon name={m.type==='image'?'image':'box'}/>{(MEDIA[m.type]||'Archivo')+' recibido (no compatible todavía)'}{m.body&&<span>{m.body}</span>}</p>}
        <span className="wa-msg-meta"><time dateTime={m.created_at}>{new Date(m.created_at).toLocaleTimeString('es-CO',{timeZone:tz,hour:'numeric',minute:'2-digit'})}</time>{m.direction==='out'&&<Ticks m={m}/>}</span>
        {(m.status==='failed'&&m.error)&&<span className="wa-msg-error">{m.error}</span>}
+       {learn&&m.direction==='out'&&m.sender==='agent'&&m.status!=='failed'&&<button type="button" className="wa-learn" onClick={()=>{const i=messages.indexOf(m);const asked=[...messages.slice(0,i)].reverse().find(x=>x.direction==='in'&&x.body);setLearning({question:asked?.body||'',answer:m.body||''});}}><Icon name="automation"/>Guardar como aprendizaje</button>}
        {m.local==='unconfirmed'&&<span className="wa-msg-error">No se pudo confirmar el envío. <button type="button" className="link" onClick={()=>void send(m)}>Reintentar</button> (no se duplicará).</span>}
       </div></div>;})}
     {!messages.length&&<p className="wa-empty">Sin mensajes todavía.</p>}
    </div>
+    {learning&&<LearnDialog conversationId={id} initial={learning} onClose={()=>setLearning(null)}/>}
    <form className="wa-composer" onSubmit={e=>{e.preventDefault();submit();}}>
     {blocked&&<p className="wa-composer-note">{blocked}{human&&!c.window_open&&<> <button type="button" className="secondary wa-send-template" onClick={()=>setTemplateOpen(true)}>Enviar plantilla</button></>}</p>}
     {templateOpen&&<TemplateSendDialog conversationId={id} phone={c.phone} name={c.name} onClose={()=>setTemplateOpen(false)} onSent={()=>{setTemplateOpen(false);stamp.current='';void load();onChange();}}/>}

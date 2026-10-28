@@ -305,7 +305,11 @@ final class WhatsAppOrderConfirm {
  /** After the customer confirmed (button or «1»): their message, the store's notice and, if chosen, Dropi. */
  public static function afterConfirm(string $owner,array $r,array $c,?array $account): void {
   $s=self::settings($owner);$ref=Orders::displayNumber($r);
-  if($account)self::say($account,$c,$s['messages']['confirmed']);
+  // Confirmed, and the chat asks whether anything else is needed: «no» or «gracias» closes it (WhatsAppOrderChat).
+  if($account&&WhatsAppInbox::windowOpen($c['last_customer_at'])){
+   self::say($account,$c,$s['messages']['confirmed']."\n\n".WhatsAppOrderChat::ANY_MORE);
+   Database::query('UPDATE whatsapp_conversations SET pending=?::jsonb,updated_at=now() WHERE id=?',[Support::json(['type'=>'after_confirm','order_id'=>$r['id'],'at'=>gmdate('c')]),$c['id']]);
+  }
   Notifications::notify($owner,'order_confirmed',WhatsAppAgent::who($c).' confirmó su pedido por WhatsApp','Pedido '.$ref.($s['auto_dropi']?'. Se envía a Dropi automáticamente.':'. Revísalo y envíalo a Dropi.'),'/panel/pedidos/'.$r['id'],(string)$c['id']);
   if($s['auto_dropi']){
    try{DropiOrders::submit($owner,(string)$r['id'],['confirm'=>true,'version'=>(int)$r['version']],true);}

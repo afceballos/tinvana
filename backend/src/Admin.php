@@ -39,6 +39,16 @@ final class Admin {
     return ['defaults'=>$after,'catalog'=>WhatsAppAgentSettings::catalog()];
    }
   }
+  // General instructions of the WhatsApp agent and the platform's learnings (every store receives them).
+  if($path==='/api/admin/whatsapp-ai'){
+   if($method==='GET')return ['prompt'=>WhatsAppKnowledge::prompt()]+WhatsAppKnowledge::list(null);
+   if($method==='PUT'){$before=WhatsAppKnowledge::prompt();$after=WhatsAppKnowledge::savePrompt(Api::body()['prompt']??null);if($after!==$before)self::log($actor,null,'whatsapp_agent_prompt_updated',['before'=>$before,'after'=>$after]);return ['prompt'=>$after,'message'=>'Instrucciones generales guardadas.']+WhatsAppKnowledge::list(null);}
+  }
+  if($path==='/api/admin/whatsapp-knowledge'&&$method==='POST'){$r=WhatsAppKnowledge::save(null,null,Api::body(),(string)$actor['id']);self::log($actor,null,'whatsapp_knowledge_created',['question'=>mb_substr((string)(Api::body()['question']??''),0,300)]);return $r;}
+  if(preg_match('~^/api/admin/whatsapp-knowledge/([a-f0-9-]{36})$~D',$path,$m)){
+   if($method==='PUT'){$r=WhatsAppKnowledge::save(null,$m[1],Api::body(),(string)$actor['id']);self::log($actor,null,'whatsapp_knowledge_updated',['id'=>$m[1]]);return $r;}
+   if($method==='DELETE'){$r=WhatsAppKnowledge::delete(null,$m[1]);self::log($actor,null,'whatsapp_knowledge_deleted',['id'=>$m[1]]);return $r;}
+  }
   if($path==='/api/admin/audit'&&$method==='GET')return self::audit($_GET);
   throw new HttpError(404,'Ruta no encontrada.');
  }

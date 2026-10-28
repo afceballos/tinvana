@@ -101,6 +101,9 @@ try{
  check('the tap appears in the chat and the AI did not answer it',chat.messages.some(m=>m.type==='button'&&m.body==='Confirmar pedido')&&!chat.messages.some(m=>m.sender==='ai'));
  const before=meta.sends.length;await tap('573001112233','tvc:'+c.id+':ok','Confirmar pedido',ourWamid,okTap);await tap('573001112233','tvc:'+c.id+':ok','Confirmar pedido',ourWamid);
  check('repeating the tap sends nothing again',meta.sends.length===before&&(await detail(o.id)).events.filter(e=>e.event_type==='confirmed').length===1);
+ const asked=/otra pregunta/.test(lastText('573001112233'));await hook({contacts:[{profile:{name:'Ana Pedido'},wa_id:'573001112233'}],messages:[{from:'573001112233',id:'wamid.IN'+randomUUID(),timestamp:String(Math.floor(Date.now()/1000)),type:'text',text:{body:'Gracias'}}]});
+ chat=await(await owner.ctx.get('/api/whatsapp/conversations/'+c.conversation_id)).json();
+ check('after the button the chat asks for more questions and «Gracias» closes it',asked&&/cerrado este chat/.test(lastText('573001112233'))&&!!chat.conversation.closed_at&&!chat.messages.some(m=>m.sender==='ai'));
 
  // 4. Change
  await lead('3002223344','wa2@example.test');const o2=await orderOf('wa2@example.test');const c2=(await confirmations()).find(x=>x.order_id===o2.id);const w2=templateSend('573002223344').wamid;

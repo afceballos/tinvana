@@ -111,4 +111,6 @@ $mediaId='11111111-1111-4111-8111-111111111111';$canonical=rtrim(App\Support::en
 check('own local upload follows current public origin',App\Media::rebase('http://127.0.0.1:8080/media/'.$mediaId.'.webp')===$canonical.'/media/'.$mediaId.'.webp');
 check('old temporary upload follows current origin',App\Media::rebase(['blocks'=>[['image'=>'https://old-demo.trycloudflare.com/media/'.$mediaId.'.webp']]])['blocks'][0]['image']===$canonical.'/media/'.$mediaId.'.webp');
 check('external image origin stays unchanged',App\Media::rebase('https://example.com/media/'.$mediaId.'.webp')==='https://example.com/media/'.$mediaId.'.webp');
+foreach(['no','No, gracias','Muchas gracias!!','listo 👍','👍','Ok, perfecto','nada más, gracias','Gracias, Dios le bendiga'] as $t)check('closing answer: '.$t,App\WhatsAppOrderChat::isDone($t));
+foreach(['¿Cuándo llega?','no, pero quiero cambiar la dirección','sí','tengo una duda','gracias, otra cosa: el color',''] as $t)check('not a closing answer: '.$t,!App\WhatsAppOrderChat::isDone($t));
 echo "$passed tests passed. No external services used.\n";

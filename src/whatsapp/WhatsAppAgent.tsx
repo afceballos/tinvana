@@ -8,6 +8,7 @@ import {Icon} from '../ui';
 import {WhatsAppTabs} from './WhatsAppTabs';
 import {AgentSettingsForm,type AgentCatalog,type AgentSettings} from './AgentSettingsForm';
 import './agent.css';
+import {KnowledgeEditor} from './KnowledgeEditor';
 
 type Status={unavailable:string|null;provider:string|null;used_this_month:number;monthly_limit:number|null;sellable:number};
 type AgentView={settings:AgentSettings;custom:boolean;defaults:AgentSettings;catalog:AgentCatalog;status:Status};
@@ -46,6 +47,8 @@ export function WhatsAppAgentPage(){
    </div>
   </section>
   <Sheets onChange={()=>{api<AgentView>('/api/whatsapp/agent').then(v=>setView({...v,settings:view.settings})).catch(()=>{});}}/>
+  <section className="panel webhook-current"><div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name="automation"/></span><div><span className="eyebrow">Lo que la IA aprende de tu tienda</span><h2>Aprendizajes</h2></div></div>
+   <KnowledgeEditor list="/api/whatsapp/knowledge" base="/api/whatsapp/knowledge" scope="store"/></section>
  </>;
 }
 
