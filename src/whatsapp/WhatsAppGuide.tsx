@@ -16,13 +16,16 @@ const webhook:Step={title:'Conecta el webhook',
  body:<>Al guardar, Tinbana te muestra abajo la <b>URL del webhook</b> y tu <b>token de verificación</b>. En tu app de Meta ve a <b>WhatsApp</b> → <b>Configuración</b> (<i>Configuration</i>) → <b>Webhook</b> → <b>Editar</b>, pega los dos, pulsa <b>Verificar y guardar</b> y en <b>Campos del webhook</b> suscríbete a <code>messages</code>.</>,
  tinbana:<>Usa los botones <b>Copiar</b> de la tarjeta «Webhook de tu app».</>};
 
+const publish:Step={title:'Publica tu app',link:[M.apps,'Abrir mis apps'],
+ body:<>En la parte de arriba del panel de tu app cambia <b>Modo de la app</b> de <b>En desarrollo</b> a <b>Publicada</b> (<i>Live</i>). Meta pide una URL de política de privacidad (puede ser la de tu tienda). Meta lo recomienda también con el número de prueba: en modo desarrollo algunos avisos de webhook no se envían, y sin ellos los mensajes no llegan a Tinbana.</>};
+
 const TEST:Step[]=[createApp,
  {title:'Copia los identificadores del número de prueba',link:[M.apps,'Abrir mis apps'],
   body:<>Pulsa <b>Empezar a usar la API</b> para abrir <b>Configuración de la API</b> (<i>API Setup</i>). Meta te da un número de prueba gratis. Ahí verás el <b>identificador del número de teléfono</b> (<i>Phone number ID</i>) y el de la <b>cuenta de WhatsApp Business</b> (<i>WhatsApp Business Account ID</i>, a veces «Messaging account ID»).</>,
   tinbana:<>Pégalos en <b>Phone Number ID</b> y <b>WhatsApp Business Account ID</b>.</>},
  {title:'Agrega los números que pueden escribirle',
   body:<>En la misma página, en el campo <b>Para</b> (<i>To</i>), agrega y verifica con el código que llega por WhatsApp los números con los que vas a probar (hasta 5). El número de prueba solo conversa con esos números.</>},
- token,secret,webhook,
+ token,secret,publish,webhook,
  {title:'Prueba',body:<>En Tinbana pulsa <b>Probar conexión</b> (también suscribe tu app a los mensajes). Después escribe al número de prueba desde uno de tus números verificados: el mensaje debe aparecer en la Bandeja.</>}];
 
 const OWN:Step[]=[createApp,
@@ -34,8 +37,7 @@ const OWN:Step[]=[createApp,
  {title:'Agrega un método de pago',link:[M.manager,'Abrir WhatsApp Manager'],
   body:<>En <b>WhatsApp Manager</b> → <b>Configuración de pagos</b>, agrega una tarjeta. Meta cobra las conversaciones que inicias con plantilla (confirmaciones o avisos fuera de las 24 horas); responder cuando el cliente te escribe no necesita plantilla.</>},
  token,secret,
- {title:'Publica tu app',
-  body:<>En la parte de arriba del panel de tu app cambia <b>Modo de la app</b> de <b>En desarrollo</b> a <b>Publicada</b> (<i>Live</i>). Meta pide una URL de política de privacidad (puede ser la de tu tienda). Sin publicarla, Meta no envía a Tinbana los mensajes de tus clientes reales.</>},
+ publish,
  webhook,
  {title:'Prueba y verifica tu negocio',
   body:<>Pulsa <b>Probar conexión</b> y escribe a tu número desde otro celular. Para enviar más mensajes al día, verifica tu negocio en la Configuración del negocio → <b>Centro de seguridad</b>.</>}];

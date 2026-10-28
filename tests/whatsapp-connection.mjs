@@ -129,7 +129,7 @@ try{
  await page.getByRole('button',{name:'Reemplazar credenciales'}).click();
  check('the guide entry is at the end of the form card, apart from it',await page.locator('form.wa-form .wa-guide-entry').isVisible());
  await page.getByRole('button',{name:'Ver el paso a paso'}).click();const guide=page.locator('aside.wa-guide-drawer');await guide.waitFor();
- check('the guide opens in a side panel and explains the test number step by step with links to Meta',(await guide.locator('.wa-guide-steps li').count())===7&&(await guide.innerText()).includes('Usuarios del sistema')&&await guide.locator('a[href^="https://developers.facebook.com"]').count()>0);
+ check('the guide opens in a side panel and explains the test number step by step with links to Meta',(await guide.locator('.wa-guide-steps li').count())===8&&(await guide.innerText()).includes('Usuarios del sistema')&&/Publica tu app/.test(await guide.innerText())&&await guide.locator('a[href^="https://developers.facebook.com"]').count()>0);
  await guide.getByRole('tab',{name:'Mi número propio'}).click();
  check('and the own number with payment method and publishing the app',(await guide.locator('.wa-guide-steps li').count())===9&&/Publica tu app/.test(await guide.innerText())&&/método de pago/.test(await guide.innerText()));
  await page.locator('input[name=phone_number_id]').fill('106540352242922');

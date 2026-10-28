@@ -924,6 +924,12 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Comprobado (local):** `whatsapp-connection.mjs` 57 y revisión de la captura.
 - **Datos reales:** ninguno.
 
+### 2026-10-28 · Publicar la app también con el número de prueba
+- **Pregunta del usuario:** si la app de pruebas también se debe publicar y si estaba en el manual (solo estaba en «Mi número propio»).
+- **Cambio:** el paso «Publica tu app» se agrega también a la pestaña del número de prueba, porque la guía oficial de webhooks de Meta advierte que algunos webhooks no se envían en modo desarrollo (no dice cuáles).
+- **Comprobado (local):** `whatsapp-connection.mjs` 57.
+- **Datos reales:** ninguno.
+
 ### Plantilla para la próxima actualización
 
 ```text
