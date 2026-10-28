@@ -87,7 +87,8 @@ try {
    if($method!=='POST')throw new HttpError(405,'Método no permitido.');Auth::csrf();Auth::limit('shipping-ip:'.($_SERVER['REMOTE_ADDR']??''),60,3600);
    $b=Api::body();$city=$b['city_code']??'';$qty=filter_var($b['quantity']??1,FILTER_VALIDATE_INT,['options'=>['min_range'=>1,'max_range'=>100]]);
    if(!is_string($city)||!preg_match('/^[0-9]{5}$/D',$city)||$qty===false)throw new HttpError(422,'Ciudad o cantidad inválida.');
-   $q=DropiShipping::forLanding($r,$city,$qty);header('Content-Type: application/json; charset=utf-8');
+   $variant=null;$vid=$b['variant_id']??'';if(is_string($vid)&&$vid!=='')foreach(App\LandingVariants::visible($r['content'],$r['product_snapshot']) as $v)if($v['id']===$vid)$variant=$v;
+   $q=DropiShipping::forLanding($r,$city,$qty,$variant['price']??null);header('Content-Type: application/json; charset=utf-8');
    echo Support::json(['amount'=>$q['amount']??null,'message'=>$q?null:'El envío a tu ciudad se confirmará al procesar el pedido.']);exit;
   }
   if(isset($m[2])){

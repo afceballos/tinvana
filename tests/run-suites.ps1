@@ -6,7 +6,7 @@ param([string]$Label='run',[string[]]$Only=@(),[switch]$Ai)
 Set-Location (Split-Path $PSScriptRoot -Parent)
 $config = Get-Content -LiteralPath ".tools/test-env.json" -Raw | ConvertFrom-Json
 foreach ($entry in $config.PSObject.Properties) { [Environment]::SetEnvironmentVariable($entry.Name, [string]$entry.Value, 'Process') }
-$env:DROPI_TRACKING_URL='https://127.0.0.1:8445/integrations/orders/myorders/'; $env:DROPI_QUOTE_URL='https://127.0.0.1:8444/integrations/orders/cotizaEnvioTransportadoraV2'; $env:DROPI_ORDERS_URL='https://127.0.0.1:8443/integrations/orders/myorders'; $env:HTTP_CA_BUNDLE=(Resolve-Path .tools/test-cert.pem).Path
+$env:DROPI_TRACKING_URL='https://127.0.0.1:8445/integrations/orders/myorders/'; $env:DROPI_QUOTE_URL='https://127.0.0.1:8444/integrations/orders/cotizaEnvioTransportadoraV2'; $env:DROPI_ORDERS_URL='https://127.0.0.1:8443/integrations/orders/myorders'; $env:DROPI_CATALOG_URL='https://127.0.0.1:8448/integrations/products/index'; $env:HTTP_CA_BUNDLE=(Resolve-Path .tools/test-cert.pem).Path
 # WhatsApp: simulated Graph API and test-only platform values.
 $env:WHATSAPP_GRAPH_URL='https://127.0.0.1:8446/'; $env:AI_OPENAI_URL='https://127.0.0.1:8447'; $env:WHATSAPP_APP_SECRET='test-app-secret-not-real'; $env:WHATSAPP_VERIFY_TOKEN='test-verify-token'
 $env:TEST_BASE_URL='http://127.0.0.1:8081'

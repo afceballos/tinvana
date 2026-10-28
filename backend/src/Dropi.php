@@ -47,7 +47,10 @@ final class Dropi {
   $token=Crypto::decrypt($integration['token_ciphertext'],$integration['id'].':'.$integration['user_id']);
   if($token===''||strlen($token)>4096||preg_match('/[\r\n]/',$token))throw new HttpError(422,'Token de integración inválido.');
   $payload=$categories?null:self::payload($params);
-  $c=curl_init($categories?'https://api.dropi.co/integrations/categories':'https://api.dropi.co/integrations/products/index');
+  $url=$categories?'https://api.dropi.co/integrations/categories':'https://api.dropi.co/integrations/products/index';
+  // Loopback override of the catalog for the isolated test suite only; production always uses the fixed host.
+  $test=Support::env('DROPI_CATALOG_URL');if(!$categories&&$test!==''&&Support::env('APP_ENV')!=='production'&&preg_match('~^https://127\.0\.0\.1:[0-9]{2,5}/[a-z/]*$~D',$test))$url=$test;
+  $c=curl_init($url);
   curl_setopt_array($c,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_ENCODING=>'',CURLOPT_HTTP_VERSION=>CURL_HTTP_VERSION_1_1,
    CURLOPT_CONNECTTIMEOUT=>8,CURLOPT_TIMEOUT=>20,CURLOPT_USERAGENT=>'WordPress/6.5; https://zenzales.com',
    CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,

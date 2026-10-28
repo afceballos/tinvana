@@ -1,12 +1,15 @@
 import {prepareLeadForm} from './lead-form';
 import {showLeadSuccess} from './lead-success';
+import {initVariantPicker} from './variant-picker';
 import './landing-form.css';
 
 // Public landing runtime. No animation library: CSS does the motion, the Web Animations API covers the dialogs.
 const preview=document.body.dataset.preview==='true';
 const reduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ease='cubic-bezier(.2,.8,.2,1)';
-const price=document.body.dataset.price===''?null:Number(document.body.dataset.price);
+const basePrice=document.body.dataset.price===''?null:Number(document.body.dataset.price);
+// The chosen variant may have its own price; totals, shipping and the summary follow it.
+let price=basePrice;let variantPicker:ReturnType<typeof initVariantPicker>|null=null;
 const max=Number(document.body.dataset.maxQuantity)||1;
 let quantity=1;
 const money=(value:number|null)=>value===null?'Consulta el precio':new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:2}).format(value);
@@ -14,9 +17,15 @@ function setQuantity(value:number){const before=quantity;quantity=Math.min(max,M
 // Optional Dropi freight by buyer city: the server quotes (and re-quotes on submit); the browser only displays it.
 const shippingEnabled=document.body.dataset.shipping==='dropi'&&!preview;let shipping:{state:'idle'|'loading'|'ok'|'none',amount:number|null}={state:'idle',amount:null};let shippingRequest:AbortController|null=null;let shippingTimer=0;
 function renderShipping(){if(!shippingEnabled)return;const product=price===null?null:Math.round(price*quantity*100)/100;const label={idle:'Elige tu ciudad',loading:'Calculando…',ok:money(shipping.amount),none:'Se confirma al procesar el pedido'}[shipping.state];document.querySelectorAll('[data-summary-shipping]').forEach(el=>el.textContent=label);document.querySelectorAll('[data-summary-grand]').forEach(el=>el.textContent=shipping.state==='ok'&&product!==null?money(product+(shipping.amount??0)):money(product)+(shipping.state==='ok'?'':' + envío'));}
-function quoteShipping(){if(!shippingEnabled)return;const lead=document.querySelector<HTMLFormElement>('#lead-form');const city=lead?.querySelector<HTMLSelectElement>('[name=city_code]')?.value||'';window.clearTimeout(shippingTimer);shippingRequest?.abort();if(!lead||!/^[0-9]{5}$/.test(city)){shipping={state:'idle',amount:null};renderShipping();return;}shipping={state:'loading',amount:null};renderShipping();shippingTimer=window.setTimeout(async()=>{const ctl=new AbortController();shippingRequest=ctl;try{const csrf=lead.querySelector<HTMLInputElement>('[name=csrf]')?.value||'';const r=await fetch(lead.action.replace(/\/lead$/,'/shipping'),{method:'POST',credentials:'same-origin',signal:ctl.signal,headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({city_code:city,quantity,csrf})});const data=await r.json();shipping=r.ok&&typeof data.amount==='number'?{state:'ok',amount:data.amount}:{state:'none',amount:null};}catch(e){if((e as Error).name==='AbortError')return;shipping={state:'none',amount:null};}renderShipping();},250);}
+function quoteShipping(){if(!shippingEnabled)return;const lead=document.querySelector<HTMLFormElement>('#lead-form');const city=lead?.querySelector<HTMLSelectElement>('[name=city_code]')?.value||'';window.clearTimeout(shippingTimer);shippingRequest?.abort();if(!lead||!/^[0-9]{5}$/.test(city)){shipping={state:'idle',amount:null};renderShipping();return;}shipping={state:'loading',amount:null};renderShipping();shippingTimer=window.setTimeout(async()=>{const ctl=new AbortController();shippingRequest=ctl;try{const csrf=lead.querySelector<HTMLInputElement>('[name=csrf]')?.value||'';const r=await fetch(lead.action.replace(/\/lead$/,'/shipping'),{method:'POST',credentials:'same-origin',signal:ctl.signal,headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({city_code:city,quantity,csrf,variant_id:variantPicker?.variant?.id||''})});const data=await r.json();shipping=r.ok&&typeof data.amount==='number'?{state:'ok',amount:data.amount}:{state:'none',amount:null};}catch(e){if((e as Error).name==='AbortError')return;shipping={state:'none',amount:null};}renderShipping();},250);}
 document.querySelectorAll<HTMLInputElement>('[data-quantity]').forEach(input=>input.addEventListener('change',()=>setQuantity(Number(input.value))));
 document.querySelectorAll<HTMLButtonElement>('[data-quantity-step]').forEach(button=>button.addEventListener('click',()=>setQuantity(quantity+Number(button.dataset.quantityStep))));
+const pickerRoot=document.querySelector<HTMLElement>('[data-variant-picker]');const summaryImage=document.querySelector<HTMLImageElement>('#purchase-dialog .order-summary img');const baseImage=summaryImage?.getAttribute('src')||'';
+if(pickerRoot)variantPicker=initVariantPicker(pickerRoot,variant=>{
+ price=variant?.price??basePrice;document.querySelectorAll('[data-summary-unit]').forEach(el=>el.textContent=money(price));
+ const next=variant?.image||baseImage;if(summaryImage&&next&&summaryImage.getAttribute('src')!==next){summaryImage.src=next;if(!reduced())summaryImage.animate([{opacity:.35,transform:'scale(.97)'},{opacity:1,transform:'none'}],{duration:240,easing:ease});}
+ setQuantity(quantity);quoteShipping();
+});
 
 const purchase=document.querySelector<HTMLDialogElement>('#purchase-dialog');
 let trigger:HTMLElement|null=null;let closing=false;let overflow='';
@@ -39,7 +48,7 @@ if(preview){document.querySelectorAll<HTMLElement>('[data-block-id]').forEach(bl
 const form=document.querySelector<HTMLFormElement>('#lead-form');if(form)prepareLeadForm(form,purchase);let submitting=false;
 form?.querySelector('[name=city_code]')?.addEventListener('change',quoteShipping);form?.querySelector('[name=department_code]')?.addEventListener('change',()=>window.setTimeout(quoteShipping));renderShipping();
 form?.addEventListener('submit',async event=>{
- event.preventDefault();if(submitting||preview)return;setQuantity(quantity);submitting=true;
+ event.preventDefault();if(submitting||preview)return;if(variantPicker&&!variantPicker.validate())return;setQuantity(quantity);submitting=true;
  const status=document.querySelector<HTMLElement>('#lead-status')!;const button=form.querySelector<HTMLButtonElement>('button[type=submit]')!;
  button.disabled=true;button.textContent='Enviando solicitud…';form.setAttribute('aria-busy','true');status.dataset.state='pending';status.textContent='Guardando tu solicitud…';
  try{const payload=Object.fromEntries(new FormData(form));const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':String(payload.csrf)},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok)throw new Error(result.error||'No se pudo guardar la solicitud.');status.dataset.state='success';status.textContent=result.message;button.textContent='Solicitud recibida';form.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input:not([type=hidden]),select').forEach(input=>input.disabled=true);form.dispatchEvent(new Event('lead-saved'));if(purchase?.open){const returnTo=trigger;void closePurchase().then(()=>showLeadSuccess(reduced(),returnTo,result.whatsapp?.link?result.whatsapp:null));}}

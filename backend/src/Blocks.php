@@ -72,7 +72,7 @@ final class Blocks {
   $max=$value['maxQuantity']??99;if(!is_int($max)||$max<1||$max>99)throw new HttpError(422,'La cantidad máxima debe estar entre 1 y 99.');$out['maxQuantity']=$max;
   $price=$value['previousPrice']??null;if($price!==null&&(!is_numeric($price)||!is_finite((float)$price)||(float)$price<0||(float)$price>999999999))throw new HttpError(422,'Precio anterior inválido.');$out['previousPrice']=$price===null?null:(float)$price;return $out;
  }
- public static function imageUrls(array $c):array {$urls=$c['images']??[];if(!empty($c['header']['logo']))$urls[]=$c['header']['logo'];foreach($c['blocks']??[] as $b){$d=$b['data'];if(!empty($d['image']))$urls[]=$d['image'];foreach($d['images']??[] as $url)$urls[]=$url;foreach($d['items']??[] as $item)if(!empty($item['image']))$urls[]=$item['image'];}return array_values(array_unique($urls));}
+ public static function imageUrls(array $c):array {$urls=$c['images']??[];if(!empty($c['header']['logo']))$urls[]=$c['header']['logo'];foreach($c['blocks']??[] as $b){$d=$b['data'];if(!empty($d['image']))$urls[]=$d['image'];foreach($d['images']??[] as $url)$urls[]=$url;foreach($d['items']??[] as $item)if(!empty($item['image']))$urls[]=$item['image'];}foreach((array)($c['variants']['items']??[]) as $v)if(!empty($v['image']))$urls[]=$v['image'];return array_values(array_unique($urls));}
  public static function ownedProducts(array $blocks,string $owner):void {
   $ids=[];foreach($blocks as $block)foreach($block['data']['selectedProductIds']??[] as $id)$ids[$id]=true;
   if(!$ids)return;

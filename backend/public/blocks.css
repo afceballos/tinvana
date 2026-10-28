@@ -538,3 +538,28 @@ a.selected-product-card:hover .selected-product-link .block-icon{transform:trans
 .owner-edit:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
 @media (max-width:760px){.owner-edit{min-height:52px;width:52px;padding:0;justify-content:center}.owner-edit span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}.has-sticky-buy.sticky-on .owner-edit{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 82px)}}
 @media print{.owner-edit,.float-actions,.mobile-purchase{display:none}}
+/* Variant picker in the purchase dialog (color, size…). The dialog is always light; each theme keeps its shapes. */
+.vp{display:grid;gap:16px;margin-top:16px;padding:16px;border-radius:16px;background:var(--tint);transition:box-shadow .2s}
+.vp.has-error{box-shadow:inset 0 0 0 1.5px #b42318}
+.vp-group{min-width:0;margin:0;padding:0;border:0}
+.vp-group legend{display:flex;align-items:baseline;gap:8px;margin:0 0 10px;padding:0;color:#151311;font-size:15px;font-weight:650}
+.vp-current{color:#5f5750;font-weight:500}
+.vp-choices{display:flex;flex-wrap:wrap;gap:8px}
+.vp-choice{position:relative;display:inline-flex;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.vp-choice input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.vp-choice span{display:inline-flex;align-items:center;justify-content:center;min-width:48px;min-height:44px;padding:0 16px;border:1.5px solid var(--line);border-radius:var(--r-pill);background:#fff;color:#151311;font-size:15px;font-weight:600;line-height:1.2;transition:background .18s,border-color .18s,color .18s,transform .12s}
+.vp-choice:hover span{border-color:var(--primary)}
+.vp-choice:active span{transform:scale(.97)}
+.vp-choice input:checked+span{border-color:var(--primary);background:var(--primary);color:var(--on-primary)}
+.vp-choice input:focus-visible+span{outline:3px solid color-mix(in srgb,var(--primary) 50%,#151311);outline-offset:2px}
+.vp-choice.is-out span{border-style:dashed;background:#faf8f6;color:#6f6862;text-decoration:line-through;text-decoration-thickness:1.5px}
+.vp-choice.is-out input:checked+span{border-color:#b42318;background:#fff;color:#6f6862}
+.vp-error{margin:0;color:#b42318;font-size:14px;font-weight:600}
+[data-theme=warm] .vp-choice span{border-radius:var(--r-md)}
+[data-theme=warm] .vp{border:1.5px dashed var(--line)}
+[data-theme=bold] .vp{border:2px solid #151311;border-radius:var(--r-md)}
+[data-theme=bold] .vp-choice span{border:2px solid #151311;border-radius:var(--r-sm)}
+[data-theme=bold] .vp-choice input:checked+span{box-shadow:3px 3px 0 #151311}
+[data-theme=bold] .vp-choice.is-out span{border-style:dashed}
+@media (max-width:640px){.vp{padding:14px}.vp-choice span{padding:0 14px}}
+@media (prefers-reduced-motion:reduce){.vp,.vp-choice span{transition:none}.vp-choice:active span{transform:none}}

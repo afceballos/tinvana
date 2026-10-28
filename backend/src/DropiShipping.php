@@ -26,6 +26,8 @@ final class DropiShipping {
  }
  public static function origin(array $raw): ?string {
   foreach($raw['warehouse_product']??[] as $w){$code=$w['warehouse']['city']['cod_dane']??null;if(is_string($code)&&($dane=self::dane($code)))return $dane;}
+  // Variable products keep their warehouses in each variation (warehouse_product_variation).
+  foreach(is_array($raw['variations']??null)?$raw['variations']:[] as $v)foreach(is_array($v['warehouse_product_variation']??null)?$v['warehouse_product_variation']:[] as $w){$code=$w['warehouse']['city']['cod_dane']??null;if(is_string($code)&&($dane=self::dane($code)))return $dane;}
   return null;
  }
  /** Every carrier of a Dropi quote, cheapest first and unavailable ones (error or no price) last. */
@@ -71,8 +73,9 @@ final class DropiShipping {
   return null;
  }
  /** Quote for a published landing; null when disabled, not computable or Dropi has no carrier for the city. */
- public static function forLanding(array $landing,string $cityCode,int $quantity): ?array {
-  $r=Landing::decode($landing);$c=$r['content'];
+ /** $unitPrice: price of the chosen variant when it differs from the landing price. */
+ public static function forLanding(array $landing,string $cityCode,int $quantity,?float $unitPrice=null): ?array {
+  $r=Landing::decode($landing);$c=$r['content'];if($unitPrice!==null)$c['publicPrice']=$unitPrice;
   if(($c['commerce']['dropiShipping']??false)!==true||$c['publicPrice']===null||!Entitlements::allows((string)$r['user_id'],'dropi_shipping'))return null;
   $destination=self::dane($cityCode);if(!$destination)return null;
   $p=Database::one('SELECT integration_id,original_data FROM selected_products WHERE id=? AND user_id=?',[$r['selected_product_id'],$r['user_id']]);if(!$p)return null;

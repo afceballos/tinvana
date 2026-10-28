@@ -25,7 +25,7 @@ final class Landing {
   $features=$c['features']??[];if(!is_array($features)||count($features)>60)throw new HttpError(422,'Características inválidas.');$features=array_values(array_filter($features,fn($f)=>!is_string($f)||trim($f)!==''));if(count($features)>30)throw new HttpError(422,'Máximo 30 características.');$features=array_map(fn($f)=>Support::text($f,300),$features);
   $out=['title'=>$title,'description'=>$desc,'publicPrice'=>$price===null?null:(float)$price,'images'=>array_values($images),'features'=>$features,'seoTitle'=>Support::text($c['seoTitle']??$title,200,false),'seoDescription'=>Support::text($c['seoDescription']??'',320,false),'visual'=>self::visual($c['visual']??[])];
   $out['schemaVersion']=2;$out['blocks']=array_key_exists('blocks',$c)?Blocks::validate($c['blocks']):Blocks::legacy($out);$out['commerce']=Blocks::commerce($c['commerce']??[]);
-  $out['header']=LandingHeader::validate($c['header']??[],$out['blocks']);
+  $out['header']=LandingHeader::validate($c['header']??[],$out['blocks']);$out['variants']=LandingVariants::validate($c['variants']??null);
   if($out['commerce']['previousPrice']!==null&&$out['publicPrice']!==null&&$out['commerce']['previousPrice']<$out['publicPrice'])throw new HttpError(422,'El precio anterior no puede ser menor que el precio actual.');
   return $out;
  }

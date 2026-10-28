@@ -12,8 +12,10 @@ final class Orders {
   $unit=self::amount($p['public_price']??null,true);$id=Support::uuid();
   // Freight quoted by Dropi at submission time arrives prefilled; the quote is still saved and accepted manually.
   $shipping=is_numeric($p['shipping_price']??null)?self::amount((string)(int)$p['shipping_price'],true):null;
-  $r=Database::one('INSERT INTO orders(id,user_id,lead_id,customer,delivery_address,product_data,quantity,unit_price,shipping_price) VALUES(?,?,?,?::jsonb,?::jsonb,?::jsonb,?,?,?) ON CONFLICT(lead_id) DO NOTHING RETURNING *',[
-   $id,$owner,$leadId,Support::json(array_intersect_key($lead,array_flip(['first_name','last_name','email','phone']))),$lead['delivery_address']??'{}',$lead['product_data'],max(1,min(100,(int)($p['quantity']??1))),$unit,$shipping
+    // The variant the buyer chose on the landing comes with its label, so the order is ready for Dropi.
+  $variant=is_array($p['variant']??null)&&preg_match('/^[1-9][0-9]{0,17}$/D',(string)($p['variant']['id']??''))?['id'=>(string)$p['variant']['id'],'label'=>(string)($p['variant']['label']??''),'sku'=>null]:null;
+  $r=Database::one('INSERT INTO orders(id,user_id,lead_id,customer,delivery_address,product_data,quantity,unit_price,shipping_price,variant_data) VALUES(?,?,?,?::jsonb,?::jsonb,?::jsonb,?,?,?,?::jsonb) ON CONFLICT(lead_id) DO NOTHING RETURNING *',[
+   $id,$owner,$leadId,Support::json(array_intersect_key($lead,array_flip(['first_name','last_name','email','phone']))),$lead['delivery_address']??'{}',$lead['product_data'],max(1,min(100,(int)($p['quantity']??1))),$unit,$shipping,$variant?Support::json($variant):null
   ]);
   if($r)self::event($r,'created',['origin'=>'landing','lead_id'=>$leadId],null);
   else $r=Database::one('SELECT * FROM orders WHERE lead_id=? AND user_id=?',[$leadId,$owner]);
@@ -73,7 +75,8 @@ final class Orders {
   if($r['unit_price']===null)throw new HttpError(409,'El pedido no tiene el precio de la landing: cotízalo a mano.');
   if($r['shipping_price']===null)throw new HttpError(409,'Dropi no cotizó el envío a esta ciudad: cotízalo a mano y envía la confirmación desde el pedido.');
   $product=ProductOffers::forOrder($r);$mapped=json_decode($product['mapped_data'],true);
-  if(ProductOffers::variants($product)||strtoupper((string)($mapped['type']??''))==='VARIABLE')throw new HttpError(409,'El producto tiene variantes: elige la variante en el pedido y envía la confirmación desde allí.');
+  $variants=ProductOffers::variants($product);$chosen=json_decode((string)($r['variant_data']??'null'),true);
+  if(($variants||strtoupper((string)($mapped['type']??''))==='VARIABLE')&&!in_array((string)($chosen['id']??''),array_column($variants,'id'),true))throw new HttpError(409,'El producto tiene variantes: elige la variante en el pedido y envía la confirmación desde allí.');
   $address=json_decode($r['delivery_address'],true);foreach(['country','state','city','address'] as $key)if(empty($address[$key]))throw new HttpError(409,'La dirección del pedido está incompleta: corrígela antes de confirmar.');
   $r=Database::one("UPDATE orders SET version=version+1,quote_id=?,quote_expires_at=now()+interval '24 hours',confirmation=null,updated_at=now() WHERE id=? RETURNING *",[Support::uuid(),$r['id']]);
   self::event($r,'auto_quoted',['quantity'=>(int)$r['quantity'],'unit_price'=>$r['unit_price'],'shipping_price'=>$r['shipping_price'],'quote_id'=>$r['quote_id'],'expires_at'=>$r['quote_expires_at'],'validation'=>'landing_price_and_dropi_shipping'],null);

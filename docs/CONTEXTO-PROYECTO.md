@@ -794,6 +794,14 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Datos reales:** solo la lectura del diagnóstico hecha por el propietario.
 - **Siguiente paso:** variantes en las landings (selector en el formulario, precio público y foto por variante, variantes ocultas y pedido con la variante exacta).
 
+### 2026-10-28 · Variantes en las landings
+- **Pedido del usuario:** mostrar las variantes en las landings, editar su precio y su foto, que «Actualizar» también las renueve y que el diseño se adapte a los tres estilos.
+- **Cambio:** editor de variantes en «Producto y página» (foto por color, precio propio, ocultar, mostrar todas, ocultar agotadas); selector de opciones en la ventana de compra para `modern`, `warm` y `bold`; el pedido llega con la variante exacta y su precio; «Actualizar desde Dropi» renueva también la copia publicada; el envío se cotiza con el precio de la variante y la bodega de las variantes. Diseño según las pautas de `ui-ux-pro-max` (leídas de sus referencias, porque su buscador necesita Python, que no está instalado). Detalle en [BUILDER.md](BUILDER.md).
+- **Comprobado (local, servidor aislado en 8091):** `landing-variants.mjs` 33 (nueva); `run.php` 76, `blocks.php` 101, `dropi-block.php` 18, `ai.php` 45, `shipping-hint` 9; `builder`, `dropi-shipping` 20, `lead-success` 12, `lead-phone-country` 6, `delivery-ui`, `landing-design` 40, `owner-edit` 12, `orders` 38, `order-editing` 52, `dropi-orders` 36, `product-list`, `whatsapp-confirm` 59; `builder-http` 35 (pasa sola; falla si antes corre `http.mjs`, que deja consultas en la misma landing).
+- **No pasan, ajenos a este cambio:** `header.mjs` consulta un túnel de Cloudflare antiguo que ya no existe; `gallery.mjs` espera un aviso tras subir una imagen en el editor (no se comprobó si ya fallaba antes).
+- **Datos reales:** ninguno. El formato de las variantes viene del diagnóstico real del producto 2261687.
+- **Siguiente paso:** desplegar, «Actualizar desde Dropi» en el producto con variantes, ajustar precios y fotos en su landing y hacer un pedido de prueba.
+
 ### Plantilla para la próxima actualización
 
 ```text
