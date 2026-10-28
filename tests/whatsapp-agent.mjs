@@ -207,6 +207,16 @@ try{
  await say('573007770020','Mario Ruiz','1');
  const fd=(await(await owner.ctx.get('/api/orders/'+fresh.id)).json()).order;
  check('«1 SÍ» confirms the chat order in Pedidos',fd.sale_status==='confirmed'&&fd.confirmation.method==='whatsapp_text'&&fd.confirmation.evidence.includes('«1 SÍ»'));
+ // Stage 6B: purchase left halfway in the chat
+ await helper('all-hours');
+ await say('573007770030','Pedro Gómez','pedido: '+JSON.stringify({name:'Pedro Gómez'}));
+ const pedroChat=await convOf('573007770030');
+ check('the server asks for the missing data and the chat waits',/ciudad o municipio/.test(sends.at(-1).text.body));
+ await helper('age-chat',pedroChat.id,'3');await say('573007770031','Otra Persona','Hola');
+ const toPedro=()=>sends.filter(x=>x.to==='573007770030'&&x.type==='text');
+ check('2 hours after going quiet the customer gets one reminder to finish the purchase',/seguimos con tu pedido/.test(toPedro().at(-1).text.body));
+ const nP=toPedro().length;await say('573007770031','Otra Persona','Gracias');
+ check('the purchase reminder is sent once',toPedro().length===nP);
  v=await agent();await owner.ctx.put('/api/whatsapp/agent',{headers:owner.H,data:{...v.settings,chat_orders:false}});
  // Closing after 24 hours without messages and deleting the messages 30 days after the closing
  await helper('close-age',nora.id,'25');let hk=JSON.parse(await helper('housekeeping'));

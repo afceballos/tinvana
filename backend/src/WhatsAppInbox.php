@@ -46,7 +46,7 @@ final class WhatsAppInbox {
    }
   }
   // Order confirmations go before the agent: a confirmation tap must never be answered by the AI.
-  return $out+['confirmations'=>WhatsAppOrderConfirm::runDue(),'agent'=>WhatsAppAgent::runDue($agentLimit),'notices'=>OrderStatusNotices::runDue(),'housekeeping'=>self::housekeeping()];
+  return $out+['confirmations'=>WhatsAppOrderConfirm::runDue(),'agent'=>WhatsAppAgent::runDue($agentLimit),'notices'=>OrderStatusNotices::runDue(),'reminders'=>WhatsAppReminders::runDue(),'housekeeping'=>self::housekeeping()];
  }
 
  /** @return array{0:string,1:string} type and visible text of an incoming message */

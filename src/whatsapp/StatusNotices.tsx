@@ -7,11 +7,15 @@ import {Icon} from '../ui';
 import {TemplatePreview} from './WhatsAppTemplates';
 
 type State='guide_generated'|'in_transit'|'novelty'|'delivered';
-type Settings={whatsapp:Record<State,boolean>;template_id:string|null};
+type Kind='unconfirmed'|'abandoned';
+type Settings={whatsapp:Record<State,boolean>;template_id:string|null;reminders:Record<Kind,boolean>};
+type Reminder={id:string;kind:Kind;status:string;channel:string|null;error:string|null;order_id:string|null;conversation_id:string|null;created_at:string;order_number:string|null;who:string|null};
 type Tpl={id:string;name:string;status:string;body:string;purpose:string;problem:string|null};
 type Recent={id:string;order_id:string;order_number:string|null;customer:string;state:State;status:string;channel:string|null;error:string|null;conversation_id:string|null;created_at:string;sent_at:string|null};
-type View={settings:Settings;states:Record<State,string>;values:Record<string,string>;connected:boolean;template_ready:boolean;templates:Tpl[];recent:Recent[];message?:string};
+type View={settings:Settings;states:Record<State,string>;reminder_kinds:Record<Kind,string>;reminders:Reminder[];values:Record<string,string>;connected:boolean;template_ready:boolean;templates:Tpl[];recent:Recent[];message?:string};
 const HINT:Record<State,string>={guide_generated:'Con el número de guía y la transportadora.',in_transit:'Con el enlace para consultar el pedido.',novelty:'Además el chat pasa a un asesor y te llega un aviso.',delivered:'Con un agradecimiento por la compra.'};
+const RHINT:Record<Kind,string>={unconfirmed:'3 horas después del resumen sin respuesta. Dentro de las 24 horas se le muestra de nuevo; si no, se reenvía la plantilla de confirmación. Si 24 horas después tampoco responde, te avisamos.',abandoned:'Si dio datos de compra a la IA y dejó de responder hace 2 horas, un mensaje para retomar (sin plantilla ni costo).'};
+const RSTATUS:Record<string,[string,string]>={sent:['is-warn','Esperando respuesta'],answered:['is-ok','Respondió'],no_answer:['is-bad','Sin respuesta'],skipped:['is-muted','No enviado'],failed:['is-bad','Falló']};
 const STATUS:Record<string,[string,string]>={queued:['is-muted','En cola'],sending:['is-muted','Enviando'],sent:['is-ok','Enviado'],skipped:['is-muted','No enviado'],failed:['is-bad','Falló']};
 const EXAMPLE={nombre:'Laura',pedido:'TB-7KQ2-MX9P',estado:'va en camino con Servientrega (guía 240012345678)',guia:'240012345678',transportadora:'Servientrega',seguimiento:'https://tutienda.tinbana.com/pedido',producto:'Picatodo eléctrico',tienda:'Tu tienda'};
 const when=(v:string|null)=>v?new Date(v).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}):'';
@@ -43,6 +47,20 @@ export function StatusNotices(){
     </fieldset>
     <div className="row"><button className="primary" disabled={busy||!dirty} onClick={()=>void save()}>{busy?'Guardando…':'Guardar avisos'}</button>{dirty&&<button className="secondary" disabled={busy} onClick={()=>setDraft(view.settings)}>Descartar cambios</button>}</div>
    </div>
+  </section>
+  <section className="panel webhook-current wn-card">
+   <div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name="bell"/></span><div><span className="eyebrow">Uno solo por pedido o compra</span><h2>Recordatorios</h2></div></div>
+   <p className="muted">Se envían en tu horario de atención (Agente IA), nunca a quien se dio de baja ni cuando un asesor tiene el chat.</p>
+   <div className="wa-agent-form">
+    <div className="wn-states">{(Object.keys(view.reminder_kinds) as Kind[]).map(k=><label key={k} className="wa-switch"><input type="checkbox" checked={draft.reminders[k]} onChange={e=>setDraft({...draft,reminders:{...draft.reminders,[k]:e.target.checked}})}/><span><strong>{view.reminder_kinds[k]}</strong><small>{RHINT[k]}</small></span></label>)}</div>
+    <div className="row"><button className="primary" disabled={busy||!dirty} onClick={()=>void save()}>{busy?'Guardando…':'Guardar recordatorios'}</button></div>
+   </div>
+   {view.reminders.length>0&&<ul className="wc-list">{view.reminders.map(r=><li key={r.id}>
+    <div className="wc-main"><div className="wc-top"><strong>{r.who||'Cliente'}</strong><span className={'wa-tag '+(RSTATUS[r.status]?.[0]||'is-muted')}>{RSTATUS[r.status]?.[1]||r.status}</span></div>
+     <span className="small muted">{view.reminder_kinds[r.kind]}{r.order_number?' · '+r.order_number:''} · {when(r.created_at)}{r.channel==='template'?' · con plantilla':''}</span>
+     {r.error&&<span className="small wc-error">{r.error}</span>}</div>
+    <div className="wc-links">{r.order_id&&<Link className="secondary" to={'/panel/pedidos/'+r.order_id}>Pedido</Link>}{r.conversation_id&&<Link className="secondary" to={'/panel/whatsapp/'+r.conversation_id}>Chat</Link>}</div>
+   </li>)}</ul>}
   </section>
   {view.recent.length>0&&<section className="panel webhook-current">
    <div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name="clock"/></span><div><span className="eyebrow">Últimos 20</span><h2>Avisos por WhatsApp</h2></div></div>

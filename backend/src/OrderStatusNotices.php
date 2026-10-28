@@ -20,11 +20,13 @@ final class OrderStatusNotices {
 
  // ---- Settings ----
 
- public static function defaults(): array {return ['whatsapp'=>array_fill_keys(array_keys(self::STATES),true),'template_id'=>null];}
+ /** Reminders (stage 6B, WhatsAppReminders) share these settings: both on by default. */
+ public const REMINDERS=['unconfirmed'=>'Pedido sin confirmar','abandoned'=>'Compra a medias en el chat'];
+ public static function defaults(): array {return ['whatsapp'=>array_fill_keys(array_keys(self::STATES),true),'template_id'=>null,'reminders'=>array_fill_keys(array_keys(self::REMINDERS),true)];}
  public static function settings(string $owner): array {
   $s=self::defaults();$row=Database::one('SELECT settings FROM whatsapp_notice_settings WHERE user_id=?',[$owner]);
   $saved=$row?json_decode((string)$row['settings'],true):null;
-  if(is_array($saved)){foreach(self::STATES as $k=>$_)if(is_bool($saved['whatsapp'][$k]??null))$s['whatsapp'][$k]=$saved['whatsapp'][$k];if(is_string($saved['template_id']??null)&&Support::isUuid($saved['template_id']))$s['template_id']=$saved['template_id'];}
+  if(is_array($saved)){foreach(self::STATES as $k=>$_)if(is_bool($saved['whatsapp'][$k]??null))$s['whatsapp'][$k]=$saved['whatsapp'][$k];foreach(self::REMINDERS as $k=>$_)if(is_bool($saved['reminders'][$k]??null))$s['reminders'][$k]=$saved['reminders'][$k];if(is_string($saved['template_id']??null)&&Support::isUuid($saved['template_id']))$s['template_id']=$saved['template_id'];}
   return $s;
  }
  /** Why a template cannot carry the notices, or null when it can. */
@@ -42,7 +44,8 @@ final class OrderStatusNotices {
   $s=self::settings($owner);$a=WhatsAppAccount::ofUser($owner);
   $templates=$a?Database::all("SELECT * FROM whatsapp_templates WHERE user_id=? AND account_id=? AND status<>'DELETED' ORDER BY created_at DESC",[$owner,$a['id']]):[];
   $recent=Database::all('SELECT n.id,n.order_id,n.state,n.status,n.channel,n.error,n.conversation_id,n.created_at,n.sent_at,o.order_number,o.customer FROM whatsapp_status_notices n JOIN orders o ON o.id=n.order_id AND o.user_id=n.user_id WHERE n.user_id=? ORDER BY n.created_at DESC LIMIT 20',[$owner]);
-  return ['settings'=>$s,'states'=>self::STATES,'values'=>self::VALUES,'connected'=>$a!==null,'template_ready'=>$a&&self::template($owner,$s,$a)!==null,
+  $reminders=Database::all('SELECT r.id,r.kind,r.status,r.channel,r.error,r.order_id,r.conversation_id,r.created_at,o.order_number,COALESCE(ct.profile_name,ct.phone) AS who FROM whatsapp_reminders r LEFT JOIN orders o ON o.id=r.order_id LEFT JOIN whatsapp_conversations c ON c.id=r.conversation_id LEFT JOIN whatsapp_contacts ct ON ct.id=c.contact_id WHERE r.user_id=? ORDER BY r.created_at DESC LIMIT 20',[$owner]);
+  return ['settings'=>$s,'states'=>self::STATES,'reminder_kinds'=>self::REMINDERS,'reminders'=>$reminders,'values'=>self::VALUES,'connected'=>$a!==null,'template_ready'=>$a&&self::template($owner,$s,$a)!==null,
    'templates'=>array_map(fn($t)=>['id'=>$t['id'],'name'=>$t['name'],'status'=>$t['status'],'body'=>$t['body'],'purpose'=>$t['purpose'],'problem'=>self::ineligible($t)],$templates),
    'recent'=>array_map(fn($r)=>['id'=>$r['id'],'order_id'=>$r['order_id'],'order_number'=>$r['order_number'],'customer'=>trim((json_decode((string)$r['customer'],true)['first_name']??'').' '.(json_decode((string)$r['customer'],true)['last_name']??'')),
     'state'=>$r['state'],'status'=>$r['status'],'channel'=>$r['channel'],'error'=>$r['error'],'conversation_id'=>$r['conversation_id'],'created_at'=>$r['created_at'],'sent_at'=>$r['sent_at']],$recent)];
@@ -50,6 +53,7 @@ final class OrderStatusNotices {
  public static function save(string $owner,array $b): array {
   $out=self::defaults();
   foreach(self::STATES as $k=>$_){$v=$b['whatsapp'][$k]??null;if(!is_bool($v))throw new HttpError(422,'Indica qué avisos se envían por WhatsApp.');$out['whatsapp'][$k]=$v;}
+  foreach(self::REMINDERS as $k=>$_){$v=$b['reminders'][$k]??true;if(!is_bool($v))throw new HttpError(422,'Indica qué recordatorios se envían.');$out['reminders'][$k]=$v;}
   $tid=$b['template_id']??null;if($tid!==null&&(!is_string($tid)||!Support::isUuid($tid)))throw new HttpError(422,'Plantilla inválida.');
   if($tid!==null){
    $a=WhatsAppAccount::ofUser($owner);$t=$a?Database::one('SELECT * FROM whatsapp_templates WHERE id=? AND user_id=? AND account_id=?',[$tid,$owner,$a['id']]):null;

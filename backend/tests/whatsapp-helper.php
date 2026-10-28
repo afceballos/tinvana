@@ -24,6 +24,7 @@ if($op==='reset'){
  Database::query('DELETE FROM whatsapp_knowledge WHERE user_id IN (?,?) OR user_id IS NULL',$ids);
  Database::query('DELETE FROM whatsapp_status_notices WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_notice_settings WHERE user_id IN (?,?)',$ids);
+ Database::query('DELETE FROM whatsapp_reminders WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_confirm_settings WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM whatsapp_product_sheets WHERE user_id IN (?,?)',$ids);
  Database::query('DELETE FROM ai_connections WHERE user_id IN (?,?)',$ids);
@@ -64,6 +65,21 @@ if($op==='status-notice'){
  $db=Database::connection();$db->beginTransaction();App\OrderStatusNotices::queue($o,(string)($argv[3]??''),json_decode($argv[4]??'{}',true)?:[]);$db->commit();echo 'ok';exit;
 }
 if($op==='order-mails'){echo Support::json(array_column(Database::all('SELECT kind FROM order_mail WHERE order_id=? AND user_id=? ORDER BY created_at',[$argv[2]??'',$fixture['owner']]),'kind'));exit;}
+if($op==='all-hours'){
+ // The owner's agent attends every day at any hour, so the reminders do not depend on when the test runs.
+ $s=App\WhatsAppAgentSettings::forUser($fixture['owner'])['settings'];$s['schedule']=['days'=>[1,2,3,4,5,6,7],'start'=>'00:00','end'=>'23:59','off_hours'=>'reply'];
+ App\WhatsAppAgentSettings::save($fixture['owner'],$s);echo 'ok';exit;
+}
+if($op==='age-chat'){
+ // One chat of the owner: the customer wrote argv[3] hours ago and the store answered 5 minutes later.
+ Database::query("UPDATE whatsapp_conversations SET last_customer_at=now()-make_interval(hours=>?),last_message_at=now()-make_interval(hours=>?)+interval '5 minutes' WHERE id=? AND user_id=?",[(int)$argv[3],(int)$argv[3],$argv[2]??'',$fixture['owner']]);echo 'ok';exit;
+}
+if($op==='age-reminders'){
+ // Summaries sent 4 hours ago (confirmation buttons and «1 SÍ / 2 NO» in the chat), and reminders 25 hours old.
+ Database::query("UPDATE whatsapp_order_confirmations SET sent_at=now()-interval '4 hours' WHERE user_id=? AND status='sent'",[$fixture['owner']]);
+ foreach(Database::all('SELECT id,pending FROM whatsapp_conversations WHERE user_id=? AND pending IS NOT NULL',[$fixture['owner']]) as $c){$p=json_decode((string)$c['pending'],true);if(is_array($p)){$p['at']=gmdate('c',time()-4*3600);Database::query('UPDATE whatsapp_conversations SET pending=?::jsonb WHERE id=?',[Support::json($p),$c['id']]);}}
+ Database::query("UPDATE whatsapp_reminders SET created_at=now()-interval '25 hours' WHERE user_id=?",[$fixture['owner']]);echo 'ok';exit;
+}
 if($op==='housekeeping'){echo Support::json(App\WhatsAppInbox::housekeeping());exit;}
 if($op==='superadmin'){
  // Temporarily makes the second fixture account a superadmin for the Administración checks.

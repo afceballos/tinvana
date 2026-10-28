@@ -272,6 +272,14 @@ Documentación oficial consultada el 2026-10-27 (mensajes interactivos con boton
 - **Baja voluntaria:** «stop», «baja», «no me escriban más», «no quiero recibir más mensajes»… marcan `whatsapp_contacts.opted_out_at` y responden la confirmación; «ALTA» la revierte. No frena los avisos de pedidos (decisión del usuario) y servirá a los recordatorios de la etapa 6B. La Bandeja muestra «Dado de baja».
 
 
+### Etapa 6B · Recordatorios (2026-10-28, PostgreSQL `036`, MySQL `057`)
+
+- **Uno solo** por pedido sin confirmar y por compra a medias (`whatsapp_reminders`, `ref` única, registrada antes de enviar: nunca se repite). Los procesa `whatsapp:work` (`WhatsAppReminders`). Interruptores en WhatsApp → Confirmaciones → «Recordatorios», activos por defecto (guardados con los avisos, `reminders`).
+- **Pedido sin confirmar:** 3 horas después del resumen («1 SÍ / 2 NO» en el chat o botones de la plantilla) sin respuesta, con el pedido en borrador. Dentro de la ventana de 24 h: «¿pudiste revisar tu pedido…?» y el resumen otra vez. Fuera: se reenvía la plantilla de confirmación (si hay). Sin plantilla, se registra como no enviado. 24 horas después del recordatorio sin respuesta: estado «Sin respuesta», evento `whatsapp_no_answer` y aviso a la tienda (`order_no_answer`). Si el cliente escribe o el pedido se confirma o cancela, queda «Respondió».
+- **Compra a medias:** chat con la IA, con algún dato de compra capturado, sin pedido creado en el último día, sin paso pendiente, cuyo último mensaje fue de la tienda y el cliente calló hace más de 2 horas (y menos de 23): un texto «¿seguimos con tu pedido…?», sin plantilla.
+- **Nunca:** a quien se dio de baja, si un asesor tomó el chat o le escribió en las últimas 24 horas, en chats cerrados ni fuera del horario de atención del agente (espera a la apertura mientras siga teniendo sentido).
+
+
 ### Configuración en Meta (cuando se autorice el piloto real)
 
 1. En la app de Meta: WhatsApp → Configuración → Webhook: URL `https://<dominio>/whatsapp/webhook` y el mismo `WHATSAPP_VERIFY_TOKEN` del servidor; suscribir el campo `messages`.

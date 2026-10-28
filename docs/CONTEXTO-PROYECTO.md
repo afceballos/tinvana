@@ -889,6 +889,14 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Datos reales:** ninguno.
 - **Siguiente paso:** 6B (recordatorios) y 6C (bandeja de operación).
 
+### 2026-10-28 · Etapa 6B: recordatorios
+- **Pedido del usuario:** subir 6A y seguir con 6B con las recomendaciones (un solo recordatorio, 3 horas, en horario). La baja por correo queda para después.
+- **Cambio:** `WhatsAppReminders` (pedido sin confirmar con reenvío del resumen o de la plantilla, compra a medias, cierre «Respondió»/«Sin respuesta» con aviso a la tienda), tabla `whatsapp_reminders` (PostgreSQL 036 / MySQL 057), interruptores y lista en Confirmaciones, notificación `order_no_answer`, eventos en el pedido. La pausa por asesor aplica solo si un asesor tomó el chat o escribió en el último día (un chat «con asesor» solo porque no hay IA sí recibe el recordatorio).
+- **Comprobado (local, Meta y IA simulados):** `whatsapp-confirm.mjs` 83 (6 nuevas: reenvío de plantilla a las 3 horas, baja respetada, sin repetición, «Sin respuesta» con aviso y evento, tarjeta), `whatsapp-agent.mjs` 97 (3 nuevas: compra a medias, una sola vez), `whatsapp-inbox` 43, `whatsapp-ads` 30, `whatsapp-notify` 27, `whatsapp-templates` 32, `orders` 38, `order-mail` 24, `order-lookup` 18, `run.php` 110.
+- **Limitaciones:** el recordatorio de pedido dentro de la ventana (texto + resumen) y la espera fuera de horario no tienen prueba propia; las pruebas fijan el horario a todo el día. Nada se envió a Meta real. La base local de pruebas se reinició después de que el sistema la detuviera por falta de memoria.
+- **Datos reales:** ninguno.
+- **Siguiente paso:** 6C (bandeja de operación); baja por correo pendiente.
+
 ### Plantilla para la próxima actualización
 
 ```text

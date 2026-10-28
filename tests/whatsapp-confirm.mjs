@@ -221,10 +221,26 @@ try{
  check('«no me escriban más» registers the opt-out and confirms it',/no te enviaremos más mensajes automáticos/.test(lastText('573001112233'))&&!!oc.opted_out_at);
  await text('573001112233','ALTA');oc=(await(await owner.ctx.get('/api/whatsapp/conversations/'+c.conversation_id)).json()).conversation;
  check('«ALTA» reactivates it',/Volverás a recibir/.test(lastText('573001112233'))&&!oc.opted_out_at);
+ // Stage 6B: reminders of unconfirmed orders
+ await helper('all-hours');
+ const waiting=(await confirmations()).filter(x=>x.status==='sent'&&!x.reply);
+ check('there are summaries waiting for the customer',waiting.length>=1);
+ const quietOrder=(await detail(waiting[0].order_id)).order;const quietPhone=quietOrder.customer.phone.replace(/\D/g,'');
+ await text(quietPhone,'stop');
+ const tpl0=meta.sends.filter(x=>x.type==='template').length;await helper('age-reminders');await poke();
+ let rm=(await(await owner.ctx.get('/api/whatsapp/notices')).json()).reminders;
+ check('3 hours later without an answer the confirmation template goes again once (outside the window)',rm.some(r=>r.kind==='unconfirmed'&&r.channel==='template'&&r.status==='sent')&&meta.sends.filter(x=>x.type==='template').length>tpl0);
+ check('a customer who opted out gets no reminder',rm.some(r=>r.order_id===quietOrder.id&&r.status==='skipped'&&/baja/.test(r.error||'')));
+ const tpl1=meta.sends.filter(x=>x.type==='template').length;await poke();
+ check('the reminder is never sent twice',meta.sends.filter(x=>x.type==='template').length===tpl1&&(await(await owner.ctx.get('/api/whatsapp/notices')).json()).reminders.length===rm.length);
+ await helper('age-reminders');await poke();rm=(await(await owner.ctx.get('/api/whatsapp/notices')).json()).reminders;
+ const lost=rm.find(r=>r.kind==='unconfirmed'&&r.status==='no_answer');
+ check('24 hours after the reminder without an answer the store is notified and the order shows it',!!lost&&(await notifications()).some(n=>n.kind==='order_no_answer')&&(await detail(lost.order_id)).events.some(e=>e.event_type==='whatsapp_no_answer'));
  browser=await chromium.launch({channel:'msedge',headless:true});const ctx=await browser.newContext({viewport:{width:1280,height:900},reducedMotion:'reduce'});
  const st=await owner.ctx.storageState();await ctx.addCookies(st.cookies);const p=await ctx.newPage();const errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.goto(base+'/panel/whatsapp/confirmaciones');await p.getByRole('heading',{name:'Confirmaciones enviadas'}).waitFor();
  check('the Confirmaciones tab shows the settings and the latest sends',await p.getByRole('link',{name:'Confirmaciones'}).getAttribute('aria-current')==='page'&&await p.locator('.wc-list li').count()>=6&&await p.getByText('Confirmado por el cliente').first().isVisible());
+ await p.getByRole('heading',{name:'Recordatorios'}).waitFor(); check('the page also shows the reminders',await p.getByRole('heading',{name:'Recordatorios'}).isVisible());
  check('the page also shows the status notices with the latest sends',await p.getByRole('heading',{name:'Avisos de estado del pedido'}).isVisible()&&await p.getByRole('heading',{name:'Avisos por WhatsApp'}).isVisible());
  await p.screenshot({path:'test-results/whatsapp-confirm-settings.png',fullPage:true});
  await p.goto(base+'/panel/pedidos/'+o2.id);await p.getByRole('heading',{name:'Confirmación por WhatsApp'}).waitFor();
