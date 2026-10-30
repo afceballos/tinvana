@@ -7,6 +7,7 @@ $checks=0;
 $assert=static function(string $name,bool $ok)use(&$checks):void{if(!$ok)throw new RuntimeException('FAIL '.$name);$checks++;echo 'PASS '.$name."\n";};
 $assert('json casts removed',MySqlDialect::sql('INSERT INTO t(j) VALUES(?::jsonb)')==='INSERT INTO t(j) VALUES(?)');
 $assert('timestamps translated',str_contains(MySqlDialect::sql("SELECT now()+interval '24 hours'"),'DATE_ADD(UTC_TIMESTAMP(6), INTERVAL 24 HOUR)'));
+$assert('multiplied intervals keep their unit',str_contains(MySqlDialect::sql("SELECT now()+(? * interval '1 second'), now()+(? * interval '1 minute')"),'UTC_TIMESTAMP(6)+INTERVAL ? SECOND, UTC_TIMESTAMP(6)+INTERVAL ? MINUTE'));
 $assert('case-insensitive search uses configured collation',str_contains(MySqlDialect::sql('SELECT id FROM media_assets WHERE original_name ILIKE ?'),'original_name LIKE ?'));
 $assert('queue lock order follows mysql grammar',str_contains(MySqlDialect::sql('SELECT id FROM jobs ORDER BY created_at FOR UPDATE OF j SKIP LOCKED LIMIT 1'),'ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED'));
 $assert('shared row locks map to a supported exclusive lock',str_ends_with(MySqlDialect::sql('SELECT id FROM jobs WHERE id=? FOR SHARE'),'FOR UPDATE'));

@@ -80,12 +80,13 @@ No se publicó ningún dominio ni se desplegó encima del catálogo existente.
 & .	estsun-suites.ps1 -Label ia -Only ai-http -Ai   # -Ai levanta el router de IA en 8083
 ```
 
-- Requisitos: PostgreSQL local en 127.0.0.1:55432 (`.tools/pg/pgsql/bin/pg_ctl.exe -D .tools/pg-data -o "-p 55432 -h 127.0.0.1" start`), `.tools/test-env.json` y `npm run build`.
+- Requisitos (desde el 2026-10-30): MariaDB 10.11 local, el mismo motor del hosting, en 127.0.0.1:33307 (`Start-Process .tools/mariadb-10.11.19-winx64/bin/mariadbd.exe -ArgumentList '--defaults-file=".tools/mariadb-data/my.ini"','--bind-address=127.0.0.1'`), `.tools/test-env.json` con `DB_DRIVER=mysql` y `npm run build`. La configuración anterior de PostgreSQL quedó en `.tools/test-env.pg.json`, solo para comparar.
 - `ai-ui.mjs` necesita la clave de IA que deja `ai-http.mjs`: ejecútalas seguidas sobre los mismos fixtures (sin recrearlos entre ambas) y con `backend/tests/ai-reset.php all` entre ellas.
 - `errors-session.mjs` necesita `SESSION_LIFETIME=8` y `account-access` el router de cuentas en 8084.
 - Si hay una demo local usando 8081/8446 o el mismo número de prueba de WhatsApp, deténla y borra sus filas de WhatsApp antes; si no, las pruebas de WhatsApp fallan al conectar el número. `whatsapp-confirm.mjs` usa otro número de prueba y acepta otros puertos (`TEST_BASE_URL`, `WA_GRAPH_PORT`, `DROPI_QUOTE_PORT`, `DROPI_ORDERS_PORT`) con un servidor PHP que apunte a los mismos. `landing-variants.mjs` usa el catálogo simulado de `DROPI_CATALOG_URL` (8448 en el ejecutor; puertos movibles con `DROPI_CATALOG_PORT` y `DROPI_QUOTE_PORT`).
 - `modern.mjs` y `ai-ui.mjs` en el ejecutor (fixtures nuevos) ya fallaban antes de los cambios de octubre; no son regresiones.
-- MariaDB local (MySQL de producción): servidor en 127.0.0.1:33307, base `tinvana_test`, con `DB_DRIVER=mysql` y `php -d extension=pdo_mysql backend/bin/console.php migrate`. Detenerlo con `mariadb-admin -P 33307 -u root shutdown` y dejar 0 usuarios de prueba.
+- Base de pruebas MariaDB: `zenzales_test` con un usuario propio limitado a ella (`zenzales_test@127.0.0.1`, contraseña aleatoria solo en `.tools/test-env.json`). Se crea vacía, se importa `backend/mysql/schema.sql` y se aplican las migraciones con `.tools/run-test-command.ps1 backend/bin/console.php migrate`, como en el hosting. El PHP de `.tools` carga `pdo_mysql`. Detenerla con `mariadb-admin -P 33307 -u root shutdown`.
+- Fallas anteriores al cambio de motor (fallan igual con PostgreSQL, comparado el 2026-10-30): `gallery`, `visual`, `geography`, `modern`, `media-library`, `ai-http`, `ai-ui`, `ai-connections-ui`. `notifications`, `brand`, `motion` y `header` apuntan a una URL de demo antigua. En la corrida seguida, `http` y `builder-http` pueden fallar por el estado que dejan las suites anteriores; solas pasan.
 
 Pruebas puras:
 
@@ -93,18 +94,18 @@ Pruebas puras:
 php backend/tests/run.php
 ```
 
-Para pruebas HTTP usa exclusivamente un PostgreSQL local dedicado llamado `zenzales_test`, nunca producción. Crea `.tools/test-env.json` con configuración de prueba, por ejemplo:
+Para pruebas HTTP usa exclusivamente una MariaDB local dedicada con la base `zenzales_test`, nunca producción. Crea `.tools/test-env.json` con configuración de prueba, por ejemplo:
 
 ```json
 {
   "APP_ENV": "local",
   "APP_URL": "http://127.0.0.1:8080",
+  "DB_DRIVER": "mysql",
   "DB_HOST": "127.0.0.1",
-  "DB_PORT": "55432",
+  "DB_PORT": "33307",
   "DB_DATABASE": "zenzales_test",
-  "DB_USERNAME": "postgres",
+  "DB_USERNAME": "zenzales_test",
   "DB_PASSWORD": "contraseña-aleatoria-local",
-  "DB_SSLMODE": "disable",
   "TOKEN_ENCRYPTION_KEY": "clave-base64-generada-para-pruebas",
   "SESSION_SECURE": "false",
   "SESSION_SAMESITE": "Lax",

@@ -18,8 +18,8 @@ final class MySqlDialect
         $sql=preg_replace_callback("/UTC_TIMESTAMP\\(6\\)\\s*([+-])\\s*interval\\s+'([0-9]+)\\s+(second|minute|hour|day|week|month|year)s?'/i",static function(array $m):string {
             $fn=$m[1]==='+'?'DATE_ADD':'DATE_SUB';$unit=strtoupper($m[3]);return $fn.'(UTC_TIMESTAMP(6), INTERVAL '.$m[2].' '.$unit.')';
         },$sql)??$sql;
-        $sql=preg_replace("/\\(\\s*\\?\\s*\\*\\s*interval\\s+'1 second'\\s*\\)/i",'INTERVAL ? SECOND',$sql)??$sql;
-        $sql=preg_replace("/\\?\\s*\\*\\s*interval\\s+'1 second'/i",'INTERVAL ? SECOND',$sql)??$sql;
+        $sql=preg_replace_callback("/\\(\\s*\\?\\s*\\*\\s*interval\\s+'1 (second|minute|hour|day)'\\s*\\)/i",static fn(array $m):string=>'INTERVAL ? '.strtoupper($m[1]),$sql)??$sql;
+        $sql=preg_replace_callback("/\\?\\s*\\*\\s*interval\\s+'1 (second|minute|hour|day)'/i",static fn(array $m):string=>'INTERVAL ? '.strtoupper($m[1]),$sql)??$sql;
         $sql=preg_replace_callback("/\\(\\s*\\?\\s*\\+\\s*interval\\s+'([0-9]+)\\s+(second|minute|hour|day|week|month|year)s?'\\s*\\)/i",static fn(array $m):string=>'DATE_ADD(?, INTERVAL '.$m[1].' '.strtoupper($m[2]).')',$sql)??$sql;
         $sql=preg_replace_callback("/\\?\\s*\\+\\s*interval\\s+'([0-9]+)\\s+(second|minute|hour|day|week|month|year)s?'/i",static fn(array $m):string=>'DATE_ADD(?, INTERVAL '.$m[1].' '.strtoupper($m[2]).')',$sql)??$sql;
         $sql=preg_replace('/\b([a-z_][a-z0-9_.]*)\s*=\s*\1\s*\|\|\s*(\?)/i','${1}=JSON_MERGE_PRESERVE(${1},${2})',$sql)??$sql;

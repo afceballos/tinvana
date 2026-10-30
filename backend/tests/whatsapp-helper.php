@@ -56,8 +56,10 @@ if($op==='notifications'){
 if($op==='close-age'){
  // Moves one chat of the owner into the past: argv[2]=conversation, argv[3]=hours since the last message, argv[4]=days since the closing.
  $id=(string)($argv[2]??'');$h=(int)($argv[3]??25);$d=isset($argv[4])?(int)$argv[4]:null;
- Database::query('UPDATE whatsapp_conversations SET last_message_at=now()-make_interval(hours=>?)'.($d!==null?',closed_at=now()-make_interval(days=>?)':'').' WHERE id=? AND user_id=?',$d!==null?[$h,$d,$id,$fixture['owner']]:[$h,$id,$fixture['owner']]);
- if($d!==null)Database::query('UPDATE whatsapp_messages SET created_at=now()-make_interval(hours=>?) WHERE conversation_id=? AND user_id=?',[$h,$id,$fixture['owner']]);
+ // Times computed here so the same helper works on PostgreSQL and MySQL.
+ $ago=fn(int $s)=>Database::timestamp(gmdate('c',time()-$s));
+ Database::query('UPDATE whatsapp_conversations SET last_message_at=?'.($d!==null?',closed_at=?':'').' WHERE id=? AND user_id=?',$d!==null?[$ago($h*3600),$ago($d*86400),$id,$fixture['owner']]:[$ago($h*3600),$id,$fixture['owner']]);
+ if($d!==null)Database::query('UPDATE whatsapp_messages SET created_at=? WHERE conversation_id=? AND user_id=?',[$ago($h*3600),$id,$fixture['owner']]);
  echo 'ok';exit;
 }
 if($op==='status-notice'){
@@ -73,7 +75,7 @@ if($op==='all-hours'){
 }
 if($op==='age-chat'){
  // One chat of the owner: the customer wrote argv[3] hours ago and the store answered 5 minutes later.
- Database::query("UPDATE whatsapp_conversations SET last_customer_at=now()-make_interval(hours=>?),last_message_at=now()-make_interval(hours=>?)+interval '5 minutes' WHERE id=? AND user_id=?",[(int)$argv[3],(int)$argv[3],$argv[2]??'',$fixture['owner']]);echo 'ok';exit;
+ $h=(int)$argv[3]*3600;Database::query('UPDATE whatsapp_conversations SET last_customer_at=?,last_message_at=? WHERE id=? AND user_id=?',[Database::timestamp(gmdate('c',time()-$h)),Database::timestamp(gmdate('c',time()-$h+300)),$argv[2]??'',$fixture['owner']]);echo 'ok';exit;
 }
 if($op==='age-reminders'){
  // Summaries sent 4 hours ago (confirmation buttons and «1 SÍ / 2 NO» in the chat), and reminders 25 hours old.

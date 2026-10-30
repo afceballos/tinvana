@@ -1,4 +1,5 @@
-# Runs browser/HTTP suites one by one against the isolated local PostgreSQL (zenzales_test), each with fresh fixtures
+# Runs browser/HTTP suites one by one against the isolated local MariaDB 10.11 (zenzales_test, port 33307, same engine
+# as the hosting; settings in .tools/test-env.json, the old PostgreSQL ones in .tools/test-env.pg.json), each with fresh fixtures
 # and the general HTTP suite (npm test) first. Every external service points to a local simulator: Dropi 8443-8445,
 # Meta Graph 8446, OpenAI 8447. -Ai also starts the AI test router on 8083 (ai-http, ai-ui). Never use production data.
 # Usage: powershell -File tests/run-suites.ps1 -Only whatsapp-templates,orders [-Ai]

@@ -335,8 +335,8 @@ No sumar comprobaciones de distintas fechas como si todas se hubieran ejecutado 
 
 ### Repetir pruebas sin tocar producción
 
-1. Usar `.tools/test-env.json` con PostgreSQL local `zenzales_test` en `127.0.0.1:55432`.
-2. Iniciar PostgreSQL local y aplicar migraciones mediante `.tools/run-test-command.ps1 backend/bin/console.php migrate`.
+1. Usar `.tools/test-env.json` con MariaDB 10.11 local `zenzales_test` en `127.0.0.1:33307` (`DB_DRIVER=mysql`, el motor del hosting; desde el 2026-10-30). Detalle en [VERIFICATION.md](VERIFICATION.md#ejecutor-de-suites-windows-2026-10-27).
+2. Iniciar MariaDB local y aplicar migraciones mediante `.tools/run-test-command.ps1 backend/bin/console.php migrate`.
 3. Crear fixtures con `backend/tests/fixtures.php`; iniciar servidor de pruebas con `.tools/start-test-server.ps1` (8081).
 4. Ejecutar `TEST_BASE_URL=http://127.0.0.1:8081 npm test`, adaptando asignación de entorno a PowerShell.
 5. Para las suites de pedidos, mantener los leads de la suite general y ejecutar el helper de límites local antes de `node tests/orders.mjs` y `node tests/order-editing.mjs` (ver ORDERS.md). La segunda reinicia solo sus fixtures de pedidos/ofertas.
@@ -929,6 +929,21 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** el paso «Publica tu app» se agrega también a la pestaña del número de prueba, porque la guía oficial de webhooks de Meta advierte que algunos webhooks no se envían en modo desarrollo (no dice cuáles).
 - **Comprobado (local):** `whatsapp-connection.mjs` 57.
 - **Datos reales:** ninguno.
+
+### 2026-10-30 · Pruebas locales sobre MariaDB y corrección de un error solo de MySQL
+- **Pedido del usuario:** dejar PostgreSQL y probar sobre el mismo motor del hosting.
+- **Cambio:** las pruebas locales usan MariaDB 10.11.19 (`.tools`, 127.0.0.1:33307) con la base `zenzales_test` creada vacía, `backend/mysql/schema.sql` y las migraciones MySQL 013–058 aplicadas desde cero con `migrate` (todas sin error). Usuario propio limitado a esa base; contraseña aleatoria solo en `.tools/test-env.json`. Se borró la base vieja `tinvana_test` (sin usuarios, solo filas de prueba). El PHP de `.tools` carga `pdo_mysql`. La configuración de PostgreSQL quedó en `.tools/test-env.pg.json` para comparar. Las migraciones nuevas se escriben para MySQL; el código sigue aceptando PostgreSQL.
+- **Error encontrado (afecta al hosting):** `MySqlDialect` solo traducía `? * interval '1 second'`. La cola de confirmación por WhatsApp de los pedidos de la landing usa `'1 minute'` y en MySQL fallaba con SQLSTATE 42000. Ahora traduce segundos, minutos, horas y días. Los helpers de prueba de WhatsApp dejaron de usar `make_interval` (solo PostgreSQL).
+- **Comprobado (local, MariaDB):** `run.php` 110, `mysql-dialect.php` 20, `npm test` 107, `whatsapp-agent` 101, `whatsapp-confirm` 92, `whatsapp-inbox` 43, `whatsapp-notify` 27, `whatsapp-connection` 57, `whatsapp-templates` 32, `whatsapp-ads` 30, `orders` 37, `order-editing` 52, `order-mail` 24, `order-lookup` 18, `order-dates` 13, `dropi-orders` 36, `dropi-shipping` 20, `dropi-tracking` 28, `dropi-confirmed` 8, `admin` 39, `landing-design` 40, `landing-stock` 24, `landing-variants` 40, `builder-http` 35 (sola), `media-delete` 28, `legal-pages` 17, `profile`, `store-router` 20, `store-address` 20, `preload` 25 y otras. `gallery`, `visual`, `geography`, `modern`, `media-library`, `ai-http`, `ai-ui` y `ai-connections-ui` fallan igual con PostgreSQL (comparado hoy): no son del cambio de motor.
+- **Datos reales:** ninguno. No se usó la exportación SQL de `.tools`.
+- **Siguiente paso:** desplegar la corrección del dialecto; revisar las suites de pantalla que ya fallaban.
+
+### 2026-10-30 · WhatsApp: «no me interesa» y baja con otras palabras
+- **Pedido del usuario:** al decir que no le interesa o que no quiere más mensajes, la IA no debe volver a recordarle ni escribirle, salvo que vuelva a preguntar o sea sobre el estado de su pedido.
+- **Causa:** la baja solo se reconocía con la frase exacta, y un «no» al producto no frenaba el recordatorio de compra a medias, que además podía repetirse con cada mensaje nuevo del cliente.
+- **Cambio:** acciones nuevas de la IA `not_interested` (despedida breve y cierre del chat) y `opt_out` (baja, confirmación y cierre); reconocimiento de la baja dentro de mensajes más largos; recordatorio de compra a medias como máximo uno por chat hasta que se cierre y se abra; los recordatorios se omiten si el cliente dijo que no le interesa. Los avisos de estado del pedido siguen llegando. Detalle en [WHATSAPP.md](WHATSAPP.md).
+- **Comprobado (local, MariaDB, Meta e IA simulados):** 6 comprobaciones nuevas (4 en `whatsapp-agent`, 2 en `whatsapp-confirm`) dentro de los totales de arriba.
+- **Pendiente:** probarlo con la IA real (que elija bien `not_interested` frente a un «no» que responde otra pregunta).
 
 ### Plantilla para la próxima actualización
 

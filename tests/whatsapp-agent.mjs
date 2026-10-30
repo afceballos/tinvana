@@ -31,6 +31,8 @@ const openai=createServer(tls,(req,res)=>{let raw='';req.on('data',c=>raw+=c);re
  // Test shortcut: «pedido: {json}» is what the customer gave; the AI asks the server for the summary.
  if(/^pedido: /.test(last))return reply({reply:'Listo, ya te armo el resumen.',intent:'comprar',product_id:pid,captured:{...empty,...JSON.parse(last.slice(8))},action:'request_quote',handoff_reason:'',order_number:'',memory:''});
  if(/qué pedidos tengo/i.test(last))return reply({reply:'Te muestro tu pedido.',intent:'pedido',product_id:'',captured:empty,action:'show_order',handoff_reason:'',order_number:'',memory:'Clienta Nora; preguntó por sus pedidos.'});
+ if(/no me interesa/i.test(last))return reply({reply:'Entendido, gracias por avisarme. ¡Que tengas buen día!',intent:'no',product_id:pid,captured:empty,action:'not_interested',handoff_reason:'',order_number:'',memory:''});
+ if(/ya no me hablen/i.test(last))return reply({reply:'Claro.',intent:'baja',product_id:'',captured:empty,action:'opt_out',handoff_reason:'',order_number:'',memory:''});
  if(/hablar con alguien/i.test(last))return reply({reply:'Claro, te comunico con un asesor.',intent:'asesor',product_id:'',captured:empty,action:'handoff',handoff_reason:'el cliente pidió una persona'});
  if(/lo quiero/i.test(last))return reply({reply:'¡Perfecto, Laura! Ya tengo tus datos.',intent:'comprar',product_id:pid,captured:{...empty,name:'Laura Gómez',city:'Pereira',department:'Risaralda',quantity:'2'},action:'request_quote',handoff_reason:''});
  if(/detalles/i.test(last))return reply({reply:'Te cuento. '+'Es un picatodo muy práctico para tu cocina y te ayuda a preparar todo más rápido. '.repeat(12),intent:'info',product_id:pid,captured:empty,action:'none',handoff_reason:''});
@@ -217,6 +219,18 @@ try{
  check('2 hours after going quiet the customer gets one reminder to finish the purchase',/seguimos con tu pedido/.test(toPedro().at(-1).text.body));
  const nP=toPedro().length;await say('573007770031','Otra Persona','Gracias');
  check('the purchase reminder is sent once',toPedro().length===nP);
+ // «No me interesa»: one goodbye, the chat closes and no reminder follows, however many messages there were.
+ await say('573007770032','Sara Díaz','pedido: '+JSON.stringify({name:'Sara Díaz'}));const sara=await convOf('573007770032');
+ await say('573007770032','Sara Díaz','No, gracias, ya no me interesa');
+ const toSara=()=>sends.filter(x=>x.to==='573007770032'&&x.type==='text');let sd=(await detail(sara.id)).conversation;
+ check('«no me interesa» gets one short goodbye and closes the chat',/gracias por avisarme/.test(toSara().at(-1).text.body)&&sd.closed_at&&/no le interesa/.test(sd.closed_reason));
+ const nS=toSara().length;await helper('age-chat',sara.id,'3');await say('573007770031','Otra Persona','Hola');
+ check('a customer who said no gets no purchase reminder',toSara().length===nS);
+ await say('573007770032','Sara Díaz','Hola de nuevo, ¿cuánto cuesta?');sd=(await detail(sara.id)).conversation;
+ check('if the customer writes again the chat opens and the AI answers',!sd.closed_at&&toSara().length===nS+1);
+ // Opt-out in other words: the AI marks it, the store's confirmation goes and the chat closes.
+ await say('573007770032','Sara Díaz','Ya no me hablen por acá');sd=(await detail(sara.id)).conversation;
+ check('an opt-out in other words is understood by the AI, confirmed and closes the chat',!!sd.opted_out_at&&/no te enviaremos más mensajes automáticos/.test(toSara().at(-1).text.body)&&/no recibir más mensajes/.test(sd.closed_reason));
  v=await agent();await owner.ctx.put('/api/whatsapp/agent',{headers:owner.H,data:{...v.settings,chat_orders:false}});
  // Closing after 24 hours without messages and deleting the messages 30 days after the closing
  await helper('close-age',nora.id,'25');let hk=JSON.parse(await helper('housekeeping'));

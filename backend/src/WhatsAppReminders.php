@@ -9,8 +9,8 @@ namespace App;
  *   the 24-hour window the summary is shown again; outside it, the confirmation template is sent again (if the store
  *   has one). 24 hours after the reminder without an answer the store is notified («no confirmó»).
  * - Purchase left halfway: the customer gave purchase data to the agent and stopped answering 2 hours ago; one free
- *   text inside the window, without a template.
- * Never when the customer opted out, an advisor holds the chat, the chat is closed, or outside the store's hours
+ *   text inside the window, without a template, and only once per chat until it closes and opens again.
+ * Never when the customer opted out or said they are not interested, an advisor holds the chat, the chat is closed, or outside the store's hours
  * (it waits for the opening while the reminder still makes sense).
  */
 final class WhatsAppReminders {
@@ -33,6 +33,7 @@ final class WhatsAppReminders {
   if(!OrderStatusNotices::settings($owner)['reminders'][$kind]||!Entitlements::allows($owner,'whatsapp'))return 'off';
   if($c){
    if(Database::one('SELECT opted_out_at FROM whatsapp_contacts WHERE id=?',[$c['contact_id']])['opted_out_at']??null)return 'El cliente se dio de baja';
+   if(($c['closed_at']??null)!==null&&($c['closed_reason']??'')==='not_interested')return 'El cliente dijo que no le interesa';
    // An advisor who took the chat or wrote in the last day is handling it; a chat that is «human» only because the
    // agent is not available still gets the reminder.
    if($c['owner_mode']==='human'&&(($c['handoff_reason']??'')==='Tomada por un asesor'||Database::one("SELECT id FROM whatsapp_messages WHERE conversation_id=? AND sender='agent' AND created_at>now()-interval '24 hours' LIMIT 1",[$c['id']])))return 'Un asesor tiene el chat';
@@ -89,7 +90,8 @@ final class WhatsAppReminders {
    if(!array_filter(self::BUYING,fn($k)=>trim((string)($captured[$k]??''))!==''))continue;
    // A purchase already turned into an order in the last day is not «left halfway».
    if($c['order_id']&&Database::one("SELECT id FROM orders WHERE id=? AND created_at>now()-interval '24 hours'",[$c['order_id']]))continue;
-   $ref='abandoned:'.$c['id'].':'.$c['customer_seq'];if(self::exists($owner,$ref))continue;
+   // At most one per chat until it closes and opens again, however many messages the customer writes.
+   $ref='abandoned:'.$c['id'].':'.substr(hash('sha256',(string)($c['opened_at']??'first')),0,16);if(self::exists($owner,$ref))continue;
    $why=self::gate($owner,'abandoned',$c);if($why==='wait'||$why==='off')continue;
    $id=self::claim($owner,'abandoned',$ref,null,(string)$c['id']);if(!$id)continue;
    if($why!==null){self::finish($id,'skipped',null,$why);$out['skipped']++;continue;}

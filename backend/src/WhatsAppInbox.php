@@ -114,7 +114,7 @@ final class WhatsAppInbox {
    if(isset($confirmation['status']))WhatsAppOrderConfirm::statusReply($owner,(string)$conv['id'],$confirmation['status']);
    elseif(isset($confirmation['missing']))WhatsAppOrderConfirm::missingReply($owner,(string)$conv['id'],$confirmation['missing']);
    elseif(isset($confirmation['pending']))WhatsAppOrderChat::answer($owner,(string)$conv['id']);
-   elseif(isset($confirmation['consent'])){$c=self::owned($owner,(string)$conv['id']);self::sendText($account,$c,$confirmation['consent']==='out'?self::OPT_OUT_REPLY:self::OPT_IN_REPLY,'system',null);}
+   elseif(isset($confirmation['consent'])){$c=self::owned($owner,(string)$conv['id']);self::sendText($account,$c,$confirmation['consent']==='out'?self::OPT_OUT_REPLY:self::OPT_IN_REPLY,'system',null);if($confirmation['consent']==='out'&&$c['owner_mode']==='ai')self::close((string)$conv['id'],'opted_out');}
   }catch(\Throwable $t){if($db->inTransaction())$db->rollBack();throw $t;}
   return 'done';
  }
@@ -163,13 +163,14 @@ final class WhatsAppInbox {
   if(!$c)throw new HttpError(404,'Conversación no encontrada.');return $c;
  }
  // Voluntary opt-out (stage 6A): it stops automatic sales messages and reminders, not the notices of the customer's orders.
- private const OPT_OUT='/^\s*(stop|baja|darme de baja|dar de baja|no me (escriban|escribas|env[ií]en|manden|contacten)\b.*|no (quiero|deseo) (recibir )?m[aá]s mensajes.*|cancelar (suscripci[oó]n|mensajes))\s*[.!]*\s*$/iu';
+ // Clear phrases anywhere in the message («no, gracias, no me escriban más»); other wordings reach the AI («opt_out»).
+ private const OPT_OUT='/^\s*(stop|baja)\s*[.!]*\s*$|\bdar(me)? de baja\b|\bno me (vuelvan a |vuelvas a )?(escriban|escribas|env[ií]en|env[ií]es|manden|mandes|contacten|contactes|molesten|molestes)( m[aá]s)?( mensajes)?\s*(,?\s*(por favor|gracias))?\s*[.!]*\s*$|\bdejen de (escribirme|enviarme|mandarme|molestarme)\b|\bno (quiero|deseo) (recibir |que me (env[ií]en|manden|escriban) )?(m[aá]s )?(mensajes|publicidad|promociones)\b|\bcancelar (suscripci[oó]n|mensajes)\b/iu';
  private const OPT_IN='/^\s*(alta|reactivar|start)\s*[.!]*\s*$/iu';
  public const OPT_OUT_REPLY='Listo, no te enviaremos más mensajes automáticos ni recordatorios. Solo te avisaremos sobre los pedidos que hagas. Si quieres volver a recibirlos, escribe ALTA.';
  public const OPT_IN_REPLY='¡Listo! Volverás a recibir nuestros mensajes. ¿En qué te ayudo?';
  public const CLOSE_IDLE_HOURS=24;
  public const PURGE_DAYS=30;
- public const CLOSE_REASONS=['customer_done'=>'El cliente no tenía más preguntas','idle'=>'Sin mensajes en 24 horas'];
+ public const CLOSE_REASONS=['customer_done'=>'El cliente no tenía más preguntas','idle'=>'Sin mensajes en 24 horas','not_interested'=>'El cliente dijo que no le interesa','opted_out'=>'El cliente pidió no recibir más mensajes'];
  /**
   * Closes a chat. The next customer message opens it again and the AI reads only from there. A «1 SÍ / 2 NO» still
   * waiting is kept, so a late answer counts. $idle only closes it if nobody wrote in the last 24 hours.

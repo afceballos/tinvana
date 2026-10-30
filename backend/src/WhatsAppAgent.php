@@ -12,7 +12,9 @@ namespace App;
  * messages exactly once, also when several arrive while it is thinking.
  */
 final class WhatsAppAgent {
- public const ACTIONS=['none','ask_product','request_quote','present_summary','confirm','handoff','show_order'];
+ public const ACTIONS=['none','ask_product','request_quote','present_summary','confirm','handoff','show_order','not_interested','opt_out'];
+ /** Goodbye when the customer is not interested and the AI wrote nothing. */
+ public const NOT_INTERESTED='Entendido, gracias por avisarnos. 😊 Si más adelante necesitas algo, escríbenos aquí mismo.';
  public const CAPTURE=['name'=>'Nombre','city'=>'Ciudad','department'=>'Departamento','address'=>'Dirección','neighborhood'=>'Barrio','reference'=>'Referencia','quantity'=>'Cantidad','variant'=>'Variante','email'=>'Correo'];
  private const HISTORY=20;
  private const REPLY_CHARS=['breve'=>350,'normal'=>700];
@@ -135,6 +137,13 @@ final class WhatsAppAgent {
    // Re-check before sending: an advisor may have taken the chat while the AI was thinking.
    $mode=Database::one('SELECT owner_mode FROM whatsapp_conversations WHERE id=?',[$id])['owner_mode']??'';
    if($mode!=='ai')return true;
+   // Not interested, or asks not to be written again: one goodbye and the chat closes, so no reminder follows. It
+   // opens again if the customer writes; the notices of their orders keep arriving.
+   if($action==='not_interested'||$action==='opt_out'){
+    if($action==='opt_out'){Database::query('UPDATE whatsapp_contacts SET opted_out_at=COALESCE(opted_out_at,now()),updated_at=now() WHERE id=? AND user_id=?',[$c['contact_id'],$owner]);WhatsAppInbox::sendText($account,$c,WhatsAppInbox::OPT_OUT_REPLY,'system',null);}
+    else WhatsAppInbox::sendText($account,$c,$reply!==''?$reply:self::NOT_INTERESTED,'ai',null,null,$tokens);
+    WhatsAppInbox::close($id,$action==='opt_out'?'opted_out':'not_interested');return true;
+   }
    // Show an order (status, and «1 SÍ / 2 NO» if it can still be confirmed): the server writes it, never the AI.
    if($action==='show_order'){$number=Orders::normalizeNumber(is_string($d['order_number']??null)?$d['order_number']:'');$mine=array_column(WhatsAppOrderChat::ordersFor($owner,$c),'id','order_number');
     if($number&&isset($mine[$number])){WhatsAppOrderChat::show($owner,$id,(string)$mine[$number]);return true;}
@@ -179,6 +188,7 @@ final class WhatsAppAgent {
    :'No creas pedidos ni confirmes compras. Cuando el cliente quiera comprar, pide los datos que falten (nombre, ciudad y departamento, dirección, barrio, referencia, cantidad y variante si aplica), uno o dos a la vez; cuando los tengas, usa action "request_quote".'."\n";
   return 'Eres el asesor de ventas por WhatsApp de la tienda indicada en "store", en Colombia. Tono: '.$tone.'. '.$length."\n"
    .'Si el cliente solo agradece o se despide, responde con una despedida breve y amable: no ofrezcas productos ni temas que no pidió.'."\n"
+   .'Si el cliente dice que no le interesa, que ya no quiere comprar o que lo deja así, usa action "not_interested" con una despedida breve y amable: no insistas, no preguntes por qué ni ofrezcas otros productos. Si pide que no le escriban más o no recibir mensajes, usa action "opt_out". Un «no» que solo responde a otra pregunta (una variante, una duda) no es "not_interested".'."\n"
    .'Responde siempre en español. Usa solo la información de la ficha aprobada ("sheet") y de "knowledge" (respuestas aprobadas por la tienda o la plataforma: úsalas tal cual cuando apliquen); no inventes características, garantías ni tiempos.'."\n"
    .'Nunca digas ni calcules precios, costos de envío, totales, descuentos, tiempos de entrega ni disponibilidad, salvo el texto exacto de "offer.price_text", del "price_text" del producto en "products" o de "sheet.price_note" si existen.'."\n"
    .'Si el cliente pide ver el producto, fotos o más detalles, comparte el "url" de ese producto en "products", copiado exacto (si es null, no hay enlace: no inventes uno). No envíes el enlace si no lo pide.'."\n"

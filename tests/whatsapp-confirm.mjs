@@ -221,6 +221,10 @@ try{
  check('«no me escriban más» registers the opt-out and confirms it',/no te enviaremos más mensajes automáticos/.test(lastText('573001112233'))&&!!oc.opted_out_at);
  await text('573001112233','ALTA');oc=(await(await owner.ctx.get('/api/whatsapp/conversations/'+c.conversation_id)).json()).conversation;
  check('«ALTA» reactivates it',/Volverás a recibir/.test(lastText('573001112233'))&&!oc.opted_out_at);
+ await text('573001112233','No, gracias. Ya no me envíen más mensajes por favor');oc=(await(await owner.ctx.get('/api/whatsapp/conversations/'+c.conversation_id)).json()).conversation;
+ check('the opt-out is also recognized inside a longer message',/no te enviaremos más mensajes automáticos/.test(lastText('573001112233'))&&!!oc.opted_out_at);
+ await text('573001112233','alta');await text('573001112233','No me envíen el pedido todavía');oc=(await(await owner.ctx.get('/api/whatsapp/conversations/'+c.conversation_id)).json()).conversation;
+ check('a message about the order is not taken as an opt-out',!oc.opted_out_at);
  // Stage 6B: reminders of unconfirmed orders
  await helper('all-hours');
  const waiting=(await confirmations()).filter(x=>x.status==='sent'&&!x.reply);
