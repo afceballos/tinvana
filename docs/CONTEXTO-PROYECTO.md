@@ -366,6 +366,8 @@ Estado al cerrar las pruebas de pedidos: fixtures eliminados y servicios de prue
 | Biblioteca | [IMAGES.md](IMAGES.md) |
 | Identidad y experiencia | [TINVANA-DESIGN.md](TINVANA-DESIGN.md), [MOTION.md](MOTION.md), [NOTIFICATIONS.md](NOTIFICATIONS.md) |
 | Evidencia histórica | [VERIFICATION.md](VERIFICATION.md) |
+| Plan de desarrollo por fases (viabilidad) | [PLAN-DESARROLLO.md](PLAN-DESARROLLO.md) |
+| Página de inicio pública | [HOME.md](HOME.md), encargo en [PROMPT-HOME.md](PROMPT-HOME.md) |
 
 ## 9. Bitácora de hitos y continuidad
 
@@ -938,12 +940,50 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Datos reales:** ninguno. No se usó la exportación SQL de `.tools`.
 - **Siguiente paso:** desplegar la corrección del dialecto; revisar las suites de pantalla que ya fallaban.
 
+### 2026-10-30 · Copia local de producción
+- **Pedido del usuario:** cargar en local la exportación de la base de producción para hacer pruebas con datos reales.
+- **Cambio:** base separada `tinbana_prod_copy` en la MariaDB local (42 tablas, migraciones al día hasta la 058), con usuario propio y arranque `.tools/start-prod-copy.ps1` (puerto 8090) con todos los servicios externos apagados y la clave de cifrado de pruebas. Detalle en [VERIFICATION.md](VERIFICATION.md#ejecutor-de-suites-windows-2026-10-27).
+- **Comprobado:** importación sin errores, conteos de tablas y migraciones, y que el panel responde en 8090 (login y sesión). No se envió nada a servicios externos.
+- **Limitación:** las conexiones guardadas (Dropi, WhatsApp, IA) no funcionan en la copia porque sus secretos están cifrados con la clave de producción.
+
 ### 2026-10-30 · WhatsApp: «no me interesa» y baja con otras palabras
 - **Pedido del usuario:** al decir que no le interesa o que no quiere más mensajes, la IA no debe volver a recordarle ni escribirle, salvo que vuelva a preguntar o sea sobre el estado de su pedido.
 - **Causa:** la baja solo se reconocía con la frase exacta, y un «no» al producto no frenaba el recordatorio de compra a medias, que además podía repetirse con cada mensaje nuevo del cliente.
 - **Cambio:** acciones nuevas de la IA `not_interested` (despedida breve y cierre del chat) y `opt_out` (baja, confirmación y cierre); reconocimiento de la baja dentro de mensajes más largos; recordatorio de compra a medias como máximo uno por chat hasta que se cierre y se abra; los recordatorios se omiten si el cliente dijo que no le interesa. Los avisos de estado del pedido siguen llegando. Detalle en [WHATSAPP.md](WHATSAPP.md).
 - **Comprobado (local, MariaDB, Meta e IA simulados):** 6 comprobaciones nuevas (4 en `whatsapp-agent`, 2 en `whatsapp-confirm`) dentro de los totales de arriba.
 - **Pendiente:** probarlo con la IA real (que elija bien `not_interested` frente a un «no» que responde otra pregunta).
+
+### 2026-11-03 · Plan de desarrollo por fases
+- **Pedido del usuario:** guardar el plan de 10 fases del equipo con la evaluación de viabilidad para irlo revisando.
+- **Cambio:** solo documentación. Nuevo [PLAN-DESARROLLO.md](PLAN-DESARROLLO.md) con viabilidad, ejemplos y pendientes por fase, y respuestas a las preguntas abiertas.
+- **Comprobado:** se revisó el código. No hay integración Shopify, módulo de finanzas, multiagente, UTM, píxel/API de Conversiones ni `store_id`/`currency`. Dropi está atado a sus propias clases. No se consultó a ninguna plataforma externa.
+- **Siguiente paso:** decidir por qué fase se arranca y si se agregan `store_id`/`currency` antes.
+
+### 2026-11-03 · Página de inicio pública, etapa 1
+- **Pedido del usuario:** maquetar el home siguiendo [PROMPT-HOME.md](PROMPT-HOME.md).
+- **Cambio:**
+  - Nueva entrada de Vite `home.html`, servida en `/` del dominio principal. Antes `/` llevaba al panel.
+  - Modo claro y oscuro, y precarga de marca corta (una vez por sesión).
+  - Pájaro 3D, triángulos de papel, puntero propio, demo de WhatsApp, calculadora «Ejemplo», pasos, «En camino» y preguntas.
+  - `OrigamiScene` acepta `area` y `tilt` (opcionales; el panel no cambia).
+  - Detalle en [HOME.md](HOME.md).
+- **Comprobado (local, base de pruebas):**
+  - 14 comprobaciones de Playwright del home, con capturas a 1440 y 390 px en claro y oscuro, sin errores de consola.
+  - Suites del panel: `npm test` 107, `preload` 25, `store-router` 20, `admin` 39 y `errors-session` 15.
+- **Limitaciones:**
+  - No se midió con Lighthouse.
+  - Las fuentes TTF pesan.
+  - Los logos dicen «TINVANA».
+  - El pájaro 3D no aletea.
+  - No se usó el código de 21st (`21st get`): se tomaron solo ideas de sus componentes.
+  - Sin desplegar.
+- **Siguiente paso:** aprobación visual; etapa 2 con SEO configurable desde el superadmin.
+
+### 2026-11-04 · Logo con la B
+- **Pedido del usuario:** cambiar en el sitio el logo por el nuevo «TINBANA» de `Iconos y logos/`. El pájaro no cambia.
+- **Cambio:** se reemplazó el contenido de `backend/public/brand/tinvana-dark.svg` (letras negras), `tinvana-light.svg` (derivado, letras crema), `tinvana-original.svg` (letras grises) y `tinvana-mail.png` (680×160, letras crema, sobre transparente). Los nombres de archivo no cambiaron porque páginas guardadas, correos y el panel apuntan a ellos.
+- **Comprobado (local):** el logo nuevo se ve en el home (claro, oscuro y celular), en el login y en la página de privacidad; el PNG del correo se revisó sobre fondo oscuro.
+- **Limitación:** no se envió ningún correo real. `logo-white.png` no se tocó: es una imagen antigua de un loto verde, sin el nombre de la marca.
 
 ### Plantilla para la próxima actualización
 

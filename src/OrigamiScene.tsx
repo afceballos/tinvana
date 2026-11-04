@@ -14,7 +14,8 @@ const faces=[
  {points:[[1460,500],[2012,80],[2152,408],[1644,652]],color:'#D94800'},
  {points:[[2012,80],[2704,228],[2152,408]],color:'#FF7B20'},
 ];
-export function OrigamiScene(){
+/** `area`: element whose pointer movement tilts the bird (default: the parent); `tilt` scales that response (home hero uses more). */
+export function OrigamiScene({area,tilt=1}:{area?:HTMLElement|null;tilt?:number}={}){
  const host=useRef<HTMLDivElement>(null);
  useEffect(()=>{
   const el=host.current!;const motion=matchMedia('(prefers-reduced-motion: reduce)');const small=matchMedia('(max-width: 760px)');
@@ -34,12 +35,12 @@ export function OrigamiScene(){
    const timer=new T.Timer();timer.connect(document);const animate=()=>{if(!visible||document.hidden)return;timer.update();const elapsed=timer.getElapsed();bird.position.y=Math.sin(elapsed*.65)*.055;bird.rotation.x=.06+Math.sin(elapsed*.45)*.025+target.y;bird.rotation.y=-.18+target.x;renderer.render(scene,camera);};
    const activate=()=>renderer.setAnimationLoop(visible&&!document.hidden&&!motion.matches?animate:null);
    const observer=new IntersectionObserver(([entry])=>{visible=entry.isIntersecting;activate();});observer.observe(el);
-   const area=el.parentElement!;const pointer=(event:PointerEvent)=>{const r=area.getBoundingClientRect();target.x=((event.clientX-r.left)/r.width-.5)*.32;target.y=((event.clientY-r.top)/r.height-.5)*.12;};const leave=()=>{target.x=0;target.y=0;};area.addEventListener('pointermove',pointer);area.addEventListener('pointerleave',leave);document.addEventListener('visibilitychange',activate);
+   const zone=area??el.parentElement!;const pointer=(event:PointerEvent)=>{const r=zone.getBoundingClientRect();target.x=((event.clientX-r.left)/r.width-.5)*.32*tilt;target.y=((event.clientY-r.top)/r.height-.5)*.12*tilt;};const leave=()=>{target.x=0;target.y=0;};zone.addEventListener('pointermove',pointer);zone.addEventListener('pointerleave',leave);document.addEventListener('visibilitychange',activate);
    const reduce=()=>{if(motion.matches){leave();bird.position.y=0;renderer.render(scene,camera);}activate();};motion.addEventListener('change',reduce);
    const entrance=gsap.fromTo(bird.scale,{x:.85,y:.85,z:.85},{x:1,y:1,z:1,duration:1.3,ease:'power3.out'});activate();
-   cleanup=()=>{entrance.kill();renderer.setAnimationLoop(null);observer.disconnect();resizeObserver.disconnect();timer.dispose();area.removeEventListener('pointermove',pointer);area.removeEventListener('pointerleave',leave);document.removeEventListener('visibilitychange',activate);motion.removeEventListener('change',reduce);geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());eyeGeometry.dispose();eyeMaterial.dispose();renderer.dispose();renderer.forceContextLoss();canvas.remove();delete el.dataset.ready;};
+   cleanup=()=>{entrance.kill();renderer.setAnimationLoop(null);observer.disconnect();resizeObserver.disconnect();timer.dispose();zone.removeEventListener('pointermove',pointer);zone.removeEventListener('pointerleave',leave);document.removeEventListener('visibilitychange',activate);motion.removeEventListener('change',reduce);geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());eyeGeometry.dispose();eyeMaterial.dispose();renderer.dispose();renderer.forceContextLoss();canvas.remove();delete el.dataset.ready;};
   }
   setup().catch(()=>{ /* The supplied SVG remains visible if WebGL is unavailable. */ });return()=>{disposed=true;cleanup();};
- },[]);
+ },[area,tilt]);
  return <div className="origami-scene" ref={host} aria-hidden="true"><img className="origami-fallback" src="/brand/tinvana-origami.svg" alt="" width="560" height="388"/></div>;
 }

@@ -114,6 +114,8 @@ Pruebas: `tests/errors-session.mjs` 15, con el servidor de prueba en `SESSION_LI
 - **Temas y accesibilidad:** modo claro y oscuro (por `data-theme` o, antes de JavaScript, por la preferencia del sistema) y versión estática con `prefers-reduced-motion`.
 - **Limpieza:** se retiraron los estilos antiguos `.startup-*` y `.loader-*` de `motion.css`, `modern.css`, `brand.css` y `tinvana.css`.
 
+- **Variante del home (2026-11-03):** `.home-preload`, al final de `preload.css`. Es más corta, se ve una vez por sesión y el pájaro termina en la portada. Ver [HOME.md](HOME.md).
+
 Pruebas: `tests/preload.mjs` 23 (sin saltos entre HTML y React a 1440 px y 390 px, versión estática, rotación de mensajes, despegue, oscuro en móvil y movimiento reducido).
 
 `tests/motion.mjs` ya no se puede ejecutar: apunta a un túnel temporal antiguo. Sus comprobaciones de la precarga las cubre `preload.mjs`.

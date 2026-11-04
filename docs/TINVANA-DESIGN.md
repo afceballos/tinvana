@@ -6,7 +6,7 @@ Cambio exclusivo de presentación. Los archivos PHP, las migraciones y `src/api.
 
 - Naranja principal `#FF6A00`, secundario `#FFBA3D`, carbón `#1E1E1E`, crema `#FFF8F1` y borde `#FFE0CD`. Los valores hexadecimales del brief son la referencia.
 - Montserrat de Google Fonts, pesos 400–800. Se descargó desde la API oficial de Google Fonts y se sirve con `@font-face` local para respetar la CSP existente sin modificar PHP. Fuente y licencia en `backend/public/brand/fonts/`.
-- Assets originales de `Iconos y logos/`, copiados al directorio público de marca. `tinvana-light.svg` es una variante del SVG original con las letras claras para el fondo carbón; conserva la paloma. Favicon: símbolo SVG original.
+- Assets originales de `Iconos y logos/`, copiados al directorio público de marca. `tinvana-light.svg` es una variante del SVG original con las letras claras para el fondo carbón; conserva la paloma. Favicon: símbolo SVG original. Desde el 2026-11-04 los logos con letras dicen «TINBANA» (`tinbana logo negro.svg` y `tinbana logo gris.svg`); los archivos públicos conservan el nombre `tinvana-*` porque páginas guardadas y correos apuntan a ellos.
 - Tokens y componentes del panel en `src/tinvana.css`; estilos compartidos de logo, fuente y landings en `backend/public/brand/brand.css`. Los estilos públicos CSS permanecen como recursos estáticos.
 
 ## Movimiento

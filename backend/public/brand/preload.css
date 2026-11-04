@@ -71,3 +71,14 @@
 
 @media (max-width:600px){.pl-brand{left:20px;top:22px}.pl-brand img{width:140px}.pl-scene{width:200px;height:200px}.pl-bird{width:112px;margin:-44px 0 0 -56px}.pl-shadow{bottom:36px}}
 @media (prefers-reduced-motion:reduce){.tv-preload *,.tv-preload::before,.tv-preload::after{animation:none!important;transition:none!important}.pl-bar>span{width:100%;opacity:.55}.tv-preload.is-leaving{display:none}}
+
+/* Public home (home.html) variant: hidden without JS; shows only if loading takes over 300 ms; hidden by CSS at 1.5 s if the script never runs. */
+.home-preload{display:none}
+html.intro-on .home-preload{display:flex;opacity:0;animation:hp-in .25s .3s forwards,hp-auto .3s 1.5s forwards}
+.home-preload .pl-title{margin:0 0 10px;font-size:clamp(25px,4vw,36px);line-height:1.2;letter-spacing:-.04em;font-weight:700;animation:pl-rise .7s .2s both}
+.home-preload .pl-title span{background:linear-gradient(90deg,var(--pl-accent),#ffb27a,var(--pl-accent));background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:pl-shine 2.4s linear infinite}
+@keyframes hp-in{to{opacity:1}}
+@keyframes hp-auto{to{opacity:0;visibility:hidden}}
+.home-preload.is-gone{display:none!important}
+
+
