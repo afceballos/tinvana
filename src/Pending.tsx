@@ -9,8 +9,8 @@ import './pending.css';
 type Item={key:string;title:string;detail:string;since:string|null;links:{label:string;to:string}[];reviewable:boolean;warn:string|null};
 type Section={key:string;title:string;urgent:boolean;items:Item[]};
 type View={sections:Section[];urgent:number;total:number;message?:string};
-const ICONS:Record<string,string>={chats:'chat',novelties:'truck',confirm:'check',dropi:'send',failed:'close',templates:'mail'};
-const HINT:Record<string,string>={chats:'El cliente escribió y nadie le ha respondido.',novelties:'Problemas en la entrega reportados por la transportadora.',confirm:'Borradores que el cliente no confirmó o que no se le pudieron enviar.',dropi:'Pedidos confirmados que todavía no están en Dropi.',failed:'Mensajes, avisos, recordatorios y correos de los últimos 7 días.',templates:'Plantillas que usas en confirmaciones o avisos y que Meta no deja enviar.'};
+const ICONS:Record<string,string>={chats:'chat',novelties:'truck',confirm:'check',dropi:'send',ship:'box',failed:'close',templates:'mail'};
+const HINT:Record<string,string>={chats:'El cliente escribió y nadie le ha respondido.',novelties:'Problemas en la entrega reportados por la transportadora.',confirm:'Borradores que el cliente no confirmó o que no se le pudieron enviar.',dropi:'Pedidos confirmados que todavía no están en Dropi.',ship:'Pedidos de tus productos propios confirmados que aún no salen.',failed:'Mensajes, avisos, recordatorios y correos de los últimos 7 días.',templates:'Plantillas que usas en confirmaciones o avisos y que Meta no deja enviar.'};
 
 /** «Hace 3 h», «hace 2 días»… */
 export function ago(v:string|null):string{

@@ -29,12 +29,13 @@ final class LandingStock {
  /** Saves a fresh Dropi copy in the saved product and its landings (draft and, when published, the live one). */
  public static function store(array $product,array $raw,bool $checked=false): array {
   $mapped=Product::map($raw);$json=Support::json($mapped);
-  $db=Database::connection();$db->beginTransaction();
+  // Joins the caller's transaction when there is one (stock of own orders, OwnProducts).
+  $db=Database::connection();$own=!$db->inTransaction();if($own)$db->beginTransaction();
   try{
    Database::query('UPDATE selected_products SET original_data=?::jsonb,mapped_data=?::jsonb'.($checked?',stock_checked_at=now()':'').',updated_at=now() WHERE id=?',[Support::json($raw),$json,$product['id']]);
    Database::query('UPDATE landing_pages SET product_snapshot=?::jsonb,published_product_snapshot=CASE WHEN published_product_snapshot IS NULL THEN NULL ELSE ?::jsonb END,updated_at=now() WHERE selected_product_id=? AND user_id=?',[$json,$json,$product['id'],$product['user_id']]);
-   $db->commit();
-  }catch(\Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
+   if($own)$db->commit();
+  }catch(\Throwable $e){if($own&&$db->inTransaction())$db->rollBack();throw $e;}
   return $mapped;
  }
  /**
@@ -44,6 +45,8 @@ final class LandingStock {
  public static function check(array $landing,bool $fresh=false): array {
   $snapshot=is_array($landing['product_snapshot']??null)?$landing['product_snapshot']:[];$source='saved';
   $p=Database::one('SELECT * FROM selected_products WHERE id=? AND user_id=?',[$landing['selected_product_id']??'',$landing['user_id']??'']);
+  // Own products (OwnProducts) have no Dropi: their saved copy is the stock.
+  if($p&&OwnProducts::isOwn($p))$p=null;
   if($p&&($fresh||!$p['stock_checked_at']||strtotime((string)$p['stock_checked_at'])<time()-self::TTL)){
    $integration=Database::one('SELECT * FROM integrations WHERE id=? AND user_id=?',[$p['integration_id'],$p['user_id']]);
    if($integration){

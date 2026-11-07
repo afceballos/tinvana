@@ -1,0 +1,1 @@
+ALTER TABLE orders ADD COLUMN fulfillment VARCHAR(8) CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'dropi', ADD COLUMN stock_units INT NULL, ADD CONSTRAINT orders_fulfillment_ck CHECK (fulfillment IN ('dropi','own')), ADD CONSTRAINT orders_stock_units_ck CHECK (stock_units IS NULL OR stock_units>0)

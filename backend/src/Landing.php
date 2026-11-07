@@ -34,7 +34,7 @@ final class Landing {
   $m=json_decode($p['mapped_data'],true);$settings=Database::one('SELECT settings FROM template_settings WHERE user_id=?',[$owner]);$visual=$settings?json_decode($settings['settings'],true):self::defaults();
   $name=iconv('UTF-8','ASCII//TRANSLIT//IGNORE',$m['name']);$slug=trim(strtolower(preg_replace('/[^a-zA-Z0-9]+/','-',$name?:'producto')),'-');$slug=substr($slug,0,120).'-'.$m['id'].'-'.substr(str_replace('-','',Support::uuid()),0,8);
   $images=array_values(array_filter(array_map([Product::class,'image'],$m['images']??[])));
-  $content=self::content(['title'=>$m['name'],'description'=>$m['description'],'publicPrice'=>null,'images'=>array_slice($images,0,30),'features'=>[],'seoTitle'=>$m['name'],'seoDescription'=>'','visual'=>$visual]);
+  $content=self::content(OwnProducts::landingStart($m,['title'=>$m['name'],'description'=>$m['description'],'publicPrice'=>null,'images'=>array_slice($images,0,30),'features'=>[],'seoTitle'=>$m['name'],'seoDescription'=>'','visual'=>$visual]));
   return Database::one('INSERT INTO landing_pages(id,user_id,selected_product_id,slug,product_snapshot,content) VALUES(?,?,?,?,?::jsonb,?::jsonb) RETURNING *',[Support::uuid(),$owner,$p['id'],$slug,$p['mapped_data'],Support::json($content)]);
  }
  public static function decode(array $r): array {unset($r['ai_brief']);foreach(['content','product_snapshot','published_content','published_product_snapshot'] as $key)if(isset($r[$key])&&is_string($r[$key]))$r[$key]=json_decode($r[$key],true);if(isset($r['content']))$r['content']=self::content(Media::rebase($r['content']));return $r;}

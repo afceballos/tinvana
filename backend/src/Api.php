@@ -32,6 +32,7 @@ final class Api {
    if($method==='GET')return ProductOffers::view($owner,$m[1]);
    if($method==='PUT')return ProductOffers::save($owner,$m[1],self::body());
   }
+  if(preg_match('~^/api/orders/([^/]+)/shipping$~',$path,$m)&&$method==='POST')return OwnProducts::ship($owner,$m[1],self::body());
   if($path==='/api/orders'){
    if($method==='GET')return Orders::listing($owner,$_GET);
    if($method==='POST')return Orders::create($owner,self::body());
@@ -93,6 +94,9 @@ final class Api {
     return ['products'=>array_map(function($p)use($lookup){$p=Product::map($p);$p['selectedId']=$lookup[$p['id']]??null;return $p;},$objects),'hasNext'=>count($result['objects'])>=$params['pageSize'],'page'=>(int)($_GET['page']??1)];
    }
   }
+  // Own products (created from scratch, without Dropi): OwnProducts.
+  if($path==='/api/products/own'&&$method==='POST')return OwnProducts::create($owner,self::body());
+  if(preg_match('~^/api/products/([^/]+)/own$~',$path,$m)){if($method==='GET')return ['product'=>OwnProducts::form(OwnProducts::owned($owner,$m[1]))];if($method==='PUT')return OwnProducts::update($owner,$m[1],self::body());}
   if($path==='/api/products'){
    if($method==='GET'){$rows=Database::all('SELECT p.*,l.id AS landing_id,COALESCE(l.published_slug,l.slug) AS slug,l.status AS publication_status FROM selected_products p LEFT JOIN landing_pages l ON l.selected_product_id=p.id WHERE p.user_id=? ORDER BY p.created_at DESC',[$owner]);$store=Store::subdomainOf($owner);foreach($rows as &$p){$p['product']=json_decode($p['mapped_data'],true);$p['public_url']=$p['publication_status']==='published'?Store::landingUrl((string)$p['slug'],$store):null;unset($p['original_data'],$p['mapped_data']);}return ['products'=>$rows];}
    if($method==='POST'){
@@ -109,6 +113,7 @@ final class Api {
    if($method==='DELETE'&&$action===''){if(Database::one('SELECT id FROM landing_pages WHERE selected_product_id=?',[$p['id']]))throw new HttpError(409,'El producto tiene una landing. Conserva su selección para mantener el historial.');Database::query('DELETE FROM selected_products WHERE id=? AND user_id=?',[$p['id'],$owner]);return ['ok'=>true];}
    if($method==='POST'&&$action==='landing'){$r=Database::one('SELECT * FROM landing_pages WHERE selected_product_id=? AND user_id=?',[$p['id'],$owner]);if(!$r){Entitlements::ensureRoom($owner,'landings');$r=Landing::create($p,$owner);}return ['landing'=>Landing::decode($r)];}
    if($method==='POST'&&$action==='refresh'){
+    if(OwnProducts::isOwn($p))throw new HttpError(409,'Este producto es propio: edítalo para cambiar sus datos o su stock.');
     $integration=self::owned('integrations',$p['integration_id'],$owner);$raw=Dropi::find($integration,(string)$p['dropi_id']);
     // Published landings take the new variants, prices and stock too; the store's content stays as it is.
     LandingStock::store($p,$raw,true);return ['ok'=>true,'message'=>'Datos originales actualizados; contenido comercial conservado.'];

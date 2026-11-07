@@ -10,7 +10,7 @@ namespace App;
  * chats waiting for an advisor and Dropi novelties.
  */
 final class Pending {
- public const SECTIONS=['chats'=>'Chats esperando asesor','novelties'=>'Novedades de Dropi','confirm'=>'Pedidos por confirmar con problema','dropi'=>'Pedidos confirmados sin enviar a Dropi','failed'=>'Envíos que fallaron','templates'=>'Plantillas rechazadas en uso'];
+ public const SECTIONS=['chats'=>'Chats esperando asesor','novelties'=>'Novedades en la entrega','confirm'=>'Pedidos por confirmar con problema','dropi'=>'Pedidos confirmados sin enviar a Dropi','ship'=>'Pedidos propios por despachar','failed'=>'Envíos que fallaron','templates'=>'Plantillas rechazadas en uso'];
  private const LIMIT=50;
  private const DAYS=7;
 
@@ -57,10 +57,17 @@ final class Pending {
  }
  private static function dropi(string $owner): array {
   $out=[];
-  foreach(Database::all("SELECT * FROM orders WHERE user_id=? AND sale_status='confirmed' AND integration_status IN ('not_sent','failed','unknown') ORDER BY updated_at LIMIT ".self::LIMIT,[$owner]) as $o){
+  foreach(Database::all("SELECT * FROM orders WHERE user_id=? AND sale_status='confirmed' AND fulfillment='dropi' AND integration_status IN ('not_sent','failed','unknown') ORDER BY updated_at LIMIT ".self::LIMIT,[$owner]) as $o){
    $detail=match($o['integration_status']){'unknown'=>'Envío por verificar: no se sabe si llegó a Dropi. Revísalo en Dropi antes de enviarlo de nuevo.','failed'=>'El envío a Dropi falló. Revisa el motivo y vuelve a enviarlo.',default=>'Confirmado y listo para enviar a Dropi.'};
    $out[]=self::item('dropi:'.$o['id'],self::who($o).' · '.Orders::displayNumber($o),$detail,$o['updated_at'],[['label'=>$o['integration_status']==='unknown'?'Verificar':'Enviar a Dropi','to'=>'/panel/pedidos/'.$o['id']]],false,$o['integration_status']==='unknown'?'Revisa en Dropi antes de reintentar':null);
   }
+  return $out;
+ }
+ /** Confirmed orders of own products that have not left yet (the store ships them itself). */
+ private static function ship(string $owner): array {
+  $out=[];
+  foreach(Database::all("SELECT * FROM orders WHERE user_id=? AND sale_status='confirmed' AND fulfillment='own' AND logistics_status IN ('not_requested','pending') ORDER BY updated_at LIMIT ".self::LIMIT,[$owner]) as $o)
+   $out[]=self::item('ship:'.$o['id'].':'.$o['logistics_status'],self::who($o).' · '.Orders::displayNumber($o),$o['logistics_status']==='pending'?'En preparación: márcalo como despachado cuando salga.':'Confirmado: prepáralo y márcalo como despachado.',$o['updated_at'],[['label'=>'Despachar','to'=>'/panel/pedidos/'.$o['id']]],false);
   return $out;
  }
  /** Failed WhatsApp messages, status notices, reminders and order emails of the last days. */

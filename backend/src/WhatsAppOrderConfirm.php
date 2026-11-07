@@ -310,8 +310,9 @@ final class WhatsAppOrderConfirm {
    self::say($account,$c,$s['messages']['confirmed']."\n\n".WhatsAppOrderChat::ANY_MORE);
    Database::query('UPDATE whatsapp_conversations SET pending=?::jsonb,updated_at=now() WHERE id=?',[Support::json(['type'=>'after_confirm','order_id'=>$r['id'],'at'=>gmdate('c')]),$c['id']]);
   }
-  Notifications::notify($owner,'order_confirmed',WhatsAppAgent::who($c).' confirmó su pedido por WhatsApp','Pedido '.$ref.($s['auto_dropi']?'. Se envía a Dropi automáticamente.':'. Revísalo y envíalo a Dropi.'),'/panel/pedidos/'.$r['id'],(string)$c['id']);
-  if($s['auto_dropi']){
+  $own=($r['fulfillment']??'dropi')==='own';
+  Notifications::notify($owner,'order_confirmed',WhatsAppAgent::who($c).' confirmó su pedido por WhatsApp','Pedido '.$ref.($own?'. Es un producto propio: prepáralo y márcalo como despachado.':($s['auto_dropi']?'. Se envía a Dropi automáticamente.':'. Revísalo y envíalo a Dropi.')),'/panel/pedidos/'.$r['id'],(string)$c['id']);
+  if($s['auto_dropi']&&!$own){
    try{DropiOrders::submit($owner,(string)$r['id'],['confirm'=>true,'version'=>(int)$r['version']],true);}
    catch(HttpError $e){Orders::event($r,'whatsapp_auto_dropi_skipped',['reason'=>$e->getMessage()],null);}
   }

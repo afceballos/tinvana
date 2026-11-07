@@ -34,9 +34,9 @@ export function BuilderVariants({product,value,publicPrice,images,onChange}:{pro
   <div className="bv-bulk"><button type="button" className="secondary" disabled={shown===variants.length} onClick={()=>set(variants.map(v=>v.id),{hidden:false})}>Mostrar todas</button><button type="button" className="secondary" disabled={!variants.some(v=>v.stock===0&&!get(v.id).hidden)} onClick={()=>set(variants.filter(v=>v.stock===0).map(v=>v.id),{hidden:true})}>Ocultar agotadas</button></div>
   <ul className="bv-list">{variants.map(v=>{const it=get(v.id);return <li key={v.id} className={it.hidden?'is-hidden':''}>
    <label className="bv-switch"><input type="checkbox" checked={!it.hidden} onChange={e=>set([v.id],{hidden:!e.target.checked})}/><span className="sr-only">Vender {v.label}</span></label>
-   <div className="bv-name"><strong>{v.label}</strong><small className={v.stock===0?'is-out':''}>{units(v.stock)} · Dropi {money(v.price)}</small></div>
+   <div className="bv-name"><strong>{v.label}</strong><small className={v.stock===0?'is-out':''}>{units(v.stock)} · {product.source==='own'?'Producto':'Dropi'} {money(v.price)}</small></div>
    <label className="bv-price"><span className="sr-only">Precio público de {v.label}</span><span aria-hidden="true">$</span><input type="number" min="1" max="999999999" step="1" inputMode="numeric" disabled={it.hidden} placeholder={publicPrice!==null?String(publicPrice):'Precio'} value={it.price??''} onChange={e=>set([v.id],{price:e.target.value===''?null:Number(e.target.value)})}/></label>
   </li>;})}</ul>
-  <p className="bv-note">Al pulsar <strong>Actualizar desde Dropi</strong> en Mis productos se traen las variantes nuevas, el stock y se quitan las que Dropi ya no vende. Tus precios y fotos se conservan.</p>
+  {product.source==='own'?<p className="bv-note">Para añadir variantes o cambiar su stock, edita el producto en <strong>Mis productos</strong>. Los precios y fotos que elijas aquí se conservan.</p>:<p className="bv-note">Al pulsar <strong>Actualizar desde Dropi</strong> en Mis productos se traen las variantes nuevas, el stock y se quitan las que Dropi ya no vende. Tus precios y fotos se conservan.</p>}
  </section>;
 }

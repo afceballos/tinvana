@@ -4,13 +4,14 @@ namespace App;
 final class Leads {
  public static function productData(array $landing,int $quantity=1): array {
   $r=Landing::decode($landing);$c=$r['content'];$p=$r['product_snapshot'];
-  return ['product_id'=>$p['id'],'product_name'=>$c['title'],'dropi_product_name'=>$p['name'],
-   'sku'=>$p['sku']??null,'dropi_price'=>$p['price']??null,'public_price'=>$c['publicPrice'],
+  $own=($p['source']??'dropi')==='own';
+  return ['source'=>$own?'own':'dropi','product_id'=>$p['id'],'product_name'=>$c['title'],'dropi_product_name'=>$own?null:$p['name'],
+   'sku'=>$p['sku']??null,'dropi_price'=>$own?null:($p['price']??null),'public_price'=>$c['publicPrice'],
    'inflated_price'=>$c['publicPrice'],'image'=>$c['images'][0]??null,
    'landing_url'=>Store::landingUrl((string)($landing['published_slug']??$r['slug']),isset($landing['user_id'])?Store::subdomainOf((string)$landing['user_id']):null),
    'quantity'=>$quantity,'unit_price'=>$c['publicPrice'],'total'=>$c['publicPrice']===null?null:round($c['publicPrice']*$quantity,2),
-   'dropi_id'=>$p['id'],'category'=>array_values(array_filter(array_column($p['categories']??[],'name'))),
-   'tags'=>['dropi-product-lead','product-'.$p['id']]];
+   'dropi_id'=>$own?null:$p['id'],'category'=>array_values(array_filter(array_column($p['categories']??[],'name'))),
+   'tags'=>[$own?'own-product-lead':'dropi-product-lead','product-'.$p['id']]];
  }
  /** $chat: the order comes from the WhatsApp chat (WhatsAppChatOrder), where the email is optional. */
  public static function validate(array $b,bool $chat=false): array {
@@ -33,14 +34,16 @@ final class Leads {
   $quantity=filter_var($b['quantity']??1,FILTER_VALIDATE_INT);$max=isset($chat['offer'])?100:($c['commerce']['quantityEnabled']?$c['commerce']['maxQuantity']:1);if($quantity===false||$quantity<1||$quantity>$max)throw new HttpError(422,'Cantidad inválida.');
   // The chosen variant sets the unit price (its own or the landing price); the browser only sends its id.
   $variant=LandingVariants::chosen($c,$p,$b);
-  if($variant&&($stock['variants'][$variant['id']]??true)===false)throw new HttpError(409,'Esa opción se agotó. Elige otra, por favor.',['sold_out_variant'=>$variant['id']]);$data=self::productData($r,$quantity);
+  if($variant&&($stock['variants'][$variant['id']]??true)===false)throw new HttpError(409,'Esa opción se agotó. Elige otra, por favor.',['sold_out_variant'=>$variant['id']]);
+  // Own product with stock control: no more units than are left.
+  if(($p['source']??'')==='own'&&($left=OwnProducts::left($p,$variant?(string)$variant['id']:null))!==null&&$quantity>$left)throw new HttpError(409,$left===1?'Solo queda 1 unidad disponible.':'Solo quedan '.$left.' unidades disponibles.');$data=self::productData($r,$quantity);
   if($variant){$data['variant']=['id'=>$variant['id'],'label'=>$variant['label'],'options'=>$variant['options']];$data['variant_id']=$variant['id'];$data['variant_label']=$variant['label'];if($variant['price']!==null){$data['public_price']=$data['unit_price']=$data['inflated_price']=$variant['price'];$data['total']=round($variant['price']*$quantity,2);}if($variant['image'])$data['image']=$variant['image'];}
   if($chat!==null){
    $data['origin']='whatsapp';$data['conversation_id']=$chat['conversation_id'];$data['chat_fingerprint']=$chat['fingerprint']??null;
    if(isset($chat['offer'])){$unit=(float)$chat['offer']['unit_price'];$data['public_price']=$data['unit_price']=$data['inflated_price']=$unit;$data['total']=round($unit*$quantity,2);$data['whatsapp_offer']=['name'=>$chat['offer']['name'],'code'=>$chat['offer']['code'],'units'=>$chat['offer']['units']];$variant=$variant?['price'=>$unit]+$variant:null;}
   }
   // Freight is quoted again on the server (never trusted from the browser); without a quote the lead is still saved.
-  if(($c['commerce']['dropiShipping']??false)===true){$q=DropiShipping::forLanding($r,$v['delivery']['city_code'],$quantity,$variant['price']??(isset($chat['offer'])?(float)$chat['offer']['unit_price']:null));$data['shipping_source']='dropi';$data['shipping_price']=$q['amount']??null;$data['shipping_carrier']=$q['carrier']??null;$data['grand_total']=$q!==null&&$data['total']!==null?round($data['total']+$q['amount'],2):null;}
+  if(($c['commerce']['dropiShipping']??false)===true&&($p['source']??'')!=='own'){$q=DropiShipping::forLanding($r,$v['delivery']['city_code'],$quantity,$variant['price']??(isset($chat['offer'])?(float)$chat['offer']['unit_price']:null));$data['shipping_source']='dropi';$data['shipping_price']=$q['amount']??null;$data['shipping_carrier']=$q['carrier']??null;$data['grand_total']=$q!==null&&$data['total']!==null?round($data['total']+$q['amount'],2):null;}
   $db=Database::connection();$db->beginTransaction();try{
    $lead=Database::one('INSERT INTO leads(id,user_id,landing_page_id,idempotency_key,first_name,last_name,email,phone,phone_country,delivery_address,product_data) VALUES(?,?,?,?,?,?,?,?,?,?::jsonb,?::jsonb) ON CONFLICT(landing_page_id,idempotency_key) DO NOTHING RETURNING id,status',[Support::uuid(),$r['user_id'],$r['id'],$v['key'],$v['first'],$v['last'],$v['email'],$v['phone'],$v['phone_country'],Support::json($v['delivery']),Support::json($data)]);
    if($lead){Database::query('INSERT INTO webhook_deliveries(id,lead_id) VALUES(?,?)',[Support::uuid(),$lead['id']]);Orders::fromLead($r['user_id'],$lead['id']);$order=Database::one('SELECT * FROM orders WHERE lead_id=? AND user_id=?',[$lead['id'],$r['user_id']]);if($order){OrderMail::queue($order,'buyer_received');OrderMail::queue($order,'owner_new_order');if($chat===null)$whatsapp=WhatsAppOrderConfirm::queue($order);}}

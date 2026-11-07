@@ -98,6 +98,7 @@ Formularios -> lead + entrega pendiente + borrador de pedido (misma transacción
 | 018 | Logística reflejada desde Dropi: valores ampliados de `logistics_status` (en MySQL, 019). |
 | 017 | Seguimiento de Dropi: `orders.dropi_status`, `dropi_tracking` y `dropi_synced_at` (en MySQL, 018). |
 | 016 | Correos de pedidos: tabla `order_mail` y `users.mail_settings` (en MySQL, archivos 016 y 017). |
+| 038 | Productos propios (sin Dropi): `selected_products.source`, `integration_id` y `dropi_id` opcionales; `orders.fulfillment` y `orders.stock_units` (en MySQL, 059 y 060). Aplicada solo en la base local de pruebas. |
 | 015 | Envío a Dropi: estados `sending/sent/failed/unknown`, `orders.dropi_order_id` e `integration_data`, en PostgreSQL y MySQL. Aplicada solo en la base local de pruebas. |
 
 Esquema acumulativo: consultar el SQL real antes de cambiarlo. Hay relaciones de propietario y restricciones de unicidad; la autorización de aplicación sigue siendo obligatoria aunque exista RLS en tablas específicas.
@@ -134,6 +135,8 @@ No solicitar que se peguen secretos en el chat. El remitente `no-reply@zenzales.
 - [x] URLs absolutas conservadas; rutas de imagen relativas prefijadas con CloudFront; stock desconocido no inventado.
 - [x] Catálogo y categorías respondieron realmente durante verificaciones anteriores; hubo un 401 inicial antes de ajustar compatibilidad del cliente.
 - [ ] Revalidar conexión desde el hosting definitivo: el éxito desde este equipo no garantiza otra IP/red.
+
+- [x] Productos propios creados desde cero, sin Dropi: landing, stock propio y despacho marcado por la tienda ([OWN-PRODUCTS.md](OWN-PRODUCTS.md)). Comprobado en local; sin desplegar.
 
 No volver a añadir filtro de favoritos sin comprobarlo. Categorías, orden por precio y selector de tamaño no están expuestos inicialmente en el catálogo del panel.
 
@@ -355,6 +358,7 @@ Estado al cerrar las pruebas de pedidos: fixtures eliminados y servicios de prue
 | Pedidos y correcciones | [ORDERS.md](ORDERS.md) |
 | Ofertas y variantes | [PRODUCT-OFFERS.md](PRODUCT-OFFERS.md) |
 | Preparación de órdenes Dropi | [DROPI-ORDERS.md](DROPI-ORDERS.md) |
+| Productos propios (sin Dropi) | [OWN-PRODUCTS.md](OWN-PRODUCTS.md) |
 | Superusuario, planes y permisos | [ADMIN.md](ADMIN.md) |
 | Ventas por WhatsApp | [WHATSAPP.md](WHATSAPP.md) |
 | Privacidad y términos públicos | [LEGAL.md](LEGAL.md) |
@@ -984,6 +988,26 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Cambio:** se reemplazó el contenido de `backend/public/brand/tinvana-dark.svg` (letras negras), `tinvana-light.svg` (derivado, letras crema), `tinvana-original.svg` (letras grises) y `tinvana-mail.png` (680×160, letras crema, sobre transparente). Los nombres de archivo no cambiaron porque páginas guardadas, correos y el panel apuntan a ellos.
 - **Comprobado (local):** el logo nuevo se ve en el home (claro, oscuro y celular), en el login y en la página de privacidad; el PNG del correo se revisó sobre fondo oscuro.
 - **Limitación:** no se envió ningún correo real. `logo-white.png` no se tocó: es una imagen antigua de un loto verde, sin el nombre de la marca.
+
+### 2026-11-07 · Productos propios, sin Dropi
+- **Pedido del usuario:** crear un producto desde cero en Mis productos, con su landing, y manejar todo desde Tinbana (opción 1: la tienda lo despacha).
+- **Cambio:**
+  - Botón «Crear producto» y formulario con fotos, precio, costo, variantes y stock opcional.
+  - La landing empieza con esos datos.
+  - Los pedidos no se envían a Dropi. Al confirmar, el stock baja, y vuelve si el pedido se cancela o se devuelve.
+  - Panel «Envío» del pedido para marcar preparación, despacho (transportadora y guía), en camino, novedad, entregado o devuelto. Envía los mismos avisos al cliente.
+  - Nueva sección en Pendientes.
+  - Migraciones PostgreSQL 038 y MySQL 059 y 060. Guía: [OWN-PRODUCTS.md](OWN-PRODUCTS.md).
+  - Las direcciones `/panel/productos/nuevo` y `/panel/productos/:id/editar` se añadieron a las rutas del panel en `index.php`.
+- **Comprobado (local, MariaDB `zenzales_test`):**
+  - `tests/own-products.mjs`: 29 comprobaciones.
+  - Siguen pasando `npm test` 107, `orders` 37, `order-editing` 52, `landing-stock` 24, `landing-variants` 40, `dropi-orders` 36, `dropi-tracking` 28, `dropi-shipping` 20, `media-delete` 28, `whatsapp-confirm` 92, `product-list`, `order-lookup` 18 y `store-router` 20.
+  - Capturas del formulario, la lista y el pedido en escritorio y celular.
+- **Limitaciones:**
+  - `builder-http` falla igual sin estos cambios (falla antigua).
+  - No se probó un aviso real por correo o WhatsApp.
+  - Sin desplegar: las migraciones 059 y 060 deben correr en el hosting antes de usar la función.
+- **Siguiente paso:** revisión visual del usuario y despliegue.
 
 ### Plantilla para la próxima actualización
 

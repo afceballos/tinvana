@@ -20,7 +20,7 @@ final class ProductOffers {
  }
  public static function view(string $owner,string $id): array {
   $p=self::product($owner,$id);$r=Database::one('SELECT version,settings FROM product_offers WHERE selected_product_id=? AND user_id=?',[$id,$owner]);$mapped=json_decode($p['mapped_data'],true);
-  return ['product'=>['id'=>$id,'name'=>$mapped['name'],'dropi_id'=>(string)$p['dropi_id'],'type'=>$mapped['type']??null],'version'=>$r?(int)$r['version']:0,'settings'=>$r?json_decode($r['settings'],true):['active'=>false,'tiers'=>[],'starts_at'=>null,'ends_at'=>null],'variants'=>self::variants($p)];
+  return ['product'=>['id'=>$id,'name'=>$mapped['name'],'dropi_id'=>(string)($p['dropi_id']??''),'source'=>$p['source']??'dropi','type'=>$mapped['type']??null],'version'=>$r?(int)$r['version']:0,'settings'=>$r?json_decode($r['settings'],true):['active'=>false,'tiers'=>[],'starts_at'=>null,'ends_at'=>null],'variants'=>self::variants($p)];
  }
  private static function date(mixed $value): ?string {
   if($value===null||$value==='')return null;

@@ -1,0 +1,43 @@
+/* Own product form (OwnProductForm.tsx): same panels, fields and tokens as the rest of the panel. */
+.op-lead{max-width:760px;margin:-4px 0 20px}
+.op-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+.op-main,.op-side{display:grid;gap:16px;min-width:0}
+.op-side{position:sticky;top:84px}
+.op-card{display:grid;gap:14px;padding:20px;border-radius:20px}
+.op-card h2{display:flex;align-items:center;gap:8px;margin:0;font-size:16px}
+.op-card h2 .icon{width:18px;height:18px;color:var(--brand-accent)}
+.op-card h2 small,.op-card label small,.op-table small{font-weight:500;color:var(--muted);font-size:12px}
+.op-card label{display:grid;gap:6px;font-size:13px;font-weight:600}
+.op-card textarea{resize:vertical;min-height:120px}
+.op-photos{padding:0;overflow:hidden}
+.op-hint{margin:0;font-size:12.5px;line-height:1.5;color:var(--muted)}
+.op-option{display:grid;grid-template-columns:minmax(120px,.7fr) minmax(0,1.6fr) auto;gap:10px;align-items:end}
+.op-option .pc-icon{margin-bottom:4px}
+.op-add{justify-self:start;display:inline-flex;align-items:center;gap:6px}
+.op-add .icon{width:16px;height:16px}
+.op-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
+.op-table{width:100%;border-collapse:collapse;font-size:13px}
+.op-table th,.op-table td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+.op-table thead th{font-size:12px;color:var(--muted);font-weight:600;background:var(--soft);white-space:nowrap}
+.op-table tbody th{font-weight:600;white-space:nowrap}
+.op-table tr:last-child>*{border-bottom:0}
+.op-table input{min-width:90px;width:100%;padding:7px 9px;font-size:13px}
+.op-margin{display:flex;justify-content:space-between;align-items:baseline;margin:0;padding:10px 12px;border-radius:12px;background:var(--soft);font-size:13px}
+.op-margin strong{font-size:16px;color:#1a8a52;font-variant-numeric:tabular-nums}
+.op-margin.is-bad strong{color:#c0392b}
+.op-check{display:grid!important;grid-template-columns:18px minmax(0,1fr)!important;align-items:start;gap:10px;font-weight:500!important;cursor:pointer}
+.op-check input{width:18px!important;height:18px;min-height:0;margin:2px 0 0;padding:0;flex:none;accent-color:var(--brand-accent)}
+.op-check span{display:grid;gap:3px}
+.op-check small{font-weight:400!important;line-height:1.45}
+.op-actions{display:grid;gap:10px}
+.op-actions .primary,.op-actions .secondary{width:100%;min-height:46px;justify-content:center;text-align:center}
+:root[data-theme=dark] .op-margin strong{color:#5fd39a}
+:root[data-theme=dark] .op-margin.is-bad strong{color:#ff8a7a}
+@media (max-width:960px){.op-layout{grid-template-columns:1fr}.op-side{position:static}}
+@media (max-width:560px){.op-card{padding:16px}.op-option{grid-template-columns:1fr auto}.op-option label:first-child{grid-column:1/-1}}
+/* Mis productos: header actions and the «Propio» chip. */
+.pc-head-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.pc-head-actions .primary{display:inline-flex;align-items:center;gap:6px}
+.pc-head-actions .icon{width:16px;height:16px}
+.pc-empty-actions{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;align-items:center;margin-top:12px}
+.pc-own{position:absolute;top:10px;right:10px;margin:0;padding:4px 10px;font-size:11px;font-weight:700;border-radius:99px;background:var(--brand-accent);color:#1e1e1e}

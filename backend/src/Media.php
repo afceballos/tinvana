@@ -79,6 +79,7 @@ final class Media {
    $rows=Database::all('SELECT content,published_content FROM landing_pages WHERE user_id=? AND (content::text ~ ? OR published_content::text ~ ?)',[$owner,$pattern,$pattern]);
    foreach($rows as $row)$mark($row['content'].' '.$row['published_content'],'En uso en una landing guardada o su versión publicada.');
    foreach(Database::all('SELECT product_data FROM leads WHERE user_id=? AND product_data::text ~ ?',[$owner,$pattern]) as $row)$mark($row['product_data'],'Conservada en una consulta recibida.');
+   foreach(Database::all("SELECT original_data FROM selected_products WHERE user_id=? AND source='own' AND original_data::text ~ ?",[$owner,$pattern]) as $row)$mark($row['original_data'],'En uso en un producto propio.');
    $settings=Database::one('SELECT settings FROM template_settings WHERE user_id=?',[$owner]);if($settings)$mark($settings['settings'],'En uso en una plantilla guardada.');
    $deleted=[];$blocked=[];
    foreach($assets as $asset){

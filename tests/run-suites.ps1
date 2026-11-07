@@ -30,7 +30,7 @@ if (-not $Only.Count) {
  "{0,-20} {1}" -f 'npm test', (Fresh)
  foreach ($p in 'run','builder') { if (Test-Path "backend/tests/$p.php") { "{0,-20} {1}" -f "php $p", (Summary ((.tools/php/php.exe "backend/tests/$p.php" 2>&1) | Out-String)) } }
 }
-$suites = if ($Only.Count) { $Only } else { 'builder','builder-http','gallery','header','lead-success','lead-phone-country','dropi-block','product-list','visual','delivery-ui','geography','dropi-shipping','store-router','brand','orders' }
+$suites = if ($Only.Count) { $Only } else { 'builder','builder-http','gallery','header','lead-success','lead-phone-country','dropi-block','product-list','visual','delivery-ui','geography','dropi-shipping','store-router','brand','orders','own-products' }
 foreach ($t in $suites) {
  if (-not (Test-Path "tests/$t.mjs")) { continue }
  $null = Fresh

@@ -113,3 +113,7 @@ Pruebas: `dropi-tracking.php` 11 y `dropi-tracking.mjs` 26.
   - Al cancelar, se añade al motivo: «Cancelado en Dropi (CANCELADO): nota».
 
 Pruebas: `dropi-confirmed.mjs`, `dropi-tracking.mjs` (nota de cancelación en los dos historiales), `dropi-tracking.php` 12 y `dropi-orders.php` 29.
+
+## Productos propios
+
+Los pedidos de productos creados en Tinbana (`orders.fulfillment='own'`) nunca se envían a Dropi: el panel muestra «Envío» en lugar de «Envío a Dropi», `POST /api/orders/{id}/dropi` responde 409 y la confirmación por WhatsApp no los manda automáticamente. Ver [OWN-PRODUCTS.md](OWN-PRODUCTS.md).

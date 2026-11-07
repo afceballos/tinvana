@@ -37,8 +37,10 @@ final class Orders {
   $variant=is_array($p['variant']??null)&&preg_match('/^[1-9][0-9]{0,17}$/D',(string)($p['variant']['id']??''))?['id'=>(string)$p['variant']['id'],'label'=>(string)($p['variant']['label']??''),'sku'=>null]:null;
   // An order made in the WhatsApp chat (WhatsAppChatOrder) keeps that origin.
   $source=($p['origin']??'')==='whatsapp'?'whatsapp':'landing';
-  $r=Database::one('INSERT INTO orders(id,order_number,user_id,lead_id,source,customer,delivery_address,product_data,quantity,unit_price,shipping_price,variant_data) VALUES(?,?,?,?,?,?::jsonb,?::jsonb,?::jsonb,?,?,?,?::jsonb) ON CONFLICT(lead_id) DO NOTHING RETURNING *',[
-   $id,self::newNumber(),$owner,$leadId,$source,Support::json(array_intersect_key($lead,array_flip(['first_name','last_name','email','phone']))),$lead['delivery_address']??'{}',$lead['product_data'],max(1,min(100,(int)($p['quantity']??1))),$unit,$shipping,$variant?Support::json($variant):null
+  // An own product (OwnProducts) is shipped by the store, never sent to Dropi.
+  $fulfillment=($p['source']??'dropi')==='own'?'own':'dropi';
+  $r=Database::one('INSERT INTO orders(id,order_number,user_id,lead_id,source,fulfillment,customer,delivery_address,product_data,quantity,unit_price,shipping_price,variant_data) VALUES(?,?,?,?,?,?,?::jsonb,?::jsonb,?::jsonb,?,?,?,?::jsonb) ON CONFLICT(lead_id) DO NOTHING RETURNING *',[
+   $id,self::newNumber(),$owner,$leadId,$source,$fulfillment,Support::json(array_intersect_key($lead,array_flip(['first_name','last_name','email','phone']))),$lead['delivery_address']??'{}',$lead['product_data'],max(1,min(100,(int)($p['quantity']??1))),$unit,$shipping,$variant?Support::json($variant):null
   ]);
   if($r)self::event($r,'created',['origin'=>$source,'lead_id'=>$leadId]+($source==='whatsapp'?['conversation_id'=>$p['conversation_id']??null]:[]),null);
   else $r=Database::one('SELECT * FROM orders WHERE lead_id=? AND user_id=?',[$leadId,$owner]);
@@ -104,7 +106,7 @@ final class Orders {
   // landing does not charge freight, it is the amount the landing shows, or included in the public price ($0).
   $included=false;if($r['shipping_price']===null){
    $l=Database::one('SELECT l.content,l.published_content FROM landing_pages l JOIN leads a ON a.landing_page_id=l.id AND a.user_id=l.user_id WHERE a.id=? AND a.user_id=?',[$r['lead_id'],$r['user_id']]);$lc=$l?json_decode((string)($l['published_content']?:$l['content']),true):null;
-   if(($lc['commerce']['dropiShipping']??false)===true)throw new HttpError(409,'Dropi no cotizó el envío a esta ciudad: cotízalo a mano y envía la confirmación desde el pedido.');
+   if(($lc['commerce']['dropiShipping']??false)===true&&($r['fulfillment']??'dropi')!=='own')throw new HttpError(409,'Dropi no cotizó el envío a esta ciudad: cotízalo a mano y envía la confirmación desde el pedido.');
    $hint=self::shippingHint($r);$r['shipping_price']=$hint['amount']??'0.00';$included=$hint===null;
   }
   $product=ProductOffers::forOrder($r);$mapped=json_decode($product['mapped_data'],true);
@@ -119,7 +121,7 @@ final class Orders {
  public static function confirmByCustomer(array $r,array $confirmation): array {
   $r=Database::one("UPDATE orders SET sale_status='confirmed',confirmation=?::jsonb,version=version+1,updated_at=now() WHERE id=? RETURNING *",[Support::json($confirmation),$r['id']]);
   self::event($r,'confirmed',$confirmation,null);OrderMail::queue($r,'buyer_confirmed');
-  return $r;
+  return OwnProducts::take($r);
  }
  /** Shipping cost the landing shows to buyers, as a quote suggestion. Dropi's catalog has no per-product freight. */
  public static function shippingHint(array $r): ?array {
@@ -146,6 +148,8 @@ final class Orders {
    $r=self::owned($owner,$id,true);
    if(!isset($b['version'])||!is_int($b['version'])||$b['version']!==(int)$r['version'])throw new HttpError(409,'El pedido cambió. Actualiza el detalle antes de continuar.');
    if(!in_array($r['integration_status'],['not_sent','failed'],true))throw new HttpError(409,$r['integration_status']==='sent'?'El pedido ya se creó en Dropi. Gestiona cambios o cancelación desde Dropi.':'El pedido tiene un envío a Dropi pendiente de revisión.');
+   // Own order already on its way: only a cancellation (before delivery) is allowed.
+   if(($r['fulfillment']??'dropi')==='own'&&!in_array($r['logistics_status'],['not_requested','pending'],true)&&($action!=='cancel'||$r['logistics_status']==='delivered'))throw new HttpError(409,$r['logistics_status']==='delivered'?'El pedido ya fue entregado: no se puede cambiar ni cancelar.':'El pedido ya salió a despacho: solo puedes cancelarlo o actualizar su envío.');
    if($action==='customer'){
     if($r['sale_status']!=='draft')throw new HttpError(409,'Devuelve el pedido a revisión antes de editar sus datos.');
     $customer=['first_name'=>Support::text($b['first_name']??null,100),'last_name'=>Support::text($b['last_name']??null,100),'email'=>strtolower(Support::text($b['email']??null,254))];
@@ -161,8 +165,8 @@ final class Orders {
     if($r['sale_status']!=='confirmed')throw new HttpError(409,'Solo puedes devolver a revisión un pedido confirmado localmente.');
     $reason=Support::text($b['reason']??null,1000);
     $previous=['confirmation'=>json_decode($r['confirmation']??'null',true),'quote_id'=>$r['quote_id'],'quantity'=>$r['quantity'],'unit_price'=>$r['unit_price'],'shipping_price'=>$r['shipping_price'],'customer'=>json_decode($r['customer'],true),'delivery_address'=>json_decode($r['delivery_address'],true),'variant'=>json_decode($r['variant_data']??'null',true),'offer'=>json_decode($r['offer_snapshot']??'null',true)];
-    $r=Database::one("UPDATE orders SET sale_status='draft',shipping_price=null,quote_id=null,quote_expires_at=null,confirmation=null,version=version+1,updated_at=now() WHERE id=? RETURNING *",[$id]);
-    self::event($r,'reopened',['reason'=>$reason,'previous'=>$previous],$owner);
+    $r=Database::one("UPDATE orders SET sale_status='draft',logistics_status=CASE WHEN fulfillment='own' THEN 'not_requested' ELSE logistics_status END,shipping_price=null,quote_id=null,quote_expires_at=null,confirmation=null,version=version+1,updated_at=now() WHERE id=? RETURNING *",[$id]);
+    self::event($r,'reopened',['reason'=>$reason,'previous'=>$previous],$owner);$r=OwnProducts::release($r,'reopened');
    }elseif($action==='quote'){
     if($r['sale_status']!=='draft')throw new HttpError(409,'Solo puedes cotizar un borrador.');
     $qty=$b['quantity']??null;if(!is_int($qty)||$qty<1||$qty>100)throw new HttpError(422,'La cantidad debe estar entre 1 y 100.');
@@ -185,12 +189,12 @@ final class Orders {
     if(($b['accepted']??false)!==true)throw new HttpError(422,'Debes confirmar que verificaste la aceptación del comprador.');
     $confirmation=['quote_id'=>$r['quote_id'],'quoted_version'=>(int)$r['version'],'evidence'=>$evidence,'recorded_by'=>$owner,'recorded_at'=>gmdate('c'),'method'=>'operator_record'];
     $r=Database::one("UPDATE orders SET sale_status='confirmed',confirmation=?::jsonb,version=version+1,updated_at=now() WHERE id=? RETURNING *",[Support::json($confirmation),$id]);
-    self::event($r,'confirmed',$confirmation,$owner);OrderMail::queue($r,'buyer_confirmed');
+    self::event($r,'confirmed',$confirmation,$owner);OrderMail::queue($r,'buyer_confirmed');$r=OwnProducts::take($r);
    }elseif($action==='cancel'){
     if($r['sale_status']==='cancelled')throw new HttpError(409,'El pedido ya está cancelado.');
     $reason=Support::text($b['reason']??null,1000);
     $r=Database::one("UPDATE orders SET sale_status='cancelled',version=version+1,quote_id=null,quote_expires_at=null,updated_at=now() WHERE id=? RETURNING *",[$id]);
-    self::event($r,'cancelled',['reason'=>$reason],$owner);OrderMail::queue($r,'buyer_cancelled');
+    self::event($r,'cancelled',['reason'=>$reason],$owner);OrderMail::queue($r,'buyer_cancelled');$r=OwnProducts::release($r,'cancelled');
    }else throw new HttpError(404,'Operación no disponible.');
    $db->commit();return self::detail($owner,$id);
   }catch(\Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}

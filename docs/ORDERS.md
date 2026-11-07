@@ -89,3 +89,7 @@ Conserva las clases y los textos que usan las pruebas.
 - **Dónde aparece:** fila de la lista y cabecera del detalle; búsqueda por número o parte de él (`GET /api/orders?q=`); popup de éxito de la landing con «Consultar mi pedido»; correos (asunto, resumen y enlace de consulta); variable `{{pedido}}` de la plantilla de WhatsApp; nota de la orden en Dropi («Tinbana TB-…»). Es también el código para confirmar por WhatsApp (reemplaza el código aparte).
 - **Consulta** (`OrderLookup`): página pública `/pedido?numero=` (en el subdominio de la tienda solo encuentra pedidos de esa tienda; `noindex`; 30 consultas por hora por IP) y respuesta automática por WhatsApp cuando el cliente escribe su número (si no hay una confirmación esperando). Muestra estado (Recibido, Confirmado, En preparación, En camino, Entregado; cancelado, devuelto o con novedad), producto, variante, cantidad, total, dirección completa, transportadora y guía; nombre, teléfono y correo solo en parte (`La••• Pé•••`, `+57 300 ••• ••67`, `la•••@gm•••.com`).
 - **Pruebas:** `tests/order-lookup.mjs`; `backend/tests/run.php` (formato, enmascarado y estados).
+
+## Productos propios
+
+Un pedido de producto propio sigue el mismo borrador, cotización y aceptación. Al confirmarse descuenta stock, y la tienda marca su despacho en el panel «Envío» (`POST /api/orders/{id}/shipping`). Ya despachado, solo admite actualizar el envío o cancelar antes de la entrega. Ver [OWN-PRODUCTS.md](OWN-PRODUCTS.md).

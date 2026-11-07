@@ -51,6 +51,8 @@ final class Product {
    $known=array_column($variants,'stock');$stock=$stock??(!in_array(null,$known,true)?array_sum($known):null);
   }
   foreach($variants as &$v)unset($v['warehouses']);unset($v);
-  return ['id'=>(string)$r['id'],'name'=>$r['name']??'Producto sin nombre','description'=>self::description($r['description']??''),'price'=>$price,'priceMax'=>$priceMax,'suggestedPrice'=>$suggested,'variants'=>$variants,'cost'=>null,'sku'=>$r['sku']??null,'type'=>$r['type']??null,'images'=>$images,'categories'=>array_map(fn($c)=>['id'=>$c['pivot']['category_id']??null,'name'=>$c['name']??null],$r['categories']??[]),'stock'=>$stock,'warehouses'=>$warehouses,'supplier'=>$r['user']['store_name']??$r['user']['name']??null,'supplierStatus'=>self::supplierStatus($r['user']??[]),'supplierId'=>$r['user']['id']??null,'variations'=>$r['variations']??[],'attributes'=>$r['attributes']??[]];
+  // Own product (OwnProducts): same shape, marked so the panel and the landing leave Dropi out; cost is the store's own.
+  $own=is_array($r['own']??null);
+  return ['source'=>$own?'own':'dropi','id'=>(string)$r['id'],'name'=>$r['name']??'Producto sin nombre','description'=>self::description($r['description']??''),'price'=>$price,'priceMax'=>$priceMax,'suggestedPrice'=>$suggested,'variants'=>$variants,'cost'=>$own?self::number($r['own']['cost']??null):null,'sku'=>$r['sku']??null,'type'=>$r['type']??null,'images'=>$images,'categories'=>array_map(fn($c)=>['id'=>$c['pivot']['category_id']??null,'name'=>$c['name']??null],$r['categories']??[]),'stock'=>$stock,'warehouses'=>$warehouses,'supplier'=>$r['user']['store_name']??$r['user']['name']??null,'supplierStatus'=>self::supplierStatus($r['user']??[]),'supplierId'=>$r['user']['id']??null,'variations'=>$r['variations']??[],'attributes'=>$r['attributes']??[]];
  }
 }
