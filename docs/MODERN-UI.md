@@ -29,6 +29,16 @@ Tarjetas con elevación y zoom suave de imagen, brillo que sigue al puntero (sol
 
 La barra lateral no hace scroll: logo y «Mi espacio» arriba y «Contraer menú» abajo quedan fijos, y solo la lista de opciones (`nav`) se desplaza, con la barra oculta (`scrollbar-width:none`). Aparece un desvanecido arriba y/o abajo cuando hay más opciones en esa dirección (`data-fade-top/bottom` calculado en `Shell`, animado con `@property --ft/--fb`), y la opción activa se mantiene visible al cambiar de ruta. En alturas menores de 800 px se oculta el mensaje «Dale vuelo…» para dar espacio al menú. El resto de áreas con scroll (constructor, listas, diálogos, tablas) usan una barra fina y translúcida que se acentúa al pasar el cursor, con variante para modo oscuro (`--sb-thumb`, `--sb-thumb-hover`; solo propiedades estándar `scrollbar-width`/`scrollbar-color`).
 
+### Menú «Integraciones»
+
+Desde el 2026-11-09, Dropi, IA y GHL van dentro de un solo menú desplegable, «Integraciones» (`integrationNavigation` en `src/main.tsx`). Cada opción conserva su ruta (`/panel/integraciones`, `/panel/ia` y `/panel/webhooks`) y su permiso del plan; si el plan no permite ninguna, el menú no aparece.
+
+- **Al abrir:** se despliega solo al entrar a una de esas páginas, también al llegar desde un enlace o al recargar.
+- **Píldora:** se mueve a la opción activa. Si la persona cierra el menú, la píldora queda sobre «Integraciones».
+- **Barra contraída:** muestra los tres íconos sueltos, como antes.
+- **Ruta de navegación (encabezado):** dice «Integraciones · Dropi», «Integraciones · IA» o «Integraciones · GHL».
+- **Estilos:** al final de `src/modern.css` (`.nav-group`, `.nav-group-toggle` y `.nav-sub`). En celular, la opción activa conserva el fondo naranja.
+
 ## Listas compactas: productos, consultas y pedidos
 
 Inspiradas en la demo Kofra (tarjetas de resumen, chips con contadores, filas densas con avatar y estado, panel lateral de detalle y tarjeta tipo factura). Solo presentación: las llamadas a la API, los textos accesibles y las clases usadas por las pruebas existentes (`.selected-row`, `.order-total`, etc.) se conservan. Piezas compartidas en `src/compact.tsx` y `src/compact.css`.

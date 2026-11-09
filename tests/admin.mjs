@@ -75,7 +75,7 @@ try{
  const ownerPage=await(await browser.newContext({storageState:await owner.ctx.storageState(),viewport:{width:1440,height:1000},reducedMotion:'reduce'})).newPage();ownerPage.on('pageerror',e=>errors.push(e.message));
  await ownerPage.goto(base+'/panel/productos');await ownerPage.locator('.app-sidebar nav a').first().waitFor();
  const nav=await ownerPage.locator('.app-sidebar nav').innerText();
- check('restricted account menu hides disabled modules and admin',!nav.includes('Pedidos')&&!nav.includes('Integraciones de IA')&&!nav.includes('Administración')&&nav.includes('Mis productos'));
+ check('restricted account menu hides disabled modules and admin',!nav.includes('Pedidos')&&!(await ownerPage.locator('.app-sidebar a[href="/panel/ia"]').count())&&!nav.includes('Administración')&&nav.includes('Mis productos'));
  await ownerPage.goto(base+'/panel/pedidos');await ownerPage.locator('.plan-locked').waitFor();
  check('direct link to a disabled module shows the plan notice',(await ownerPage.locator('.plan-locked').innerText()).includes('Básico'));
  await ownerPage.screenshot({path:'test-results/admin-locked.png'});

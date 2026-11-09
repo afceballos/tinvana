@@ -1009,6 +1009,30 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
   - Sin desplegar: las migraciones 059 y 060 deben correr en el hosting antes de usar la función.
 - **Siguiente paso:** revisión visual del usuario y despliegue.
 
+### 2026-11-09 · Menú «Integraciones»
+- **Pedido del usuario:** juntar en un solo menú todas las integraciones (IA, Dropi, etc.) sin cambiar el diseño.
+- **Cambio (solo panel):**
+  - La barra lateral tiene «Integraciones» desplegable con Dropi, IA y GHL. Las rutas y los permisos no cambian.
+  - Se despliega solo al estar en una de esas páginas. Con la barra contraída se ven los íconos sueltos.
+  - La ruta de navegación dice «Integraciones · …».
+  - Las pruebas `admin.mjs` y `ai-connections-ui.mjs` se ajustaron a los nombres nuevos del menú. Guía: [MODERN-UI.md](MODERN-UI.md).
+- **Comprobado (local):**
+  - En el navegador: cerrado, abierto, opción activa, carga directa, barra contraída y celular, sin errores de JavaScript.
+  - Suites que pasan: `admin` 39, `dropi-integrations-ui` 10, `store-router` 20 y `npm test` 107.
+- **Limitación:** `ai-connections-ui` falla al esperar un elemento, igual que sin este cambio (falla antigua). Sin desplegar.
+- **Siguiente paso:** decidir si «Conexión de WhatsApp» (hoy dentro de Ventas WhatsApp) también debe aparecer en este menú.
+
+### 2026-11-09 · Ver la contraseña en el inicio de sesión
+- **Pedido del usuario:** poner el ojito en la contraseña del login para ver lo que se escribió.
+- **Cambio (solo panel):**
+  - Nuevo componente `src/PasswordInput.tsx` (estilos en `src/password-input.css`), con un botón de ojo dentro del campo.
+  - Muestra u oculta la contraseña sin borrarla. Tiene `aria-label` «Mostrar contraseña» u «Ocultar contraseña» y `aria-pressed`.
+  - Se usa en el login. Restablecer contraseña y Cambiar contraseña conservan su casilla «Mostrar contraseñas».
+- **Comprobado (local):**
+  - En el navegador, en escritorio y celular: muestra y oculta, conserva lo escrito, y Enter sigue iniciando sesión. Sin errores de JavaScript.
+  - Suites que pasan: `admin` 39 y `dropi-integrations-ui` 10, que inician sesión por la pantalla.
+- **Siguiente paso:** sin desplegar.
+
 ### Plantilla para la próxima actualización
 
 ```text

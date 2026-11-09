@@ -235,3 +235,19 @@ dialog[open]::backdrop{animation:backdrop-in .35s ease-out}
 .profile-form.webhook-current fieldset legend{font-size:15px}
 .profile-photo.webhook-current{justify-items:center}
 .profile-photo.webhook-current>.webhook-head{justify-self:stretch}
+/* «Integraciones»: one expandable group in the sidebar (Dropi, IA, GHL), same look as the other links. */
+.nav-group-toggle{position:relative;z-index:1;display:flex;align-items:center;gap:12px;width:100%;min-height:47px;padding:12px 14px;border:0;border-radius:9px;background:transparent;color:#d4cbc4;font:inherit;font-size:12px;text-align:left;cursor:pointer;transition:color .25s var(--ease-soft),background-color .25s var(--ease-soft),transform .3s var(--ease-out)}
+.nav-group-toggle .icon{width:19px;height:19px;flex-shrink:0;opacity:.85;transition:transform .35s var(--ease-spring)}
+.nav-group-toggle:hover{background:#302b26;color:#fff;transform:translateX(4px)}
+.nav-group-toggle:hover .icon:first-child{transform:scale(1.14) rotate(-4deg)}
+.nav-group-toggle:focus-visible{outline:2px solid #ff6a00;outline-offset:2px}
+.nav-group-toggle .nav-chevron{width:14px;margin-left:auto;opacity:.7;transform:rotate(90deg);transition:transform .3s var(--ease-out)}
+.nav-group:not(.is-open) .nav-group-toggle .nav-chevron{transform:rotate(0)}
+.nav-group.has-active .nav-group-toggle{color:#fff;font-weight:700}
+.nav-group.has-active:not(.is-open) .nav-group-toggle{color:#1e1e1e}
+.nav-sub{display:grid;gap:2px;margin:2px 0 4px}
+.nav-sub[hidden]{display:none}
+.app-sidebar nav .nav-sub a{min-height:40px;padding-block:9px;padding-left:30px}
+.app-sidebar nav .nav-sub a .icon{width:16px;height:16px}
+@media(max-width:1200px){.nav-group-toggle{font-size:11px;padding-inline:10px}.app-sidebar nav .nav-sub a{padding-left:24px}}
+@media(max-width:900px){.nav-group.has-active:not(.is-open) .nav-group-toggle{background:var(--orange);color:#1e1e1e}}
