@@ -29,14 +29,30 @@ Tarjetas con elevación y zoom suave de imagen, brillo que sigue al puntero (sol
 
 La barra lateral no hace scroll: logo y «Mi espacio» arriba y «Contraer menú» abajo quedan fijos, y solo la lista de opciones (`nav`) se desplaza, con la barra oculta (`scrollbar-width:none`). Aparece un desvanecido arriba y/o abajo cuando hay más opciones en esa dirección (`data-fade-top/bottom` calculado en `Shell`, animado con `@property --ft/--fb`), y la opción activa se mantiene visible al cambiar de ruta. En alturas menores de 800 px se oculta el mensaje «Dale vuelo…» para dar espacio al menú. El resto de áreas con scroll (constructor, listas, diálogos, tablas) usan una barra fina y translúcida que se acentúa al pasar el cursor, con variante para modo oscuro (`--sb-thumb`, `--sb-thumb-hover`; solo propiedades estándar `scrollbar-width`/`scrollbar-color`).
 
+### Bloques del menú
+
+Desde el 2026-11-09, la barra lateral se ordena en tres bloques con un título pequeño (`navSections` en `src/main.tsx`):
+
+| Bloque | Opciones |
+|---|---|
+| Ventas | Pendientes, Pedidos, Consultas recibidas y Ventas WhatsApp |
+| Productos y tienda | Mis productos, Explorar productos, Mis archivos y Plantilla de marca |
+| Configuración | Integraciones, Correos de pedidos y Notificaciones; Administración solo para el superadmin |
+
+- Un bloque sin opciones permitidas por el plan no se muestra.
+- Con la barra contraída, los títulos se cambian por una línea divisoria.
+- Pendientes usa ahora el ícono de reloj y Notificaciones el de campana.
+- Correos de pedidos y Notificaciones siguen también en el menú de la cuenta.
+
 ### Menú «Integraciones»
 
-Desde el 2026-11-09, Dropi, IA y GHL van dentro de un solo menú desplegable, «Integraciones» (`integrationNavigation` en `src/main.tsx`). Cada opción conserva su ruta (`/panel/integraciones`, `/panel/ia` y `/panel/webhooks`) y su permiso del plan; si el plan no permite ninguna, el menú no aparece.
+Desde el 2026-11-09, Dropi, IA, GHL y la conexión de WhatsApp (`/panel/whatsapp/conexion`) van dentro de un solo menú desplegable, «Integraciones», en el bloque Configuración, (`integrationNavigation` en `src/main.tsx`). Cada opción conserva su ruta (`/panel/integraciones`, `/panel/ia`, `/panel/webhooks` y `/panel/whatsapp/conexion`) y su permiso del plan. «Ventas WhatsApp» no se marca como activa en la página de conexión; si el plan no permite ninguna, el menú no aparece.
 
 - **Al abrir:** se despliega solo al entrar a una de esas páginas, también al llegar desde un enlace o al recargar.
 - **Píldora:** se mueve a la opción activa. Si la persona cierra el menú, la píldora queda sobre «Integraciones».
 - **Barra contraída:** muestra los tres íconos sueltos, como antes.
 - **Ruta de navegación (encabezado):** dice «Integraciones · Dropi», «Integraciones · IA» o «Integraciones · GHL».
+- **Abierto:** el grupo se ve como un panel más oscuro (`#141210`) con un borde muy sutil y el ícono naranja; las opciones quedan dentro de ese panel.
 - **Estilos:** al final de `src/modern.css` (`.nav-group`, `.nav-group-toggle` y `.nav-sub`). En celular, la opción activa conserva el fondo naranja.
 
 ## Listas compactas: productos, consultas y pedidos

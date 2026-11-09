@@ -45,7 +45,7 @@ try{
  q=await queue();check('cancellation queues the cancelled email',q.some(m=>m.kind==='buyer_cancelled'));
  check('queue never stores readable recipient data in the listing',!JSON.stringify(q).includes('@'));
  browser=await chromium.launch({channel:'msedge',headless:true});const ctx=await browser.newContext({storageState:await owner.storageState(),viewport:{width:1440,height:1000},reducedMotion:'reduce'});const page2=await ctx.newPage();const errors=[];page2.on('pageerror',e=>errors.push(e.message));
- await page2.goto(base+'/panel/perfil');await page2.locator('.account-trigger').click();await page2.getByRole('link',{name:'Correos de pedidos'}).click();await page2.waitForURL('**/panel/correos');
+ await page2.goto(base+'/panel/perfil');await page2.locator('.account-trigger').click();await page2.locator('.account-menu').getByRole('link',{name:'Correos de pedidos'}).click();await page2.waitForURL('**/panel/correos');
  await page2.getByRole('heading',{name:'Correos de pedidos',level:1}).waitFor();
  check('eight email switches rendered',await page2.locator('.mail-kind').count()===8&&await page2.locator('.mail-switch input:checked').count()===7);
  await page2.screenshot({path:'test-results/order-mail-settings.png',fullPage:true});

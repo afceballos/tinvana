@@ -1033,6 +1033,32 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
   - Suites que pasan: `admin` 39 y `dropi-integrations-ui` 10, que inician sesión por la pantalla.
 - **Siguiente paso:** sin desplegar.
 
+### 2026-11-09 · «Integraciones» al inicio y resaltado
+- **Pedido del usuario:** subir «Integraciones» en el menú y que, al desplegarse, tenga un fondo que lo resalte sin hacer ruido.
+- **Cambio (solo panel):** «Integraciones» es ahora la primera opción. Abierto, se ve como un panel más oscuro con un borde sutil y el ícono naranja. Guía: [MODERN-UI.md](MODERN-UI.md).
+- **Comprobado (local):** en el navegador, cerrado, abierto, opción activa, carga directa y barra contraída, sin errores de JavaScript.
+- **Siguiente paso:** sin desplegar.
+
+### 2026-11-09 · Menú ordenado por función
+- **Pedido del usuario:** ordenar el menú según su función, aplicando la propuesta tal cual.
+- **Cambio (solo panel):**
+  - Tres bloques con título:
+    - **Ventas:** Pendientes, Pedidos, Consultas recibidas y Ventas WhatsApp.
+    - **Productos y tienda:** Mis productos, Explorar productos, Mis archivos y Plantilla de marca.
+    - **Configuración:** Integraciones, Correos de pedidos y Notificaciones.
+  - «Integraciones» pasa al bloque Configuración (antes estaba arriba) y ahora incluye la conexión de WhatsApp.
+  - Correos de pedidos y Notificaciones aparecen también en la barra lateral.
+  - Con la barra contraída, los títulos se ven como líneas divisorias. Guía: [MODERN-UI.md](MODERN-UI.md).
+  - `tests/order-mail.mjs` ahora busca «Correos de pedidos» dentro del menú de la cuenta, porque el enlace también está en la barra.
+- **Comprobado (local):**
+  - En el navegador: orden de los bloques, WhatsApp activo solo dentro de Integraciones, rutas de navegación, barra contraída y celular, sin errores.
+  - Suites que pasan: `admin` 39, `order-mail` 24 y `whatsapp-connection` 57.
+- **Limitaciones:**
+  - `brand`, `motion`, `visual` y `notifications` fallan igual sin este cambio (fallas antiguas).
+  - En pantallas bajas, el bloque Configuración queda abajo y se llega con el scroll del menú.
+  - No se juntó «Consultas recibidas» con «Pedidos». Sin desplegar.
+- **Siguiente paso:** decidir si «Consultas recibidas» pasa a ser una pestaña de Pedidos.
+
 ### Plantilla para la próxima actualización
 
 ```text

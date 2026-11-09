@@ -251,3 +251,16 @@ dialog[open]::backdrop{animation:backdrop-in .35s ease-out}
 .app-sidebar nav .nav-sub a .icon{width:16px;height:16px}
 @media(max-width:1200px){.nav-group-toggle{font-size:11px;padding-inline:10px}.app-sidebar nav .nav-sub a{padding-left:24px}}
 @media(max-width:900px){.nav-group.has-active:not(.is-open) .nav-group-toggle{background:var(--orange);color:#1e1e1e}}
+/* Open «Integraciones»: a darker, quiet panel groups its options (the active pill still slides over it). */
+.nav-group{border-radius:12px;transition:background-color .3s var(--ease-soft),box-shadow .3s var(--ease-soft)}
+.nav-group.is-open{background:#141210;box-shadow:inset 0 0 0 1px #ffffff0f;padding-bottom:4px;margin-bottom:6px}
+.nav-group.is-open .nav-group-toggle{color:#fff}
+.nav-group.is-open .nav-group-toggle .icon:first-child{color:#ff8a3d;opacity:1}
+.nav-group.is-open .nav-sub{margin-bottom:0}
+/* Sidebar blocks (Ventas, Productos y tienda, Configuración): quiet titles; a thin divider when the sidebar is collapsed. */
+.nav-section+.nav-section{margin-top:10px}
+.nav-section-title{display:block;padding:10px 14px 6px;color:#8d8178;font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-section:first-child .nav-section-title{padding-top:2px}
+.is-collapsed .nav-section-title{height:1px;margin:8px 12px;padding:0;font-size:0;background:#ffffff17}
+.is-collapsed .nav-section:first-child .nav-section-title{display:none}
+@media(max-width:1200px){.nav-section-title{padding-inline:10px}}
