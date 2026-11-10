@@ -48,9 +48,11 @@ final class Leads {
    $lead=Database::one('INSERT INTO leads(id,user_id,landing_page_id,idempotency_key,first_name,last_name,email,phone,phone_country,delivery_address,product_data) VALUES(?,?,?,?,?,?,?,?,?,?::jsonb,?::jsonb) ON CONFLICT(landing_page_id,idempotency_key) DO NOTHING RETURNING id,status',[Support::uuid(),$r['user_id'],$r['id'],$v['key'],$v['first'],$v['last'],$v['email'],$v['phone'],$v['phone_country'],Support::json($v['delivery']),Support::json($data)]);
    if($lead){Database::query('INSERT INTO webhook_deliveries(id,lead_id) VALUES(?,?)',[Support::uuid(),$lead['id']]);Orders::fromLead($r['user_id'],$lead['id']);$order=Database::one('SELECT * FROM orders WHERE lead_id=? AND user_id=?',[$lead['id'],$r['user_id']]);if($order){OrderMail::queue($order,'buyer_received');OrderMail::queue($order,'owner_new_order');if($chat===null)$whatsapp=WhatsAppOrderConfirm::queue($order);}}
    else $lead=Database::one('SELECT id,status FROM leads WHERE landing_page_id=? AND idempotency_key=?',[$r['id'],$v['key']]);
-   $db->commit();$o=Database::one('SELECT id,order_number FROM orders WHERE lead_id=? AND user_id=?',[$lead['id'],$r['user_id']]);$number=$o['order_number']??null;
+   $db->commit();$o=Database::one('SELECT id,order_number,unit_price,quantity FROM orders WHERE lead_id=? AND user_id=?',[$lead['id'],$r['user_id']]);$number=$o['order_number']??null;
    if($chat!==null)return ['order_id'=>$o['id']??null,'order_number'=>$number];
-   return ['saved'=>true,'order_number'=>$number,'tracking_url'=>$number?OrderLookup::url((string)$r['user_id'],$number):null,'whatsapp_confirmation'=>isset($whatsapp),'whatsapp'=>isset($whatsapp)&&$whatsapp['link']?$whatsapp:null,'delivery_status'=>$lead['status'],'message'=>$lead['status']==='delivered'?'Tu consulta fue guardada y enviada.':'Tu consulta fue guardada. El envío al equipo está pendiente.'];
+   // Value of the goods for the store's pixels (Purchase); freight is left out.
+   $value=isset($o['unit_price'])?round((float)$o['unit_price']*(int)$o['quantity'],2):null;
+   return ['saved'=>true,'order_number'=>$number,'purchase'=>['value'=>$value,'currency'=>'COP','quantity'=>(int)($o['quantity']??$quantity)],'tracking_url'=>$number?OrderLookup::url((string)$r['user_id'],$number):null,'whatsapp_confirmation'=>isset($whatsapp),'whatsapp'=>isset($whatsapp)&&$whatsapp['link']?$whatsapp:null,'delivery_status'=>$lead['status'],'message'=>$lead['status']==='delivered'?'Tu consulta fue guardada y enviada.':'Tu consulta fue guardada. El envío al equipo está pendiente.'];
   }catch(\Throwable $e){$db->rollBack();throw $e;}
  }
  public static function deliver(int $limit=20,?callable $sender=null): array {

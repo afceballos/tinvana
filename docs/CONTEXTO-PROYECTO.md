@@ -137,6 +137,9 @@ No solicitar que se peguen secretos en el chat. El remitente `no-reply@zenzales.
 - [ ] Revalidar conexión desde el hosting definitivo: el éxito desde este equipo no garantiza otra IP/red.
 
 - [x] Productos propios creados desde cero, sin Dropi: landing, stock propio y despacho marcado por la tienda ([OWN-PRODUCTS.md](OWN-PRODUCTS.md)). Comprobado en local; sin desplegar.
+- [x] Píxel de Meta, Google Analytics 4, Google Ads, Tag Manager y verificación de dominio por tienda, con eventos PageView/ViewContent, InitiateCheckout y Purchase ([STORE-TRACKING.md](STORE-TRACKING.md)). Comprobado en local con peticiones interceptadas; sin desplegar.
+- [ ] Verificar con un píxel real (Pixel Helper y Tag Assistant) en el hosting.
+- [ ] Fase 2: API de Conversiones de Meta desde el servidor, deduplicada con el `eventID` del pedido.
 
 No volver a añadir filtro de favoritos sin comprobarlo. Categorías, orden por precio y selector de tamaño no están expuestos inicialmente en el catálogo del panel.
 
@@ -359,6 +362,7 @@ Estado al cerrar las pruebas de pedidos: fixtures eliminados y servicios de prue
 | Ofertas y variantes | [PRODUCT-OFFERS.md](PRODUCT-OFFERS.md) |
 | Preparación de órdenes Dropi | [DROPI-ORDERS.md](DROPI-ORDERS.md) |
 | Productos propios (sin Dropi) | [OWN-PRODUCTS.md](OWN-PRODUCTS.md) |
+| Píxeles y medición de la tienda | [STORE-TRACKING.md](STORE-TRACKING.md) |
 | Superusuario, planes y permisos | [ADMIN.md](ADMIN.md) |
 | Ventas por WhatsApp | [WHATSAPP.md](WHATSAPP.md) |
 | Privacidad y términos públicos | [LEGAL.md](LEGAL.md) |
@@ -1058,6 +1062,26 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
   - En pantallas bajas, el bloque Configuración queda abajo y se llega con el scroll del menú.
   - No se juntó «Consultas recibidas» con «Pedidos». Sin desplegar.
 - **Siguiente paso:** decidir si «Consultas recibidas» pasa a ser una pestaña de Pedidos.
+
+### 2026-11-10 · Píxeles de Meta y etiquetas de Google por tienda
+- **Pedido del usuario:** poder poner en el SEO de las landings el píxel de Meta y las etiquetas de Google. Decidió: por tienda, evento Purchase al recibir el pedido y la API de Conversiones para después.
+- **Cambio:**
+  - En el editor, «SEO de la página» pasa a llamarse «SEO y píxeles» y agrega los campos de la tienda: píxel de Meta, GA4, Google Ads con etiqueta de conversión, GTM y verificaciones de dominio de Meta y Google.
+  - Se guardan con «Guardar píxeles», aparte del borrador, y se aplican a todas las landings publicadas.
+  - La landing carga los scripts oficiales y envía PageView/ViewContent, InitiateCheckout y Purchase (con `eventID`), además de `view_item`, `begin_checkout`, `purchase` y la conversión de Ads.
+  - La CSP solo abre los dominios de Meta o Google cuando hay IDs. Sigue sin permitir código pegado ni scripts en línea.
+  - `/p/<slug>/lead` devuelve el valor de la mercancía para Purchase.
+  - Migraciones PostgreSQL 039 y MySQL 061 (`store_tracking`). Guía: [STORE-TRACKING.md](STORE-TRACKING.md).
+- **Comprobado (local):**
+  - `store-tracking` 16 (nueva).
+  - También pasan `own-products` 29, `builder`, `lead-success` 12, `store-router` 20, `orders` 37 y `dropi-shipping` 20.
+  - En el navegador, con las peticiones a Meta y Google interceptadas: los campos se guardan y normalizan, el ID inválido muestra su mensaje y salen los eventos de carga, apertura del formulario y compra (valor 50000 COP, conversión de Ads). Sin errores de CSP.
+- **Limitaciones:**
+  - No se probó con un píxel real.
+  - Las etiquetas «HTML personalizado» de GTM no se ejecutan.
+  - No hay banner de cookies.
+  - `gallery` y `header` fallan igual sin este cambio.
+- **Siguiente paso:** ejecutar la migración 061 en el hosting, probar con Pixel Helper y Tag Assistant, y después la API de Conversiones.
 
 ### Plantilla para la próxima actualización
 

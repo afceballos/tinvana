@@ -1,0 +1,11 @@
+/* «Píxeles y medición» dentro del SEO de la landing. Mismos tokens y radios del editor. */
+.st-tracking{display:grid;gap:12px;margin-top:6px;padding-top:16px;border-top:1px solid var(--line)}
+.st-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.st-head strong{font-size:14px;color:var(--ink)}
+.st-badge{padding:2px 8px;border-radius:999px;background:color-mix(in srgb,var(--brand-accent,#ff6a00) 12%,transparent);color:#c2410c;font-size:11px;font-weight:600}
+.st-tracking>p{margin:0}
+.st-grid{display:grid;gap:12px}
+.st-field{display:grid;gap:6px}
+.st-field label{display:grid;gap:6px;margin:0}
+.st-grid input{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px}
+.st-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}

@@ -25,7 +25,7 @@ final class Api {
   if($path==='/api/notifications/settings'){if($method==='GET')return Notifications::view($owner);if($method==='PUT'){Auth::limit('notification-settings:'.$owner,30,600);return Notifications::save($owner,self::body());}}
   // Plan features, enforced for the whole module here; the panel only hides what this would refuse. [pattern, feature, writes only]
   foreach([['~^/api/orders/[^/]+/dropi~','dropi_orders',false],['~^/api/orders~','orders',false],['~^/api/pending~','orders',false],['~^/api/landings/[^/]+/ai$~','ai',false],['~^/api/ai/~','ai',true],
-   ['~^/api/integrations/[^/]+/(products|categories)$~','catalog',false],['~^/api/webhook-settings$~','ghl',true],['~^/api/mail-settings~','mail',true],['~^/api/profile/store$~','store',false],
+   ['~^/api/integrations/[^/]+/(products|categories)$~','catalog',false],['~^/api/webhook-settings$~','ghl',true],['~^/api/mail-settings~','mail',true],['~^/api/profile/store$~','store',false],['~^/api/store/tracking$~','landings',true],
    ['~^/api/landings/[^/]+/(publish)$~','publish',false],['~^/api/landings/~','landings',true],['~^/api/builder-templates$~','landings',true],['~^/api/products/[^/]+/(landing|offers)$~','landings',true]] as [$pattern,$feature,$writes])
    if(preg_match($pattern,$path)&&(!$writes||!in_array($method,['GET','HEAD'],true))){Entitlements::require($owner,$feature);break;}
   if(preg_match('~^/api/products/([^/]+)/offers$~',$path,$m)){
@@ -47,6 +47,7 @@ final class Api {
   if($path==='/api/media'){if($method==='DELETE')return Media::remove($owner,self::body());if($method==='GET')return Media::listing($owner,$_GET);if($method==='POST')return ['image'=>Media::upload(null,$owner)];}
   if($path==='/api/profile'){if($method==='GET')return ['profile'=>Profile::view($owner)];if($method==='PUT')return ['profile'=>Profile::save($owner,self::body())];}
   if($path==='/api/profile/store'&&$method==='PUT')return ['profile'=>Store::save($owner,self::body())];
+  if($path==='/api/store/tracking'){if($method==='GET')return StoreTracking::view($owner);if($method==='PUT'){Auth::limit('store-tracking:'.$owner,30,600);return StoreTracking::save($owner,self::body());}}
   // Stage 6C: «Pendientes» (read-only list, reviewed marks and the menu counter).
   if($path==='/api/pending'&&$method==='GET')return Pending::view($owner);
   if($path==='/api/pending/count'&&$method==='GET')return Pending::count($owner);
