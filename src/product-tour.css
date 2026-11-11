@@ -1,0 +1,21 @@
+/* Visita guiada del panel. Usa los mismos tokens, radios y sombras de los menús del panel (.account-options). */
+.tour-layer{position:fixed;inset:0;z-index:1000}
+.tour-block{position:absolute;inset:0;cursor:default}
+.tour-shade{position:absolute;inset:0;background:#1e1e1e99}
+.tour-spot{position:fixed;border-radius:14px;box-shadow:0 0 0 9999px #1e1e1e99,0 0 0 2px var(--orange,#ff6a00);pointer-events:none;transition:top .35s var(--ease-out,ease),left .35s var(--ease-out,ease),width .35s var(--ease-out,ease),height .35s var(--ease-out,ease)}
+.tour-card{position:fixed;width:min(320px,calc(100vw - 24px));padding:18px 18px 14px;background:var(--surface,#fff);color:var(--ink);border:1px solid var(--line);border-radius:16px;box-shadow:0 16px 48px #1e1e1e20;animation:tour-in .32s var(--ease-out,ease)}
+.tour-progress{display:inline-block;margin-bottom:8px;padding:2px 9px;border-radius:999px;background:color-mix(in srgb,var(--orange,#ff6a00) 12%,transparent);color:#c2410c;font-size:12px;font-weight:600}
+.tour-card h2{margin:0 0 6px;font-size:17px;letter-spacing:-.2px}
+.tour-card p{margin:0;color:var(--muted);font-size:14px;line-height:1.45}
+.tour-dots{display:flex;gap:5px;margin:14px 0 12px}
+.tour-dots span{width:6px;height:6px;border-radius:999px;background:var(--line);transition:width .25s,background-color .25s}
+.tour-dots span.is-on{width:18px;background:var(--orange,#ff6a00)}
+.tour-actions{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tour-actions>span{display:flex;gap:8px}
+.tour-actions button{min-height:38px;padding:8px 12px;font-size:14px;white-space:nowrap}
+.tour-skip{padding-left:0!important;padding-right:0!important;color:var(--muted)}
+.tour-active .toast-viewport{visibility:hidden!important;pointer-events:none!important}
+.tour-help{font-weight:700;font-size:16px}
+@keyframes tour-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.tour-card{animation:none}.tour-spot{transition:none}}
+:root[data-theme=dark] .tour-progress{color:#ff8a3d}

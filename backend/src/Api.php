@@ -46,6 +46,8 @@ final class Api {
   }
   if($path==='/api/media'){if($method==='DELETE')return Media::remove($owner,self::body());if($method==='GET')return Media::listing($owner,$_GET);if($method==='POST')return ['image'=>Media::upload(null,$owner)];}
   if($path==='/api/profile'){if($method==='GET')return ['profile'=>Profile::view($owner)];if($method==='PUT')return ['profile'=>Profile::save($owner,self::body())];}
+  // The guided tour was shown (started by itself or opened with «?»): it does not start by itself again on any device.
+  if($path==='/api/profile/tour'&&$method==='POST'){Database::query('UPDATE users SET tour_seen_at=COALESCE(tour_seen_at,now()) WHERE id=?',[$owner]);return ['ok'=>true];}
   if($path==='/api/profile/store'&&$method==='PUT')return ['profile'=>Store::save($owner,self::body())];
   if($path==='/api/store/tracking'){if($method==='GET')return StoreTracking::view($owner);if($method==='PUT'){Auth::limit('store-tracking:'.$owner,30,600);return StoreTracking::save($owner,self::body());}}
   // Stage 6C: «Pendientes» (read-only list, reviewed marks and the menu counter).

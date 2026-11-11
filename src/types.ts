@@ -1,5 +1,5 @@
 export type Access={plan:{id:string;name:string}|null;features:Record<string,boolean>;limits:Record<string,number|null>;usage:Record<string,number>};
-export type User={id:string;email:string;role:string;first_name?:string;last_name?:string;avatar?:string|null;access?:Access};
+export type User={id:string;email:string;role:string;first_name?:string;last_name?:string;avatar?:string|null;access?:Access;tour_seen?:boolean};
 export type Integration={id:string;name:string;configured:boolean};
 export type ProductVariant={id:string;label:string;options:{name:string;value:string}[];sku:string|null;price:number|null;suggestedPrice:number|null;stock:number|null;image:string|null};
 export type Product={source?:'dropi'|'own';cost?:number|null;id:string;name:string;description:string;price:number|null;priceMax?:number|null;suggestedPrice:number|null;variants?:ProductVariant[];sku:string|null;images:string[];categories:{id:string|null;name:string|null}[];stock:number|null;warehouses:{name:string|null;city:string|null;stock:number|null}[];supplier:string|null;type?:string|null;supplierStatus?:string|null;attributes:unknown[];variations:unknown[];selectedId?:string|null};

@@ -140,6 +140,7 @@ No solicitar que se peguen secretos en el chat. El remitente `no-reply@zenzales.
 - [x] Píxel de Meta, Google Analytics 4, Google Ads, Tag Manager y verificación de dominio por tienda, con eventos PageView/ViewContent, InitiateCheckout y Purchase ([STORE-TRACKING.md](STORE-TRACKING.md)). Comprobado en local con peticiones interceptadas; sin desplegar.
 - [ ] Verificar con un píxel real (Pixel Helper y Tag Assistant) en el hosting.
 - [ ] Fase 2: API de Conversiones de Meta desde el servidor, deduplicada con el `eventID` del pedido.
+- [x] Visita guiada del panel para usuarios nuevos, con botón «?» para repetirla ([MODERN-UI.md](MODERN-UI.md)). Comprobado en local; sin desplegar.
 
 No volver a añadir filtro de favoritos sin comprobarlo. Categorías, orden por precio y selector de tamaño no están expuestos inicialmente en el catálogo del panel.
 
@@ -1082,6 +1083,25 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
   - No hay banner de cookies.
   - `gallery` y `header` fallan igual sin este cambio.
 - **Siguiente paso:** ejecutar la migración 061 en el hosting, probar con Pixel Helper y Tag Assistant, y después la API de Conversiones.
+
+### 2026-11-11 · Visita guiada del panel
+- **Pedido del usuario:** una visita guiada que explique lo más importante a los usuarios nuevos, sin cambiar el diseño. Los pasos quedaron a criterio de Claude.
+- **Cambio (solo panel):**
+  - Componente propio, sin librería (`src/ProductTour.tsx`), con 7 pasos: Integraciones, Explorar productos, Mis productos, Pendientes, Pedidos, Ventas WhatsApp y el botón de ayuda.
+  - Se ve como un recuadro resaltado sobre el fondo oscurecido, con tarjeta del mismo estilo del panel, progreso «Paso X de N», Siguiente, Anterior y Omitir tour.
+  - Arranca sola una sola vez por cuenta: el servidor lo recuerda (`users.tour_seen_at`, migraciones PostgreSQL 040 y MySQL 062), así que no vuelve a salir en otro navegador ni equipo. El botón «?» del encabezado la repite.
+  - Guía: [MODERN-UI.md](MODERN-UI.md).
+- **Comprobado (local):**
+  - En el navegador:
+    - Arranca sola la primera vez y no se repite al recargar.
+    - Siguiente, Anterior, flechas, Omitir, Escape y Terminar funcionan, y el foco queda en la tarjeta.
+    - Se ve bien con barra contraída, en modo oscuro y en celular; en celular abre y cierra el menú.
+    - En navegador automatizado no arranca sola.
+  - Se corrigió que el paso de Explorar productos resaltaba el logo, que enlaza a la misma página.
+  - Suites que pasan: `admin` 39, `order-mail` 24, `whatsapp-connection` 57, `builder`, `store-tracking` 16 y `own-products` 29.
+  - Por pedido del usuario, se recuerda por cuenta y no por navegador. Comprobado en el navegador: la cuenta la ve sola una vez; en un segundo navegador no aparece, ni en otras páginas, pero «?» la abre. Otra cuenta la ve su primera vez.
+- **Limitaciones:** los avisos que lleguen durante la guía se muestran al cerrarla.
+- **Siguiente paso:** ejecutar la migración 062 en el hosting **antes** de subir el código, porque la sesión lee la columna nueva. Sin desplegar.
 
 ### Plantilla para la próxima actualización
 

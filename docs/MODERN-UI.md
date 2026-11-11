@@ -29,6 +29,24 @@ Tarjetas con elevación y zoom suave de imagen, brillo que sigue al puntero (sol
 
 La barra lateral no hace scroll: logo y «Mi espacio» arriba y «Contraer menú» abajo quedan fijos, y solo la lista de opciones (`nav`) se desplaza, con la barra oculta (`scrollbar-width:none`). Aparece un desvanecido arriba y/o abajo cuando hay más opciones en esa dirección (`data-fade-top/bottom` calculado en `Shell`, animado con `@property --ft/--fb`), y la opción activa se mantiene visible al cambiar de ruta. En alturas menores de 800 px se oculta el mensaje «Dale vuelo…» para dar espacio al menú. El resto de áreas con scroll (constructor, listas, diálogos, tablas) usan una barra fina y translúcida que se acentúa al pasar el cursor, con variante para modo oscuro (`--sb-thumb`, `--sb-thumb-hover`; solo propiedades estándar `scrollbar-width`/`scrollbar-color`).
 
+### Visita guiada del panel
+
+Desde el 2026-11-11, el panel tiene una visita guiada propia, sin librerías (`src/ProductTour.tsx` y `src/product-tour.css`).
+
+- **Pasos (`tourSteps` en `src/main.tsx`):** Integraciones, Explorar productos, Mis productos, Pendientes, Pedidos, Ventas WhatsApp y el botón de ayuda. Se saltan los que la cuenta no ve por su plan, así que «Paso X de N» siempre cuadra.
+- **Vista:**
+  - Un recuadro resalta el elemento con un borde naranja y oscurece el resto (`#1e1e1e` al 60 %).
+  - La tarjeta usa los mismos tokens, radio (16px) y sombra del menú de la cuenta, y funciona en modo claro y oscuro.
+  - Va a la derecha del menú cuando hay espacio, y si no, abajo o arriba.
+- **Controles:** «Siguiente», «Anterior», «Omitir tour» y «Terminar»; también las flechas del teclado y Escape. El foco queda dentro de la tarjeta y vuelve a donde estaba al cerrar.
+- **Activación:**
+  - Arranca sola **una sola vez por cuenta**, en cualquier navegador o equipo. El servidor lo guarda en `users.tour_seen_at`: la sesión trae `tour_seen` y el panel lo marca con `POST /api/profile/tour`. Las migraciones son PostgreSQL 040 y MySQL 062.
+  - Además queda en `localStorage` (clave `tb-tour-seen:<id>`), para no esperar a la respuesta del servidor.
+  - El botón «?» del encabezado (`data-tour="help"`) la abre cuando se quiera.
+  - En navegadores automatizados (`navigator.webdriver`, como las pruebas) no arranca sola.
+- **Celular:** abre el menú lateral para los pasos del menú y lo cierra para el paso del botón de ayuda.
+- **Avisos:** mientras la guía está abierta, los avisos (toasts) quedan ocultos y vuelven al cerrarla, porque están en la capa superior y taparían la tarjeta.
+
 ### Bloques del menú
 
 Desde el 2026-11-09, la barra lateral se ordena en tres bloques con un título pequeño (`navSections` en `src/main.tsx`):
