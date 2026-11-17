@@ -44,11 +44,18 @@ final class Leads {
   }
   // Freight is quoted again on the server (never trusted from the browser); without a quote the lead is still saved.
   if(($c['commerce']['dropiShipping']??false)===true&&($p['source']??'')!=='own'){$q=DropiShipping::forLanding($r,$v['delivery']['city_code'],$quantity,$variant['price']??(isset($chat['offer'])?(float)$chat['offer']['unit_price']:null));$data['shipping_source']='dropi';$data['shipping_price']=$q['amount']??null;$data['shipping_carrier']=$q['carrier']??null;$data['grand_total']=$q!==null&&$data['total']!==null?round($data['total']+$q['amount'],2):null;}
+  // Online payment (Payments) is decided here, after the price and before saving; chat orders are always cash on delivery.
+  $pay=$chat===null?Payments::prepare($r,$data,$b,$v,$quantity,$variant):['method'=>'cod'];
   $db=Database::connection();$db->beginTransaction();try{
    $lead=Database::one('INSERT INTO leads(id,user_id,landing_page_id,idempotency_key,first_name,last_name,email,phone,phone_country,delivery_address,product_data) VALUES(?,?,?,?,?,?,?,?,?,?::jsonb,?::jsonb) ON CONFLICT(landing_page_id,idempotency_key) DO NOTHING RETURNING id,status',[Support::uuid(),$r['user_id'],$r['id'],$v['key'],$v['first'],$v['last'],$v['email'],$v['phone'],$v['phone_country'],Support::json($v['delivery']),Support::json($data)]);
-   if($lead){Database::query('INSERT INTO webhook_deliveries(id,lead_id) VALUES(?,?)',[Support::uuid(),$lead['id']]);Orders::fromLead($r['user_id'],$lead['id']);$order=Database::one('SELECT * FROM orders WHERE lead_id=? AND user_id=?',[$lead['id'],$r['user_id']]);if($order){OrderMail::queue($order,'buyer_received');OrderMail::queue($order,'owner_new_order');if($chat===null)$whatsapp=WhatsAppOrderConfirm::queue($order);}}
+   if($lead){Database::query('INSERT INTO webhook_deliveries(id,lead_id) VALUES(?,?)',[Support::uuid(),$lead['id']]);Orders::fromLead($r['user_id'],$lead['id']);$order=Database::one('SELECT * FROM orders WHERE lead_id=? AND user_id=?',[$lead['id'],$r['user_id']]);if($order&&$pay['method']==='online')$order=Payments::attach($order,$pay);elseif($order){OrderMail::queue($order,'buyer_received');OrderMail::queue($order,'owner_new_order');if($chat===null)$whatsapp=WhatsAppOrderConfirm::queue($order);}}
    else $lead=Database::one('SELECT id,status FROM leads WHERE landing_page_id=? AND idempotency_key=?',[$r['id'],$v['key']]);
-   $db->commit();$o=Database::one('SELECT id,order_number,unit_price,quantity FROM orders WHERE lead_id=? AND user_id=?',[$lead['id'],$r['user_id']]);$number=$o['order_number']??null;
+   $db->commit();$o=Database::one('SELECT * FROM orders WHERE lead_id=? AND user_id=?',[$lead['id'],$r['user_id']]);$number=$o['order_number']??null;
+   // Online: the buyer goes to Wompi now (a repeated submit gets a new attempt of the same pending order).
+   if($chat===null&&$o&&$o['payment_method']==='online'){
+    $back=Store::landingUrl((string)($landing['published_slug']??$r['slug']),Store::subdomainOf((string)$r['user_id']));$p=json_decode((string)$o['payment'],true)?:[];
+    return ['saved'=>true,'order_number'=>$number,'payment'=>['checkout_url'=>Payments::checkout($o,$back),'amount'=>(float)($p['amount']??0),'currency'=>'COP','reference'=>$o['payment_reference']],'message'=>'Tu pedido quedó reservado. Te llevamos a Wompi para pagarlo.'];
+   }
    if($chat!==null)return ['order_id'=>$o['id']??null,'order_number'=>$number];
    // Value of the goods for the store's pixels (Purchase); freight is left out.
    $value=isset($o['unit_price'])?round((float)$o['unit_price']*(int)$o['quantity'],2):null;

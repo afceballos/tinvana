@@ -84,3 +84,23 @@
 .order-whatsapp-note{display:flex;align-items:center;gap:8px;margin:12px 0;padding:10px 12px;border-radius:12px;background:#e9f8ef;color:#14532d;font-size:14px;font-weight:600;line-height:1.35}
 .order-whatsapp-note svg{flex:none;width:20px;height:20px;fill:#1fa855}
 .order-shipping-inline{margin:4px 0 12px;padding:10px 12px;border-radius:12px;background:var(--paper,var(--tint,#fff8f1));font-size:14px;font-variant-numeric:tabular-nums}
+
+/* Wompi phase 2: payment choice, total to pay and the result dialog after Wompi. Same tokens as the order form. */
+.pay-choice{display:grid;gap:10px;margin:22px 0 4px;padding:0;border:0;min-width:0}
+.pay-choice legend{margin-bottom:10px;padding:0;font-weight:700}
+.pay-option{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid var(--line,#ffe0cd);border-radius:12px;background:#fff;cursor:pointer;transition:border-color .2s,box-shadow .2s}
+.pay-option:has(input:checked){border-color:var(--accent,#ff6a00);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#ff6a00) 18%,transparent)}
+.pay-option input{flex:none;width:18px;height:18px;margin:2px 0 0;accent-color:var(--accent,#ff6a00)}
+.pay-option span,.pay-single span{display:grid;gap:2px}
+.pay-option small,.pay-single small{color:#68746b;font-size:13px}
+.pay-single{display:flex;align-items:center;gap:12px;margin:0;padding:14px 16px;border:1px solid var(--line,#ffe0cd);border-radius:12px;background:var(--tint,#fff8f1)}
+.pay-single svg{flex:none;width:22px;height:22px;fill:none;stroke:var(--accent-text,#8b4b25);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.pay-total{margin:12px 0 0;padding:12px 14px;border-radius:12px;background:var(--tint,#fff8f1);font-size:15px}
+.pay-result{width:min(440px,calc(100% - 32px));padding:28px 24px 22px;border:1px solid var(--line,#ffe0cd);border-radius:20px;background:#fff;color:#1e1e1e;box-shadow:0 24px 60px #1e1e1e33;text-align:center}
+.pay-result::backdrop{background:#1e1e1e8c}
+.pay-result h2{margin:0 0 10px;font-size:22px}
+.pay-result p{margin:0 0 20px;color:#555;line-height:1.5}
+.pay-result-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.pay-result-actions .secondary{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 18px;border:1px solid var(--line,#ffe0cd);border-radius:999px;background:#fff;color:inherit;font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+#lead-form .pay-option{flex-direction:row;align-items:center;margin:0}#lead-form .pay-option input[type=radio]{width:20px;height:20px;min-height:0;margin:0;padding:0;box-shadow:none}#lead-form .pay-choice legend{font-size:16px}
+#lead-form label.pay-option{display:flex}#lead-form label.pay-option>span{display:grid;gap:2px}

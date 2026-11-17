@@ -72,6 +72,8 @@ final class DropiOrders {
   foreach($variants as $v)if($variant&&$v['id']===($variant['id']??null))$variantValid=true;
   $configured=(bool)Database::one('SELECT id FROM integrations WHERE id=? AND user_id=?',[$p['integration_id'],$r['user_id']]);
   $checks=[
+   // Paid online (Payments): Dropi would collect it again as CON RECAUDO; SIN RECAUDO arrives in Wompi phase 4.
+   ...(($r['payment_method']??'cod')==='online'?[['key'=>'prepaid','label'=>'Envío sin recaudo para pedidos pagados en línea (próximamente). Mientras tanto, créalo en Dropi como SIN RECAUDO.','ready'=>false]]:[]),
    ['key'=>'integration','label'=>'Integración del catálogo configurada','ready'=>$configured],
    ['key'=>'buyer_acceptance','label'=>'Aceptación del comprador registrada','ready'=>$r['sale_status']==='confirmed'&&$r['confirmation']!==null],
    ['key'=>'quote','label'=>'Cotización vigente con precio y envío','ready'=>$r['quote_id']!==null&&$r['quote_expires_at']!==null&&strtotime($r['quote_expires_at'])>time()&&$r['shipping_price']!==null],
@@ -107,6 +109,7 @@ final class DropiOrders {
    $r=Orders::owned($owner,$id,true);
    if(!isset($b['version'])||!is_int($b['version'])||$b['version']!==(int)$r['version'])throw new HttpError(409,'El pedido cambió. Actualiza el detalle antes de continuar.');
    if(($r['fulfillment']??'dropi')==='own')throw new HttpError(409,'Este pedido es de un producto propio: no se envía a Dropi, lo despachas tú.');
+   if(($r['payment_method']??'cod')==='online')throw new HttpError(409,'Este pedido se pagó en línea: enviarlo así a Dropi lo cobraría otra vez contraentrega. Créalo en Dropi como SIN RECAUDO; el envío automático sin recaudo llega pronto.');
    if(!in_array($r['integration_status'],['not_sent','failed'],true))throw new HttpError(409,'Este pedido ya tiene un envío a Dropi registrado o pendiente de revisión.');
    $check=self::readiness($r);if(!$check['can_submit'])throw new HttpError(409,'Completa los requisitos de envío antes de mandar el pedido a Dropi.');
    $product=ProductOffers::forOrder($r);$integration=Database::one('SELECT * FROM integrations WHERE id=? AND user_id=?',[$product['integration_id'],$owner]);

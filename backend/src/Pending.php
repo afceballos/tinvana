@@ -10,7 +10,7 @@ namespace App;
  * chats waiting for an advisor and Dropi novelties.
  */
 final class Pending {
- public const SECTIONS=['chats'=>'Chats esperando asesor','novelties'=>'Novedades en la entrega','confirm'=>'Pedidos por confirmar con problema','dropi'=>'Pedidos confirmados sin enviar a Dropi','ship'=>'Pedidos propios por despachar','failed'=>'Envíos que fallaron','templates'=>'Plantillas rechazadas en uso'];
+ public const SECTIONS=['chats'=>'Chats esperando asesor','novelties'=>'Novedades en la entrega','confirm'=>'Pedidos por confirmar con problema','dropi'=>'Pedidos confirmados sin enviar a Dropi','ship'=>'Pedidos propios por despachar','payments'=>'Pagos en línea por revisar','failed'=>'Envíos que fallaron','templates'=>'Plantillas rechazadas en uso'];
  private const LIMIT=50;
  private const DAYS=7;
 
@@ -68,6 +68,21 @@ final class Pending {
   $out=[];
   foreach(Database::all("SELECT * FROM orders WHERE user_id=? AND sale_status='confirmed' AND fulfillment='own' AND logistics_status IN ('not_requested','pending') ORDER BY updated_at LIMIT ".self::LIMIT,[$owner]) as $o)
    $out[]=self::item('ship:'.$o['id'].':'.$o['logistics_status'],self::who($o).' · '.Orders::displayNumber($o),$o['logistics_status']==='pending'?'En preparación: márcalo como despachado cuando salga.':'Confirmado: prepáralo y márcalo como despachado.',$o['updated_at'],[['label'=>'Despachar','to'=>'/panel/pedidos/'.$o['id']]],false);
+  return $out;
+ }
+ /**
+  * Online payments (Payments): orders still waiting for the buyer's payment (they resolve themselves: paid or expired
+  * at 48 h), a payment whose amount did not match the order, and a payment approved after the order was cancelled.
+  */
+ private static function payments(string $owner): array {
+  $out=[];
+  foreach(Database::all("SELECT * FROM orders WHERE user_id=? AND payment_method='online' AND ((payment_status='pending' AND sale_status<>'cancelled') OR (payment_status='paid' AND sale_status='cancelled')) ORDER BY created_at LIMIT ".self::LIMIT,[$owner]) as $o){
+   $p=json_decode((string)($o['payment']??'{}'),true)?:[];$who=self::who($o).' · '.Orders::displayNumber($o);$link=[['label'=>'Ver pedido','to'=>'/panel/pedidos/'.$o['id']]];
+   if($o['payment_status']==='paid'){$out[]=self::item('paylate:'.$o['id'],$who,'Wompi aprobó el pago de un pedido ya cancelado. Reactívalo o reembolsa el dinero desde tu panel de Wompi.',$o['paid_at'],$link,true,'Pago en un pedido cancelado');continue;}
+   if(!empty($p['mismatch'])){$out[]=self::item('paydiff:'.$o['id'].':'.($p['mismatch']['transaction_id']??''),$who,'Wompi aprobó un pago por un monto distinto al del pedido. Revísalo en Wompi antes de despachar.',$o['updated_at'],$link,true,'Monto distinto');continue;}
+   $declined=in_array($p['last_status']??'',['DECLINED','ERROR','VOIDED'],true);
+   $out[]=self::item('paywait:'.$o['id'],$who,($declined?'El último intento de pago fue rechazado. ':'').'Esperando el pago en línea; si no paga, se cancela solo.',$o['created_at'],$link,false,$declined?'Pago rechazado':null);
+  }
   return $out;
  }
  /** Failed WhatsApp messages, status notices, reminders and order emails of the last days. */

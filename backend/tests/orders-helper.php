@@ -52,3 +52,11 @@ if(($argv[1]??'')==='admin-reset'){
  Database::query('DELETE FROM admin_audit');Database::query('DELETE FROM plans');Database::query("DELETE FROM app_settings WHERE setting_key='entitlements'");
  Database::query("DELETE FROM integrations WHERE user_id IN (?,?) AND name LIKE 'Admin test%'",$ids);
 }
+
+// Wompi phase 2: payment mode and online discount on the fixture landing; a due date in the past; the 48 h expiry run.
+if(($argv[1]??'')==='payment-setup'){
+ foreach(['content','published_content'] as $col){$l=Database::one("SELECT $col AS c FROM landing_pages WHERE id=? AND user_id=?",[$fixture['landing'],$fixture['owner']]);if(!$l||$l['c']===null)continue;$c=json_decode($l['c'],true);$c['commerce']['paymentMode']=$argv[2]??'cod';$c['commerce']['onlineDiscount']=(int)($argv[3]??0);Database::query("UPDATE landing_pages SET $col=?::jsonb WHERE id=? AND user_id=?",[Support::json($c),$fixture['landing'],$fixture['owner']]);}
+ echo 'ok';
+}
+if(($argv[1]??'')==='payment-due')Database::query("UPDATE orders SET payment_due_at=? WHERE id=? AND user_id=?",[Database::timestamp(gmdate('c',time()-60)),$argv[2],$fixture['owner']]);
+if(($argv[1]??'')==='payment-expire')echo Support::json(App\Payments::expire(20));

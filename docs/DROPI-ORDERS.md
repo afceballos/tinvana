@@ -55,7 +55,7 @@ Migración `015_dropi_order_submission` en PostgreSQL (`backend/migrations`) y M
 - [ ] Primera orden real de prueba en producción, con autorización del usuario: comprobar que Dropi la acepta, que departamento y ciudad quedan bien y que se puede confirmar o cancelar desde su panel.
 - [ ] Sincronizar estados, guía y novedades desde Dropi. El plugin no lo hace; hay que encontrar el endpoint o webhook.
 - [ ] Cancelación desde Tinbana, varias partidas por pedido y aprobación automática por chatbot.
-- [ ] Pago anticipado (`SIN RECAUDO`) para pedidos pagados con Wompi. Verificación en curso: [WOMPI.md](WOMPI.md).
+- [ ] Pago anticipado (`SIN RECAUDO`) para pedidos pagados con Wompi (fase 4). Mientras tanto, Tinbana no deja enviar a Dropi un pedido pagado en línea (saldría CON RECAUDO); se crea a mano como SIN RECAUDO. [WOMPI.md](WOMPI.md).
 
 ## Fuentes revisadas
 

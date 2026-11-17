@@ -1,0 +1,1 @@
+ALTER TABLE orders DROP CONSTRAINT orders_payment_status_ck

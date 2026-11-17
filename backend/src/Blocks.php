@@ -70,6 +70,9 @@ final class Blocks {
   foreach(['quantityEnabled'=>true,'stickyMobile'=>false,'showShipping'=>false,'showDelivery'=>false,'showPayment'=>false,'dropiShipping'=>false] as $key=>$default){$v=$value[$key]??$default;if(!is_bool($v))throw new HttpError(422,'Configuración comercial inválida.');$out[$key]=$v;}
   foreach(['shipping','delivery','payment'] as $key)$out[$key]=self::text($value[$key]??'',500);
   $max=$value['maxQuantity']??99;if(!is_int($max)||$max<1||$max>99)throw new HttpError(422,'La cantidad máxima debe estar entre 1 y 99.');$out['maxQuantity']=$max;
+  // Wompi phase 2: cash on delivery, online or both; online discount 0-50 %.
+  $mode=$value['paymentMode']??'cod';if(!in_array($mode,Payments::MODES,true))throw new HttpError(422,'Opción de pago inválida.');$out['paymentMode']=$mode;
+  $off=$value['onlineDiscount']??0;if(!is_int($off)||$off<0||$off>50)throw new HttpError(422,'El descuento por pagar en línea debe estar entre 0 y 50 %.');$out['onlineDiscount']=$off;
   $price=$value['previousPrice']??null;if($price!==null&&(!is_numeric($price)||!is_finite((float)$price)||(float)$price<0||(float)$price>999999999))throw new HttpError(422,'Precio anterior inválido.');$out['previousPrice']=$price===null?null:(float)$price;return $out;
  }
  public static function imageUrls(array $c):array {$urls=$c['images']??[];if(!empty($c['header']['logo']))$urls[]=$c['header']['logo'];foreach($c['blocks']??[] as $b){$d=$b['data'];if(!empty($d['image']))$urls[]=$d['image'];foreach($d['images']??[] as $url)$urls[]=$url;foreach($d['items']??[] as $item)if(!empty($item['image']))$urls[]=$item['image'];}foreach((array)($c['variants']['items']??[]) as $v)if(!empty($v['image']))$urls[]=$v['image'];return array_values(array_unique($urls));}

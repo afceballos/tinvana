@@ -143,7 +143,8 @@ No solicitar que se peguen secretos en el chat. El remitente `no-reply@zenzales.
 - [x] Visita guiada del panel para usuarios nuevos, con botón «?» para repetirla ([MODERN-UI.md](MODERN-UI.md)). Comprobado en local; sin desplegar.
 - [ ] Pagos con Wompi por tienda, en 5 fases ([WOMPI.md](WOMPI.md)).
   - [x] Fase 0: firmas y sandbox comprobados; Dropi cotiza con pago anticipado. Falta que Dropi confirme `SIN RECAUDO`.
-  - [x] Fase 1 (conexión) implementada y comprobada en local. Falta el aviso real de Wompi en el hosting. Sin desplegar.
+  - [x] Fase 1 (conexión) desplegada y comprobada en el hosting (2026-11-17): aviso real del sandbox recibido y secretos en verde.
+  - [x] Fase 2 (pago en la landing) implementada y comprobada en local. Falta un pago real en el hosting. Sin desplegar.
 
 No volver a añadir filtro de favoritos sin comprobarlo. Categorías, orden por precio y selector de tamaño no están expuestos inicialmente en el catálogo del panel.
 
@@ -1146,6 +1147,36 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
   - Desplegar con las migraciones 059 a 064.
   - En el hosting, conectar las llaves de pruebas, pegar la URL de eventos en Wompi y hacer el pago de prueba.
   - Después, la fase 2 (pago en la landing).
+
+### 2026-11-17 · Wompi, fase 1 comprobada en el hosting
+- **Reportado por el usuario:** desplegó el commit `9ec5527` y conectó las llaves de pruebas en «Integraciones → Wompi». Pegó la URL de eventos en Wompi e hizo el pago de prueba: el aviso apareció en «Últimos avisos» y todo quedó en verde.
+- **Qué confirma:**
+  - Migraciones 059 a 064 aplicadas en el hosting.
+  - Checksum de eventos válido con un evento real.
+  - Firma de integridad válida.
+  - La URL pública de eventos funciona.
+- **Siguiente paso:** fase 2, pago en la landing.
+
+### 2026-11-17 · Wompi, fase 2 (pago en la landing)
+- **Pedido del usuario:** arrancar la fase 2 con sus decisiones: la tienda elige por landing, se cobra producto + envío con pago anticipado, descuento configurable y, si no paga, queda pendiente con link de reintento y se cancela a las 48 horas.
+- **Cambio:**
+  - Sección «Pago» en el editor; opción de pago y totales en el formulario; pedido «pendiente de pago» con checkout firmado y reintentos.
+  - El pedido pasa a «pagado» solo con el aviso firmado y monto exacto. La página de regreso consulta el estado y envía el Purchase al pagarse.
+  - Vencimiento a las 48 horas con consulta previa a Wompi (en el cron `mail:work`).
+  - Tarjeta de pago en el pedido y sección en Pendientes.
+  - Migraciones PostgreSQL 042 y MySQL 065 y 066. Guía: [WOMPI.md](WOMPI.md).
+- **Comprobado (local):**
+  - `wompi-payments` 33 (nueva) y `wompi-connection` 29.
+  - También pasan `orders` 37, `order-editing` 52, `order-lookup` 18, `order-mail` 24, `own-products` 29, `dropi-orders` 36, `dropi-shipping` 20, `dropi-confirmed` 8, `builder`, `lead-success` 12, `whatsapp-confirm` 92, `admin` 39 y `store-tracking` 16.
+  - En el navegador, con las llaves de sandbox: totales con 10 % de descuento ($22.500), paso a checkout.wompi.co, regreso «¡Pago recibido!» y «El pago no se aprobó» con «Intentar de nuevo». Se vio en escritorio y celular.
+- **Limitaciones:**
+  - `builder-http` sigue fallando igual que antes («duplicate prevention retained»).
+  - No se probó un pago real de punta a punta en el hosting.
+  - Hasta la fase 4, un pedido pagado en línea no se puede enviar a Dropi desde Tinbana (saldría CON RECAUDO): se crea a mano en Dropi como SIN RECAUDO.
+- **Siguiente paso:**
+  - Desplegar (migraciones 065 y 066).
+  - En el hosting, activar «Contraentrega o en línea» en una landing y hacer un pago de prueba con la tarjeta 4242.
+  - Después, la fase 3 (link por WhatsApp).
 
 ### Plantilla para la próxima actualización
 

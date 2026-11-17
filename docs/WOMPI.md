@@ -7,10 +7,62 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
 | Fase | Alcance | Estado |
 |---|---|---|
 | 0 · Verificación | Firmas de Wompi, llaves de prueba en el sandbox, cotización de Dropi con pago anticipado y aceptación de `SIN RECAUDO` | Hecha, salvo la confirmación de Dropi |
-| 1 · Conexión | «Integraciones → Wompi»: 4 llaves cifradas, guía, URL de eventos con firma y prueba de conexión | Hecha en local; falta el evento real en el hosting |
-| 2 · Landing | Pago en línea en el formulario; el pedido pasa a «pagado» solo con el evento firmado | Pendiente |
+| 1 · Conexión | «Integraciones → Wompi»: 4 llaves cifradas, guía, URL de eventos con firma y prueba de conexión | Hecha y comprobada en el hosting (2026-11-17) |
+| 2 · Landing | Pago en línea en el formulario; el pedido pasa a «pagado» solo con el evento firmado | Hecha en local; falta un pago real en el hosting |
 | 3 · WhatsApp | Link de pago desde el pedido y desde el asistente | Pendiente |
 | 4 · Dropi y avisos | Pedidos pagados a Dropi `SIN RECAUDO`, avisos y Pendientes | Pendiente |
+
+## Fase 2 · Decisiones del usuario (2026-11-17)
+
+- **Opciones de pago por landing:** la tienda elige en el editor entre solo contraentrega, solo pago en línea o las dos. Con las dos, elige el comprador.
+- **Monto en línea:** producto + envío, con el flete de pago anticipado (`EnvioConCobro=false`), que es más barato.
+- **Incentivo:** descuento configurable por la tienda al pagar en línea (porcentaje, puede ser 0).
+- **Pago no completado (rechazado o abandonado):**
+  - El pedido queda «pendiente de pago» y aparece en Pendientes.
+  - El comprador puede reintentar con un link.
+  - Si en 48 horas no hay pago aprobado, se cancela solo.
+- **Regla fija:** un pedido solo pasa a «pagado» con el aviso firmado de Wompi (`APPROVED`) cuyo monto y referencia coinciden con el pedido. La página de regreso nunca lo confirma.
+
+## Fase 2 · Cómo funciona
+
+- **Editor:** sección «Pago» (`src/BuilderPayment.tsx`) con `commerce.paymentMode` (`cod`, `online` o `both`) y `commerce.onlineDiscount` (0 a 50 %), validados en `Blocks::commerce`.
+  - El pago en línea solo aparece en la landing si la tienda tiene el permiso `payments` y su cuenta de Wompi está conectada. Si no, la landing cobra contraentrega (`Payments::mode`).
+- **Formulario:**
+  - Con `both`, el comprador elige y el pago en línea aparece marcado primero. Con `online`, no hay opción que elegir.
+  - Se muestra el descuento y el total a pagar, y el botón cambia a «Continuar al pago».
+  - La cotización de envío pide el flete con pago anticipado (`EnvioConCobro=false`) cuando se paga en línea.
+- **Monto (`Payments::prepare`):** productos (precio de la variante u oferta × cantidad) − descuento redondeado + flete con pago anticipado de Dropi.
+  - Si el envío con Dropi está activo y no hay cotización, el pago en línea se rechaza (409) y el comprador puede elegir contraentrega.
+  - Los productos propios no suman flete. El navegador nunca fija el monto.
+- **Pedido:**
+  - Se crea con `payment_method='online'`, `payment_status='pending'`, `payment_reference=tb-<16 hex>` (aleatoria), `payment` (monto, desglose e intentos) y `payment_due_at` (48 horas).
+  - Los correos de pedido recibido (comprador y tienda) se envían al aprobarse el pago, y no se envía la confirmación contraentrega por WhatsApp.
+  - No se puede confirmar ni reabrir hasta que esté pagado; cancelarlo sí se puede.
+- **Checkout (`Payments::checkout`):**
+  - Cada intento usa la referencia `tb-…-<n>` (máximo 20), así que un rechazo se puede reintentar.
+  - Lleva el correo y el nombre del comprador. La dirección de regreso es la misma landing con `?pago=<referencia>`, solo si es `https` pública.
+- **Rutas públicas** (por la referencia aleatoria; sin datos personales, `no-store` y `noindex`):
+  - `GET /p/<slug>/pago/<ref>`: estado (`pending`, `paid` o `closed`), si el último intento fue rechazado, monto, número de pedido y link de seguimiento.
+  - `GET /p/<slug>/pagar/<ref>`: redirige (303) a un nuevo intento firmado.
+- **Avisos (`Payments::apply`):** el aviso firmado ya guardado se aplica al pedido de la tienda.
+  - `APPROVED` con monto en centavos y moneda iguales: el pedido pasa a «pagado» (`payment_approved`) y se encolan los correos. Es idempotente.
+  - Monto distinto: no se marca como pagado; queda `payment_mismatch`.
+  - `DECLINED`, `ERROR` o `VOIDED`: el pedido sigue pendiente; queda `payment_declined`.
+  - Pago aprobado en un pedido ya cancelado: queda `payment_after_cancel`.
+- **48 horas (`Payments::expire`, desde el cron `mail:work`):**
+  - Antes de cancelar se consulta a Wompi (`GET /transactions?reference=…`, con la llave privada) por si se perdió un aviso. Si hay un pago aprobado, el pedido queda pagado (`source=reconcile`).
+  - Si no, queda `payment_status='expired'` y el pedido se cancela.
+- **Página de regreso** (`src/landing-payment.ts`): consulta el estado durante unos 30 segundos.
+  - Pagado: muestra el resultado y envía el `Purchase` a los píxeles de la tienda una sola vez, con la referencia como `eventID`.
+  - Rechazado o sin aviso: ofrece «Intentar de nuevo».
+  - Vencido: lo explica.
+- **Panel:**
+  - Tarjeta «Pago en línea · Wompi» en el detalle del pedido (`src/OrderPayment.tsx`): estado, desglose, transacción, medio, vencimiento, intentos y link para reintentar.
+  - Pendientes tiene la sección «Pagos en línea por revisar»: esperando pago, rechazados, monto distinto y pago en un pedido cancelado.
+- **Migraciones:** PostgreSQL `042_orders_online_payment.sql`; MySQL `065_orders_payment_status_drop.sql` y `066_orders_online_payment.sql`. `payment_status` pasa a admitir `pending`, `paid` y `expired`.
+- **Protección hasta la fase 4:** un pedido pagado en línea no se puede enviar a Dropi (la revisión de envío muestra «Envío sin recaudo… próximamente» y el envío responde 409), porque saldría CON RECAUDO y la transportadora le cobraría otra vez al cliente. Mientras tanto se crea a mano en Dropi como SIN RECAUDO.
+- **Pruebas:** `tests/wompi-payments.mjs` (33 comprobaciones) con Wompi y Dropi simulados. En el navegador, con las llaves de sandbox: opción y totales, paso a Wompi, regreso aprobado y rechazado (con avisos firmados enviados en local), tarjeta del pedido y editor.
+- **Pendiente:** un pago real de punta a punta en el hosting, donde Wompi sí puede enviar el aviso y devolver al comprador a la landing.
 
 ## Fase 1 · Conexión
 
@@ -78,7 +130,7 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
 - [x] `wompi:probe sandbox` con las llaves de prueba (2026-11-17, local): el comercio respondió con medios activos (tarjeta, PSE, Nequi, Daviplata, Bancolombia y otros) y token de aceptación; la llave privada creó un link de un solo uso (HTTP 201); se armó el Web Checkout firmado.
 - [x] Pago aprobado en el sandbox (2026-11-17): Web Checkout firmado con la tarjeta de prueba aprobada. `wompi:probe transaction` leyó `APPROVED`, 1500000 COP, la misma referencia `tb-probe-…` y medio `CARD`. Wompi aceptó la firma de integridad. La transacción trae también `payment_link_id`, útil para la fase 3. La redirección llegó como `?id=<transacción>&env=test`.
 - [x] Pago rechazado en el sandbox (2026-11-17, tarjeta de prueba declinada): `DECLINED`, 1500000 COP, la misma referencia, medio `CARD`. La redirección llega igual (`?id=…&env=test`) que con un pago aprobado, lo que confirma que la página de regreso no sirve para saber si se pagó.
-- [ ] Evento firmado real del sandbox. Requiere una URL pública, así que se verifica en el hosting: conectar las llaves de pruebas en «Integraciones → Wompi», pegar la URL de eventos en Wompi y hacer el pago de prueba.
+- [x] Evento firmado real del sandbox (2026-11-17, en el hosting, reportado por el usuario). Con las llaves de pruebas conectadas en «Integraciones → Wompi», la URL de eventos pegada en Wompi y el pago de prueba aprobado, el aviso llegó a «Últimos avisos» y los dos secretos quedaron comprobados (en verde). Confirma el cálculo del checksum con un evento real, a pesar del ejemplo erróneo de la documentación.
 - [x] `dropi:shipping-probe` en el hosting (2026-11-17, ejecutado por el usuario sin correo: primera integración, producto 309, bodega Cali → Bogotá, valor declarado $13.500). Dropi cotiza el pago anticipado (`EnvioConCobro=false`) y sale más barato en todas las transportadoras:
 
   | Transportadora | Contra entrega | Pago anticipado |

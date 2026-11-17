@@ -24,7 +24,7 @@ try {
    $main=rtrim((string)Support::env('APP_URL'),'/');if(preg_match('~^https?://[^/]+$~',$main))header("Content-Security-Policy: default-src 'self'; img-src 'self' https: http: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ".$main."; form-action 'self'; frame-ancestors 'self'; base-uri 'none'");
    $storeOwner=preg_match('/^[a-z0-9-]+$/',$label)?Store::owner($label):null;
    if($storeOwner===null)throw new HttpError(404,'Tienda no encontrada.');
-   if(preg_match('~^/p/([a-z0-9]+(?:-[a-z0-9]+)*)(?:/lead|/shipping|/stock)?$~',$path,$mine)){
+   if(preg_match('~^/p/([a-z0-9]+(?:-[a-z0-9]+)*)(?:/lead|/shipping|/stock|/pago/tb-[a-f0-9]{16}|/pagar/tb-[a-f0-9]{16})?$~',$path,$mine)){
     if(!Database::one("SELECT id FROM landing_pages WHERE COALESCE(published_slug,slug)=? AND user_id=? AND status='published'",[$mine[1],$storeOwner]))throw new HttpError(404,'Producto no encontrado.');
    }elseif($path==='/')throw new HttpError(404,'Esta tienda aún no tiene página de inicio.');
   }
@@ -90,7 +90,7 @@ try {
   echo Support::json(['owner'=>$owner,'edit'=>$owner?rtrim((string)Support::env('APP_URL'),'/').'/panel/landings/'.$m[1]:null]);exit;
  }
  if($api){header('Content-Type: application/json; charset=utf-8');echo Support::json(Api::handle($path,$method));exit;}
- if(preg_match('~^/p/([a-z0-9]+(?:-[a-z0-9]+)*)(/lead|/shipping|/stock)?$~',$path,$m)){
+ if(preg_match('~^/p/([a-z0-9]+(?:-[a-z0-9]+)*)(/lead|/shipping|/stock|/pago/(tb-[a-f0-9]{16})|/pagar/(tb-[a-f0-9]{16}))?$~',$path,$m)){
   // Landings of suspended accounts are offline (pages, lead form and freight quote).
   $r=Database::one("SELECT * FROM landing_pages WHERE COALESCE(published_slug,slug)=? AND status='published' AND user_id IN (SELECT id FROM users WHERE status='active')",[$m[1]]);if(!$r)throw new HttpError(404,'Producto no encontrado.');$r=Landing::published($r);
   if(($m[2]??'')==='/stock'){
@@ -99,16 +99,26 @@ try {
    $s=App\LandingStock::check($r);header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store');
    echo Support::json(['available'=>$s['available'],'variants'=>(object)$s['variants'],'message'=>$s['available']?null:App\LandingStock::SOLD_OUT]);exit;
   }
+  // Online payment of an order (Payments): status for the return page, and a new signed attempt that sends the buyer to Wompi.
+  // The reference is random (tb-<16 hex>) and only reaches the buyer; neither answer carries personal data.
+  if(!empty($m[3])||!empty($m[4])){
+   if($method!=='GET'&&$method!=='HEAD')throw new HttpError(405,'Método no permitido.');Auth::limit('payment-ip:'.($_SERVER['REMOTE_ADDR']??''),120,3600);
+   $o=App\Payments::byReference((string)$r['user_id'],(string)($m[3]?:$m[4]));if(!$o)throw new HttpError(404,'Pago no encontrado.');header('Cache-Control: no-store');header('Referrer-Policy: no-referrer');header('X-Robots-Tag: noindex, nofollow');
+   if(!empty($m[3])){header('Content-Type: application/json; charset=utf-8');echo Support::json(App\Payments::status($o,$m[1]));exit;}
+   $url=App\Payments::checkout($o,App\Store::landingUrl($m[1],App\Store::subdomainOf((string)$r['user_id'])));header('Location: '.$url,true,303);exit;
+  }
   if(($m[2]??'')==='/shipping'){
    // Buyer-city freight quote with the owner's token, server side only; limited per IP because it calls Dropi.
    if($method!=='POST')throw new HttpError(405,'Método no permitido.');Auth::csrf();Auth::limit('shipping-ip:'.($_SERVER['REMOTE_ADDR']??''),60,3600);
    $b=Api::body();$city=$b['city_code']??'';$qty=filter_var($b['quantity']??1,FILTER_VALIDATE_INT,['options'=>['min_range'=>1,'max_range'=>100]]);
    if(!is_string($city)||!preg_match('/^[0-9]{5}$/D',$city)||$qty===false)throw new HttpError(422,'Ciudad o cantidad inválida.');
    $variant=null;$vid=$b['variant_id']??'';if(is_string($vid)&&$vid!=='')foreach(App\LandingVariants::visible($r['content'],$r['product_snapshot']) as $v)if($v['id']===$vid)$variant=$v;
-   $q=DropiShipping::forLanding($r,$city,$qty,$variant['price']??null);header('Content-Type: application/json; charset=utf-8');
+   // Online payment is quoted prepaid (cheaper), only when the landing really offers it.
+   $prepaid=($b['payment']??'')==='online'&&App\Payments::mode($r)!=='cod';
+   $q=DropiShipping::forLanding($r,$city,$qty,$variant['price']??null,!$prepaid);header('Content-Type: application/json; charset=utf-8');
    echo Support::json(['amount'=>$q['amount']??null,'message'=>$q?null:'El envío a tu ciudad se confirmará al procesar el pedido.']);exit;
   }
-  if(isset($m[2])){
+  if(($m[2]??'')==='/lead'){
    if($method!=='POST')throw new HttpError(405,'Método no permitido.');Auth::csrf();Auth::limit('lead-ip:'.($_SERVER['REMOTE_ADDR']??''),15,3600);
    $json=str_contains($_SERVER['CONTENT_TYPE']??'','application/json');$b=$json?Api::body():$_POST;$result=Leads::save($r,$b);
    if($json){header('Content-Type: application/json; charset=utf-8');http_response_code(202);echo Support::json($result);}else {echo Landing::render($r,false,$result['message']);}

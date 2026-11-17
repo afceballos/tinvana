@@ -41,3 +41,13 @@
 :root[data-theme=dark] .bs-status.is-warn{background:#3a1715;color:#fca5a5}
 @media (max-width:640px){.bd{width:calc(100vw - 16px);max-height:96dvh;border-radius:18px}.bd-head,.bd-body,.bd-foot{padding-left:16px;padding-right:16px}.bd-foot{flex-direction:column;align-items:stretch}}
 @media (prefers-reduced-motion:reduce){.bs,.bs-chevron{transition:none}}
+
+/* «Pago» (Wompi phase 2). */
+.builder-payment{display:grid;gap:12px}
+.builder-pay-modes{display:grid;gap:8px}
+.builder-pay-mode{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;cursor:pointer;transition:border-color .2s,background-color .2s}
+.builder-pay-mode.is-on{border-color:color-mix(in srgb,var(--brand-accent,#ff6a00) 55%,var(--line));background:color-mix(in srgb,var(--brand-accent,#ff6a00) 6%,transparent)}
+.builder-pay-mode input{margin-top:3px;accent-color:var(--orange,#ff6a00)}
+.builder-pay-mode span{display:grid;gap:2px}.builder-pay-mode small{color:var(--muted);font-size:12px}
+.builder-warn{padding:8px 10px;border-radius:10px;background:var(--warn-bg,#fffbeb);color:var(--warn-fg,#92400e)}
+.builder-payment label.builder-pay-mode{display:flex;flex-direction:row}.builder-payment .builder-pay-mode input[type=radio]{flex:none;width:18px;height:18px;min-height:0;margin:3px 0 0;padding:0;box-shadow:none}

@@ -110,6 +110,8 @@ final class WompiAccount {
   Database::query('INSERT INTO wompi_events(id,user_id,event_type,environment,transaction_id,reference,status,amount_in_cents,payment_method,payload) VALUES(?,?,?,?,?,?,?,?,?,?::jsonb) ON CONFLICT(user_id,transaction_id,status) DO NOTHING',
    [Support::uuid(),$a['user_id'],mb_substr($event['event'],0,60),$env,$str($t['id']??null,80),$str($t['reference']??null,120),$str($t['status']??null,20),is_numeric($t['amount_in_cents']??null)?(int)$t['amount_in_cents']:null,$str($t['payment_method_type']??null,40),Support::json($event)]);
   Database::query('UPDATE wompi_accounts SET last_event_at=now() WHERE id=?',[$a['id']]);
+  // Apply it to its order now; a failure here is logged and the stored event stays (the 48 h check asks Wompi again).
+  try{Payments::apply($a,$event);}catch(\Throwable $e){error_log('Tinbana payment event: '.get_class($e));}
   return ['status'=>200,'stored'=>true];
  }
 }
