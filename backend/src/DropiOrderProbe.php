@@ -38,6 +38,38 @@ final class DropiOrderProbe {
   }
   return implode("\n",$out)."\n";
  }
+ /**
+  * Wompi phase 4 discovery (console: dropi:order-probe rates [email]). GET only: the store's latest Dropi orders, to see
+  * whether the account already has prepaid orders (rate_type other than CON RECAUDO) and how Dropi stores them.
+  * Prints counts and, for one example of each rate type, only payment/rate/amount/status fields: no buyer data.
+  */
+ public static function rates(string $email=''): string {
+  $user=$email!==''?Database::one('SELECT id FROM users WHERE email=?',[strtolower($email)]):null;
+  if($email!==''&&!$user)throw new \RuntimeException('No existe ese usuario.');
+  $integration=Database::one('SELECT * FROM integrations'.($user?' WHERE user_id=?':'').' ORDER BY created_at LIMIT 1',$user?[$user['id']]:[]);
+  if(!$integration)throw new \RuntimeException('No hay integraciones Dropi configuradas.');
+  $token=Crypto::decrypt($integration['token_ciphertext'],$integration['id'].':'.$integration['user_id']);
+  $out=['== Dropi rate probe '.gmdate('c').' (solo lectura, GET) últimos pedidos de la cuenta'];
+  $safe='/^(id|rate_type|payment_method_id|payment_method|type|status|total_order|shipping_amount|shipping_price|price|amount|cash_on_delivery|collect|recaudo|value_to_collect|valor_recaudo|dropshipper_amount|supplier_amount|created_at)$/i';
+  $rates=[];$examples=[];$seen=0;
+  foreach([0,100] as $start){
+   $c=curl_init(self::BASE.'orders/myorders?result_number=100&start='.$start);
+   curl_setopt_array($c,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_ENCODING=>'',CURLOPT_CONNECTTIMEOUT=>8,CURLOPT_TIMEOUT=>30,CURLOPT_USERAGENT=>'WordPress/6.5; https://tinbana.com',CURLOPT_HTTPGET=>true,
+    CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,CURLOPT_HTTPHEADER=>['Accept: application/json','dropi-integration-key: '.$token]]);
+   if(Support::env('HTTP_CA_BUNDLE')!=='')curl_setopt($c,CURLOPT_CAINFO,Support::env('HTTP_CA_BUNDLE'));
+   $res=curl_exec($c);$status=(int)curl_getinfo($c,CURLINFO_RESPONSE_CODE);curl_close($c);
+   $json=is_string($res)?json_decode($res,true):null;$list=is_array($json['objects']??null)&&array_is_list($json['objects'])?$json['objects']:null;
+   $out[]='-- GET orders/myorders?result_number=100&start='.$start.' → HTTP '.$status.($list===null?' (sin lista de pedidos)':' | '.count($list).' pedidos');
+   if(!$list)break;
+   foreach($list as $o){if(!is_array($o))continue;$seen++;$rate=is_scalar($o['rate_type']??null)?(string)$o['rate_type']:'(sin rate_type)';$rates[$rate]=($rates[$rate]??0)+1;
+    if(!isset($examples[$rate])){$ex=[];foreach($o as $k=>$v)if(preg_match($safe,(string)$k)&&!is_array($v))$ex[$k]=is_bool($v)?($v?'true':'false'):mb_substr((string)$v,0,60);$examples[$rate]=$ex;}}
+   if(count($list)<100)break;
+  }
+  $out[]='Pedidos revisados: '.$seen;
+  foreach($rates as $rate=>$n)$out[]='rate_type «'.$rate.'»: '.$n.' pedidos | ejemplo: '.Support::json($examples[$rate]);
+  if($seen>0&&!array_filter(array_keys($rates),fn($r)=>stripos($r,'SIN')!==false))$out[]='No hay pedidos SIN RECAUDO en los últimos '.$seen.': esta consulta no confirma si la cuenta los acepta.';
+  return implode("\n",$out)."\n";
+ }
  /** Keys of every level; values only for status/guide/carrier/date-like keys. */
  private static function describe(array $a,string $pad,array &$out,int $depth): void {
   $out[]=$pad.'* claves: '.implode(',',array_keys($a));

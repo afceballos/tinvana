@@ -145,7 +145,8 @@ No solicitar que se peguen secretos en el chat. El remitente `no-reply@zenzales.
   - [x] Fase 0: firmas y sandbox comprobados; Dropi cotiza con pago anticipado. Falta que Dropi confirme `SIN RECAUDO`.
   - [x] Fase 1 (conexión) desplegada y comprobada en el hosting (2026-11-17): aviso real del sandbox recibido y secretos en verde.
   - [x] Fase 2 (pago en la landing) desplegada y comprobada en el hosting con el sandbox (reportado por el usuario).
-  - [x] Fase 3 (link de pago por WhatsApp) implementada y comprobada en local. Sin desplegar.
+  - [x] Fase 3 (link de pago por WhatsApp) desplegada y comprobada en el hosting (reportado por el usuario).
+  - [ ] Fase 4: Dropi SIN RECAUDO para pedidos pagados (espera la confirmación de soporte de Dropi).
 
 No volver a añadir filtro de favoritos sin comprobarlo. Categorías, orden por precio y selector de tamaño no están expuestos inicialmente en el catálogo del panel.
 
@@ -1199,6 +1200,10 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Siguiente paso:**
   - Desplegar (migraciones 067 y 068) y probar en el hosting con un chat real.
   - Después, la fase 4 (requiere que Dropi confirme SIN RECAUDO).
+
+### 2026-11-17 · Wompi, fase 3 comprobada en el hosting
+- **Reportado por el usuario:** con el commit `62dd8d6` desplegado, la fase 3 funcionó en el hosting.
+- **Siguiente paso:** fase 4, cuando soporte de Dropi confirme que la cuenta acepta crear pedidos SIN RECAUDO por la API.
 
 ### Plantilla para la próxima actualización
 

@@ -9,7 +9,7 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
 | 0 · Verificación | Firmas de Wompi, llaves de prueba en el sandbox, cotización de Dropi con pago anticipado y aceptación de `SIN RECAUDO` | Hecha, salvo la confirmación de Dropi |
 | 1 · Conexión | «Integraciones → Wompi»: 4 llaves cifradas, guía, URL de eventos con firma y prueba de conexión | Hecha y comprobada en el hosting (2026-11-17) |
 | 2 · Landing | Pago en línea en el formulario; el pedido pasa a «pagado» solo con el evento firmado | Hecha y comprobada en el hosting (reportado por el usuario) |
-| 3 · WhatsApp | Link de pago desde el pedido, en el chat (respuesta automática y asistente) y recordatorio | Hecha en local |
+| 3 · WhatsApp | Link de pago desde el pedido, en el chat (respuesta automática y asistente) y recordatorio | Hecha y comprobada en el hosting (reportado por el usuario) |
 | 4 · Dropi y avisos | Pedidos pagados a Dropi `SIN RECAUDO`, avisos y Pendientes | Pendiente |
 
 ## Fase 2 · Decisiones del usuario (2026-11-17)
@@ -144,6 +144,7 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
   - `sandbox`: solo acepta llaves de prueba. Lee el comercio (llave pública), crea un link de pago de un solo uso (llave privada) y arma un Web Checkout firmado (secreto de integridad) de $15.000.
   - `transaction <id>`: lee la transacción del sandbox y muestra estado, monto, referencia y medio de pago.
   - **Llaves:** el comando las toma de `WOMPI_TEST_PUBLIC_KEY`, `WOMPI_TEST_PRIVATE_KEY`, `WOMPI_TEST_EVENTS_SECRET` y `WOMPI_TEST_INTEGRITY_SECRET`. Se ponen en la configuración local ignorada por git (`.tools/test-env.json` o `backend/.env`) y nunca en el repositorio ni en la documentación.
+- **Dropi, tipos de cobro (2026-11-17):** `php bin/console.php dropi:order-probe rates [email]` lee los últimos 200 pedidos de la cuenta (`GET orders/myorders`) y cuenta los valores de `rate_type`. Para un ejemplo de cada tipo muestra solo los campos de pago, cobro, montos y estado; nunca datos del comprador ni el token. Si la cuenta ya tiene pedidos SIN RECAUDO (por ejemplo, hechos a mano en el panel de Dropi), confirma el valor exacto y cómo los guarda Dropi. Si no los tiene, no confirma nada y hace falta la respuesta de soporte o una prueba controlada.
 - **Dropi:** `php bin/console.php dropi:shipping-probe [email] 11001`, de solo lectura, ya cotiza contra entrega (`EnvioConCobro=true`) y pago anticipado (`EnvioConCobro=false`). Se ejecuta en el hosting, donde está el token.
 
 ## Fase 0 · Resultados
