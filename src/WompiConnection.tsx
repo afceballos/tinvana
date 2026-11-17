@@ -8,7 +8,7 @@ import './whatsapp/whatsapp.css';
 import './wompi.css';
 
 // «Integraciones → Wompi»: the store's own Wompi account. Same card system as the WhatsApp and GHL connections.
-type Account={environment:'test'|'prod';public_key:string;merchant_name:string|null;payment_methods:string[];status:'pending'|'connected'|'error';last_error:string|null;last_tested_at:string|null;last_event_at:string|null;last_rejected_at:string|null;integrity_checked_at:string|null;events_url:string};
+type Account={environment:'test'|'prod';public_key:string;merchant_name:string|null;payment_methods:string[];status:'pending'|'connected'|'error';last_error:string|null;last_tested_at:string|null;last_event_at:string|null;last_rejected_at:string|null;integrity_checked_at:string|null;events_url:string;auto_dropi:boolean;dropi_orders:boolean};
 type WompiEvent={type:string;transaction_id:string|null;reference:string|null;status:string|null;amount:number|null;payment_method:string|null;received_at:string};
 type View={account:Account|null;events:WompiEvent[];message?:string};
 const when=(v:string|null)=>v?new Date(v).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}):'Nunca';
@@ -68,6 +68,11 @@ export function WompiConnection(){
    <div className="wompi-events-head"><h3>Últimos avisos de Wompi</h3><button type="button" className="secondary" disabled={busy} onClick={()=>void run(async()=>{await load();})}><Icon name="refresh"/>Actualizar</button></div>
    {view.events.length?<ul className="wompi-events">{view.events.map(e=><li key={(e.transaction_id||'')+(e.status||'')+e.received_at}><span className={'wompi-result '+(e.status==='APPROVED'?'is-ok':e.status==='PENDING'?'':'is-bad')}>{e.status?results[e.status]||e.status:e.type}</span><span><strong>{money(e.amount)}</strong>{e.payment_method&&' · '+(methods[e.payment_method]||e.payment_method)}<small>{e.reference||'Sin referencia'} · {when(e.received_at)}</small></span></li>)}</ul>
     :<p className="small muted">Todavía no llega ningún aviso. Cuando configures la URL y se haga un pago, aparecerá aquí.</p>}
+  </section>}
+  {a&&<section className="panel narrow webhook-current">
+   <div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name="truck"/></span><div><span className="eyebrow">Pedidos pagados</span><h2>Envío a Dropi</h2></div><span className={'webhook-state '+(a.auto_dropi?'on':'off')}>{a.auto_dropi?'Automático':'Lo envías tú'}</span></div>
+   <p className="small muted">Cuando Wompi aprueba un pago, el pedido queda confirmado (el cliente ya no tiene que confirmar nada) y se envía a Dropi como <strong>SIN RECAUDO</strong>, con el total que pagó. Dropi descuenta de tu billetera el costo del producto y el envío, así que necesitas saldo allá.</p>
+   <label className="wa-switch"><input type="checkbox" checked={a.auto_dropi} disabled={busy||!a.dropi_orders} onChange={e=>{const on=e.target.checked;void run(async()=>{const r=await api<View>('/api/wompi/account/settings',{method:'PUT',body:JSON.stringify({auto_dropi:on})});setView(r);if(r.message)setNotice(r.message);});}}/><span><strong>Enviar a Dropi automáticamente los pedidos pagados</strong><small>{a.dropi_orders?(a.auto_dropi?'Activo: cada pedido pagado sale solo hacia Dropi. Si Dropi lo rechaza (por ejemplo, sin saldo), lo verás en el pedido y en Pendientes.':'Apagado (recomendado al empezar): cada pedido pagado te espera en Pedidos; lo revisas y pulsas «Enviar a Dropi», viendo antes cuánto descontará de tu billetera.'):'Tu plan no incluye el envío de pedidos a Dropi.'}</small></span></label>
   </section>}
   {a?.environment==='test'&&a.status==='connected'&&<section className="panel narrow webhook-current">
    <div className="webhook-head"><span className="webhook-logo" aria-hidden="true"><Icon name="check"/></span><div><span className="eyebrow">Comprobación completa</span><h2>Pago de prueba</h2></div><span className={'webhook-state '+(a.integrity_checked_at?'on':'off')}>{a.integrity_checked_at?'Comprobado':'Pendiente'}</span></div>

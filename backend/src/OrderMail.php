@@ -52,6 +52,8 @@ final class OrderMail {
   $qty=(int)$order['quantity'];$unit=$order['unit_price']===null?null:(float)$order['unit_price'];$ship=$order['shipping_price']===null?null:(float)$order['shipping_price'];
   return ['ref'=>Orders::displayNumber($order),'tracking_url'=>!empty($order['order_number'])?OrderLookup::url((string)$order['user_id'],(string)$order['order_number']):'','order_id'=>$order['id'],'first_name'=>(string)($c['first_name']??''),'last_name'=>(string)($c['last_name']??''),'email'=>(string)($c['email']??''),'phone'=>(string)($c['phone']??''),
    'product'=>(string)($p['product_name']??'Producto'),'variant'=>is_array($v)?(string)($v['label']??''):'','quantity'=>$qty,'unit_price'=>$unit,'shipping'=>$ship,'total'=>$unit!==null&&$ship!==null?round($unit*$qty+$ship,2):null,
+   // Paid online (Payments): the amount the buyer paid (discount and freight included).
+   'paid'=>($order['payment_status']??'')==='paid'&&($order['payment_method']??'cod')==='online'?(float)(json_decode((string)($order['payment']??'{}'),true)['amount']??0):null,
    'address'=>trim((string)($a['address']??'').' '.(string)($a['address_details']??'')),'city'=>trim((string)($a['city']??'').', '.(string)($a['state']??''),', '),
    'store'=>$settings['sender_name'],'reply_to'=>$settings['reply_to'],'panel_url'=>rtrim(Support::env('APP_URL'),'/').'/panel/pedidos/'.$order['id']];
  }
@@ -74,13 +76,13 @@ final class OrderMail {
   $e=fn($v)=>Support::escape((string)$v);$store=$d['store'];$ref=str_starts_with((string)$d['ref'],'TB-')?(string)$d['ref']:'#'.$d['ref'];$hello=trim($d['first_name'])!==''?'Hola '.trim($d['first_name']):'Hola';
   $copy=[
    'buyer_received'=>['Recibimos tu pedido',$hello.', gracias por tu pedido en '.$store.'. Te contactaremos pronto para confirmar los detalles y el envío.'],
-   'buyer_confirmed'=>['Tu pedido está confirmado',$hello.', confirmamos tu pedido y lo estamos preparando para el envío. Te avisaremos si necesitamos algo más.'],
+   'buyer_confirmed'=>!empty($d['paid'])?['Recibimos tu pago',$hello.', recibimos tu pago de '.self::money((float)$d['paid']).' por tu pedido '.$ref.'. Ya está confirmado y lo estamos preparando para el envío.']:['Tu pedido está confirmado',$hello.', confirmamos tu pedido y lo estamos preparando para el envío. Te avisaremos si necesitamos algo más.'],
    'buyer_cancelled'=>['Tu pedido fue cancelado',$hello.', tu pedido '.$ref.' fue cancelado. Si crees que es un error o quieres hacer un nuevo pedido, responde a este correo.'],
    'buyer_guide'=>['Tu pedido ya tiene guía',$hello.', tu pedido '.$ref.' '.OrderStatusNotices::phrase('guide_generated',(array)($d['status']??[])).'. Pronto sale hacia tu dirección.'],
-   'buyer_in_transit'=>['Tu pedido va en camino',$hello.', tu pedido '.$ref.' '.OrderStatusNotices::phrase('in_transit',(array)($d['status']??[])).'. Ten a mano el valor exacto si pagas contra entrega.'],
+   'buyer_in_transit'=>['Tu pedido va en camino',$hello.', tu pedido '.$ref.' '.OrderStatusNotices::phrase('in_transit',(array)($d['status']??[])).(!empty($d['paid'])?'. Ya está pagado: no tienes que pagar nada al recibirlo.':'. Ten a mano el valor exacto si pagas contra entrega.')],
    'buyer_novelty'=>['Hay una novedad con tu pedido',$hello.', tu pedido '.$ref.' '.OrderStatusNotices::phrase('novelty',(array)($d['status']??[])).'. Te contactaremos para resolverlo; también puedes responder este correo.'],
    'buyer_delivered'=>['Tu pedido fue entregado',$hello.', tu pedido '.$ref.' fue entregado. ¡Gracias por comprar en '.$store.'! Si tienes alguna pregunta, responde este correo.'],
-   'owner_new_order'=>['Nuevo pedido recibido',trim($d['first_name'].' '.$d['last_name']).' pidió '.$d['quantity'].' × '.$d['product'].'. Revísalo, cotiza el envío y registra la aceptación.'],
+   'owner_new_order'=>!empty($d['paid'])?['Nuevo pedido pagado',trim($d['first_name'].' '.$d['last_name']).' pidió '.$d['quantity'].' × '.$d['product'].' y pagó '.self::money((float)$d['paid']).' en línea. Revísalo y envíalo a Dropi como SIN RECAUDO.']:['Nuevo pedido recibido',trim($d['first_name'].' '.$d['last_name']).' pidió '.$d['quantity'].' × '.$d['product'].'. Revísalo, cotiza el envío y registra la aceptación.'],
   ][$kind];
   [$title,$intro]=$copy;$owner=$kind==='owner_new_order';
   $row=fn(string $k,string $v,bool $strong=false)=>'<tr><td style="padding:10px 0;border-top:1px solid #ffe0cd;font-size:14px;color:#75665c">'.$e($k).'</td><td align="right" style="padding:10px 0;border-top:1px solid #ffe0cd;font-size:'.($strong?'16px;font-weight:bold;color:#1e1e1e':'14px;color:#3b3029').'">'.$e($v).'</td></tr>';
@@ -95,7 +97,7 @@ final class OrderMail {
    .$row('Cantidad',(string)$d['quantity'])
    .$row('Precio por unidad',self::money($d['unit_price']))
    .$row('Envío',self::money($d['shipping']))
-   .$row('Total',self::money($d['total']),true)
+   .(!empty($d['paid'])?$row('Total pagado en línea',self::money((float)$d['paid']),true):$row('Total',self::money($d['total']),true))
    .'</table></td></tr></table>';
   $body.='<p style="margin:0 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#974000;font-weight:bold">'.($owner?'Comprador y entrega':'Entrega en').'</p><p style="margin:0 0 22px;font-size:14px;line-height:1.6;color:#3b3029">'
    .($owner?$e(trim($d['first_name'].' '.$d['last_name'])).'<br>'.$e($d['phone']).' · '.$e($d['email']).'<br>':'').$e($d['address']).'<br>'.$e($d['city']).'</p>';

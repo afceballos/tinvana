@@ -29,7 +29,7 @@ final class WompiAccount {
   $events=Database::all('SELECT event_type,transaction_id,reference,status,amount_in_cents,payment_method,received_at FROM wompi_events WHERE user_id=? ORDER BY received_at DESC LIMIT 5',[$owner]);
   return ['account'=>['environment'=>$a['environment'],'public_key'=>$a['public_key'],'merchant_name'=>$a['merchant_name'],'payment_methods'=>json_decode((string)($a['payment_methods']??'[]'),true)?:[],
    'status'=>$a['status'],'last_error'=>$a['last_error'],'last_tested_at'=>$a['last_tested_at'],'last_event_at'=>$a['last_event_at'],'last_rejected_at'=>$a['last_rejected_at'],
-   'integrity_checked_at'=>$signed['received_at']??null,'events_url'=>self::eventsUrl($a)],
+   'integrity_checked_at'=>$signed['received_at']??null,'events_url'=>self::eventsUrl($a),'auto_dropi'=>(int)($a['auto_dropi']??0)===1,'dropi_orders'=>Entitlements::allows($owner,'dropi_orders')],
    'events'=>array_map(fn($e)=>['type'=>$e['event_type'],'transaction_id'=>$e['transaction_id'],'reference'=>$e['reference'],'status'=>$e['status'],'amount'=>$e['amount_in_cents']===null?null:(int)$e['amount_in_cents']/100,'payment_method'=>$e['payment_method'],'received_at'=>$e['received_at']],$events)];
  }
 
@@ -79,6 +79,14 @@ final class WompiAccount {
   return self::view($owner)+['message'=>$error===null?'Conexión con Wompi comprobada'.($name?' · '.$name:'').'.':$error];
  }
 
+ /** Option B of phase 4: paid orders go to Dropi by themselves (SIN RECAUDO). Off by default. */
+ public static function settings(string $owner,array $b): array {
+  $a=self::ofUser($owner);if(!$a)throw new HttpError(404,'Primero conecta tu cuenta de Wompi.');
+  if(array_diff(array_keys($b),['auto_dropi'])||!is_bool($b['auto_dropi']??null))throw new HttpError(422,'Indica si los pedidos pagados se envían solos a Dropi.');
+  if($b['auto_dropi']&&!Entitlements::allows($owner,'dropi_orders'))throw new HttpError(403,'Tu plan no incluye el envío de pedidos a Dropi.');
+  Database::query('UPDATE wompi_accounts SET auto_dropi=?,updated_at=now() WHERE id=?',[$b['auto_dropi']?1:0,$a['id']]);
+  return self::view($owner)+['message'=>$b['auto_dropi']?'Los pedidos pagados se enviarán solos a Dropi como SIN RECAUDO.':'Los pedidos pagados esperarán a que los envíes a Dropi.'];
+ }
  public static function delete(string $owner): array {
   Database::query('DELETE FROM wompi_accounts WHERE user_id=?',[$owner]);return self::view($owner)+['message'=>'Cuenta de Wompi desconectada de Tinbana. En Wompi tu cuenta sigue igual.'];
  }

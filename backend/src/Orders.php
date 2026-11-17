@@ -71,6 +71,8 @@ final class Orders {
   foreach(['customer','delivery_address','product_data','confirmation','variant_data','offer_snapshot','integration_data','dropi_tracking','payment'] as $key)$r[$key]=($r[$key]??null)===null?null:json_decode($r[$key],true,512,JSON_THROW_ON_ERROR);
   $r['quantity']=(int)$r['quantity'];$r['version']=(int)$r['version'];
   $r['total']=$r['unit_price']!==null&&$r['shipping_price']!==null?self::decimal(self::cents($r['unit_price'])*$r['quantity']+self::cents($r['shipping_price'])):null;
+  // Online payment (Payments): the total is what Wompi charges or charged (discount and freight included).
+  if(($r['payment_method']??'cod')==='online'&&is_numeric($r['payment']['amount_in_cents']??null))$r['total']=self::decimal((int)$r['payment']['amount_in_cents']);
   return $r;
  }
  public static function listing(string $owner,array $q): array {
@@ -149,6 +151,8 @@ final class Orders {
    $r=self::owned($owner,$id,true);
    if(!isset($b['version'])||!is_int($b['version'])||$b['version']!==(int)$r['version'])throw new HttpError(409,'El pedido cambió. Actualiza el detalle antes de continuar.');
    // Online payment (Payments): no confirmation nor reopening until Wompi approves it; cancelling is allowed.
+   // Paid online: the price is what Wompi charged; it is not quoted again nor sent back to review (cancel and refund in Wompi).
+   if(($r['payment_method']??'cod')==='online'&&$r['payment_status']==='paid'&&in_array($action,['quote','reopen','customer'],true))throw new HttpError(409,'Este pedido ya se pagó en línea: su precio y sus datos no se cambian aquí. Si hay que corregirlo, cancélalo y reembolsa el pago desde tu panel de Wompi.');
    if(($r['payment_method']??'cod')==='online'&&$r['payment_status']!=='paid'&&$action!=='cancel')throw new HttpError(409,$r['payment_status']==='expired'?'El pago en línea de este pedido venció sin aprobarse.':'Este pedido espera el pago en línea del cliente. Podrás confirmarlo cuando Wompi lo apruebe.');
    if(!in_array($r['integration_status'],['not_sent','failed'],true))throw new HttpError(409,$r['integration_status']==='sent'?'El pedido ya se creó en Dropi. Gestiona cambios o cancelación desde Dropi.':'El pedido tiene un envío a Dropi pendiente de revisión.');
    // Own order already on its way: only a cancellation (before delivery) is allowed.

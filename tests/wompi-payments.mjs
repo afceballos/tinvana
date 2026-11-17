@@ -22,7 +22,9 @@ const wompi=createServer(tls,(req,res)=>{const json=(s,b)=>{res.writeHead(s,{'Co
 // Dropi quote: cash on delivery 16450, prepaid 14450 (VELOCES, as in the real probe of 2026-11-17).
 const quotes=[];
 const dropi=createServer(tls,(req,res)=>{let body='';req.on('data',c=>body+=c);req.on('end',()=>{const b=JSON.parse(body||'{}');quotes.push(b);res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({isSuccess:true,status:200,objects:[{transportadora:'VELOCES',transportadora_id:6,objects:{precioEnvio:b.EnvioConCobro?16450:14450}}]}));});});
-await new Promise(r=>wompi.listen(8449,'127.0.0.1',r));await new Promise(r=>dropi.listen(8444,'127.0.0.1',r));
+// Dropi orders (8443): records what Tinbana creates (phase 4: paid orders go SIN RECAUDO).
+const created=[];const dropiOrders=createServer(tls,(req,res)=>{let body='';req.on('data',c=>body+=c);req.on('end',()=>{created.push(JSON.parse(body||'{}'));res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({isSuccess:true,objects:{id:770000+created.length}}));});});
+await new Promise(r=>wompi.listen(8449,'127.0.0.1',r));await new Promise(r=>dropi.listen(8444,'127.0.0.1',r));await new Promise(r=>dropiOrders.listen(8443,'127.0.0.1',r));
 class Client {
  cookie='';csrf='';
  async request(path,method='GET',body,token=this.csrf){const response=await fetch(base+path,{method,redirect:'manual',headers:{Cookie:this.cookie,...(body!==undefined?{'Content-Type':'application/json'}:{}),...(method!=='GET'?{'X-CSRF-Token':token}:{})},...(body!==undefined?{body:JSON.stringify(body)}:{})});for(const c of response.headers.getSetCookie?.()||[]){const pair=c.split(';')[0];const name=pair.split('=')[0];this.cookie=[...this.cookie.split('; ').filter(x=>x&&!x.startsWith(name+'=')),pair].join('; ');}const text=await response.text();let data=null;try{data=JSON.parse(text);}catch{}return {response,data,text};}
@@ -36,7 +38,7 @@ const order=async number=>{const list=(await owner.request('/api/orders')).data.
 let eventsUrl='';const tx=(reference,status,amount_in_cents,id='9'+Math.floor(Math.random()*1e9))=>({id,status,amount_in_cents,reference,currency:'COP',payment_method_type:'NEQUI'});
 const deliver=t=>{const timestamp=Math.floor(Date.now()/1000);const checksum=sha(t.id+t.status+t.amount_in_cents+timestamp+K.events_secret);return fetch(eventsUrl.replace(/^https?:\/\/[^/]+/,base),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event:'transaction.updated',data:{transaction:t},environment:'test',signature:{properties:['transaction.id','transaction.status','transaction.amount_in_cents'],checksum},timestamp})});};
 try{
- await helper('reset-limits');await helper('shipping-setup','on');
+ await helper('reset-limits');await helper('shipping-setup','on');await helper('dropi-supplier');
  check('fixture landing published',(await owner.request('/api/landings/'+fixture.landing+'/publish','POST',{})).response.status===200);
  await helper('shipping-setup','on');await helper('payment-setup','both','10');
  // Without Wompi the landing stays cash on delivery.
@@ -76,12 +78,16 @@ try{
  const good=tx(baseRef+'-2','APPROVED',expected*100,'777-1');check('approved event accepted',(await deliver(good)).status===200);
  d=await order(r.data.order_number);
  check('order paid with the Wompi transaction',d.order.payment_status==='paid'&&!!d.order.paid_at&&d.order.payment.transaction_id==='777-1'&&d.order.payment.method==='NEQUI'&&d.events.some(e=>e.event_type==='payment_approved'));
+ check('paid order total is what Wompi charged, and its price is not quoted again',Number(d.order.total)===expected&&(await owner.request('/api/orders/'+o.id+'/quote','POST',{quantity:1,unit_price:'1000',shipping_price:'0',version:d.order.version})).response.status===409);
+ check('paying confirms the order (no call, no «1 SÍ»)',d.order.sale_status==='confirmed'&&d.order.confirmation?.source==='wompi'&&d.events.some(e=>e.event_type==='confirmed'));
  await deliver(good);const mails=JSON.parse(await helper('mail-queue')).filter(m=>m.dedupe_key?.includes(o.id));
- check('emails queued once when paid',mails.filter(m=>m.kind==='buyer_received').length===1&&mails.filter(m=>m.kind==='owner_new_order').length===1);
+ check('emails queued once when paid: payment received and new paid order',mails.filter(m=>m.kind==='buyer_confirmed').length===1&&mails.filter(m=>m.kind==='owner_new_order').length===1&&!mails.some(m=>m.kind==='buyer_received'));
  r=await visitor.request('/p/'+fixture.slug+'/pago/'+baseRef);check('return page status: paid',r.data.status==='paid'&&r.data.amount===expected&&r.data.retry_url===null&&r.data.order_number===d.order.order_number);
  check('paid order cannot be retried',(await visitor.request('/p/'+fixture.slug+'/pagar/'+baseRef)).response.status===409);
- // Until SIN RECAUDO (phase 4), a paid order must never reach Dropi as cash on delivery.
- check('paid order blocked from Dropi as cash on delivery',d.dropi.can_submit===false&&d.dropi.checks?.some(c=>c.key==='prepaid'&&!c.ready)&&(await owner.request('/api/orders/'+o.id+'/dropi','POST',{confirm:true,version:d.order.version})).response.status===409);
+ // Phase 4, option A (default): the store sends it; it goes SIN RECAUDO with the amount the buyer paid.
+ check('paid order ready for Dropi as SIN RECAUDO',d.dropi.rate_type==='SIN RECAUDO'&&d.dropi.can_submit===true&&d.dropi.checks.some(c=>c.key==='paid'&&c.ready)&&/SIN RECAUDO/.test(d.dropi.message)&&created.length===0);
+ r=await owner.request('/api/orders/'+o.id+'/dropi','POST',{confirm:true,version:d.order.version});const sent=created.at(-1);
+ check('sent to Dropi SIN RECAUDO with the amount paid',r.response.status===200&&sent?.rate_type==='SIN RECAUDO'&&sent.payment_method_id===1&&sent.total_order===expected&&Math.round(sent.products[0].price*sent.products[0].quantity)===expected);
  check('paid order leaves pending',!(await owner.request('/api/pending')).data.sections.find(s=>s.key==='payments')?.items.some(i=>i.key.includes(o.id)));
  // Cash on delivery on the same landing is untouched.
  r=await visitor.request('/p/'+fixture.slug+'/lead','POST',lead({payment:'cod'}));d=await order(r.data.order_number);
@@ -99,11 +105,18 @@ try{
  r=await visitor.request('/p/'+fixture.slug+'/lead','POST',lead());const late=r.data.payment;txByRef[late.reference+'-1']=[tx(late.reference+'-1','APPROVED',Math.round(late.amount*100),'888-1')];
  lo=(await order(r.data.order_number)).order;await helper('payment-due',lo.id);ex=JSON.parse(await helper('payment-expire'));
  lo=(await order(r.data.order_number)).order;check('lost event recovered by asking Wompi',ex.paid>=1&&lo.payment_status==='paid'&&lo.sale_status!=='cancelled'&&lo.payment.source==='reconcile');
+ // Option B: with the switch on, a newly paid order goes to Dropi by itself.
+ const acc=(await owner.request('/api/wompi/account')).data.account;check('automatic sending is off by default',acc.auto_dropi===false);
+ check('switch saved',(await owner.request('/api/wompi/account/settings','PUT',{auto_dropi:true})).data.account.auto_dropi===true);
+ await helper('payment-setup','online','0');r=await visitor.request('/p/'+fixture.slug+'/lead','POST',lead());const auto=r.data.payment;const before=created.length;
+ await deliver(tx(auto.reference+'-1','APPROVED',Math.round(auto.amount*100),'999-1'));d=await order(r.data.order_number);
+ check('paid order sent to Dropi automatically',created.length===before+1&&created.at(-1).rate_type==='SIN RECAUDO'&&d.order.integration_status==='sent'&&d.order.sale_status==='confirmed');
+ await owner.request('/api/wompi/account/settings','PUT',{auto_dropi:false});
  // Editor validation.
  const landing=(await owner.request('/api/landings/'+fixture.landing)).data.landing;
  check('invalid payment mode refused',(await owner.request('/api/landings/'+fixture.landing,'PUT',{content:{...landing.content,commerce:{...landing.content.commerce,paymentMode:'cash'}},slug:landing.slug})).response.status===422);
  check('discount over 50 % refused',(await owner.request('/api/landings/'+fixture.landing,'PUT',{content:{...landing.content,commerce:{...landing.content.commerce,paymentMode:'both',onlineDiscount:80}},slug:landing.slug})).response.status===422);
  console.log(`OK ${count} checks passed`);
 }finally{
- await owner.request('/api/wompi/account','DELETE',{});await helper('payment-setup','cod','0');wompi.close();dropi.close();
+ await owner.request('/api/wompi/account','DELETE',{});await helper('payment-setup','cod','0');wompi.close();dropi.close();dropiOrders.close();
 }

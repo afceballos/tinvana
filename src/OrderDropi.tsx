@@ -22,7 +22,7 @@ export function OrderDropi({dropi,busy,onSubmit,onResolve,tracking=null,charged=
   <p className="muted">{dropi.message}</p>
   {dropi.last?.message&&dropi.status!=='sent'&&<p className="order-dropi-last">Último resultado: {dropi.last.message}{dropi.last.http_status?` (HTTP ${dropi.last.http_status})`:''}</p>}
   {dropi.status!=='sent'&&<ul className="order-readiness">{dropi.checks.map(check=><li key={check.key}><span className={check.ready?'is-ready':'is-pending'}>{check.ready?'Listo':'Pendiente'}</span><span>{check.label}</span></li>)}</ul>}
-  {p&&<dl className="order-dropi-preview">{rows.map(([k,f])=><div key={k}><dt>{k}</dt><dd>{f(p)}</dd></div>)}</dl>}
+  {p&&<dl className="order-dropi-preview">{rows.map(([k,f])=><div key={k}><dt>{k==='Valor a recaudar'&&p.rate_type==='SIN RECAUDO'?'Total pagado (no se recauda)':k}</dt><dd>{f(p)}</dd></div>)}</dl>}
   {dropi.can_submit&&<form className="dropi-send" onSubmit={e=>{e.preventDefault();if(reviewed&&(!confirmed||ack))onSubmit({confirmed,confirmed_ack:ack});}}><fieldset disabled={busy}>
    <fieldset className="dropi-choice"><legend>Estado al enviar</legend>
     <label className={'dropi-option'+(!confirmed?' is-selected':'')}><input type="radio" name="dropi-mode" checked={!confirmed} onChange={()=>{setConfirmed(false);setAck(false);}}/><span><strong>Pendiente de confirmación</strong><small>Llega a Dropi sin confirmar; la revisas y confirmas tú allí.</small></span></label>

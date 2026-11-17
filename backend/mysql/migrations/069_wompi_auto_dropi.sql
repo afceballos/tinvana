@@ -1,0 +1,1 @@
+ALTER TABLE wompi_accounts ADD COLUMN auto_dropi TINYINT NOT NULL DEFAULT 0

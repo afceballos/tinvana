@@ -10,7 +10,7 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
 | 1 · Conexión | «Integraciones → Wompi»: 4 llaves cifradas, guía, URL de eventos con firma y prueba de conexión | Hecha y comprobada en el hosting (2026-11-17) |
 | 2 · Landing | Pago en línea en el formulario; el pedido pasa a «pagado» solo con el evento firmado | Hecha y comprobada en el hosting (reportado por el usuario) |
 | 3 · WhatsApp | Link de pago desde el pedido, en el chat (respuesta automática y asistente) y recordatorio | Hecha y comprobada en el hosting (reportado por el usuario) |
-| 4 · Dropi y avisos | Pedidos pagados a Dropi `SIN RECAUDO`, avisos y Pendientes | Pendiente |
+| 4 · Dropi y avisos | Pedidos pagados confirmados solos y enviados a Dropi SIN RECAUDO (manual por defecto, automático con interruptor), avisos | Hecha en local; falta el primer pedido real |
 
 ## Fase 2 · Decisiones del usuario (2026-11-17)
 
@@ -22,6 +22,31 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
   - El comprador puede reintentar con un link.
   - Si en 48 horas no hay pago aprobado, se cancela solo.
 - **Regla fija:** un pedido solo pasa a «pagado» con el aviso firmado de Wompi (`APPROVED`) cuyo monto y referencia coinciden con el pedido. La página de regreso nunca lo confirma.
+
+## Fase 4 · Dropi SIN RECAUDO y avisos
+
+- **Decisión del usuario (2026-11-17):** opción A por defecto (la tienda revisa y pulsa «Enviar a Dropi»). Opción B (envío automático) solo con un interruptor en «Integraciones → Wompi → Envío a Dropi».
+- **Pago aprobado (`Payments::settle`):**
+  - El pedido queda **confirmado** (`confirmation.source='wompi'`) sin llamada ni «1 SÍ». Los productos propios descuentan su stock, como en cualquier confirmación.
+  - Correos: `buyer_confirmed` dice «Recibimos tu pago» con el total pagado, y `owner_new_order` dice «Nuevo pedido pagado». El aviso «en camino» dice que no hay que pagar al recibir.
+- **Después del commit (`Payments::afterPaid`):**
+  - «¡Pago recibido!» al cliente por WhatsApp, solo dentro de la ventana de 24 horas.
+  - Notificación en el panel.
+  - Con el interruptor (`wompi_accounts.auto_dropi`, apagado por defecto), `DropiOrders::submit` automático. Un fallo queda como `auto_dropi_failed` y nunca deshace el pago.
+- **Envío a Dropi (`DropiOrders`):**
+  - `rate_type` pasa a `SIN RECAUDO` solo para pedidos en línea pagados. Usa el mismo cuerpo, con `payment_method_id` 1 y `total_order` igual a lo que pagó el comprador (en centavos del pago), repartido en el precio de la línea.
+  - Requisitos del pedido en línea: «Pago en línea aprobado por Wompi» y «Precio y envío fijados por el pago» (sin cotización con vencimiento).
+  - Antes de pagarse, el envío responde 409.
+  - **Billetera:** el panel avisa cuánto descontará Dropi (precio del proveedor × cantidad + envío; si el comprador no pagó envío, «+ el envío que calcule Dropi»), según lo visto en la orden 93524042.
+- **Pedido pagado en el panel:**
+  - Sin «Cotización manual» ni «Devolver a revisión». Cotizar, reabrir o editar el cliente responde 409: se cancela y se reembolsa en Wompi.
+  - El total es lo cobrado en Wompi.
+  - La vista previa dice «Total pagado (no se recauda)».
+  - La historia usa nombres claros (pago solicitado, aprobado, rechazado, vencido…).
+- **Landing sin envío de Dropi:** el pedido pagado guarda envío $0 (lo que pagó el comprador). Dropi igual cobra su flete a la billetera.
+- **Migraciones:** PostgreSQL `044_wompi_auto_dropi.sql`; MySQL `069_wompi_auto_dropi.sql`.
+- **Pruebas:** `tests/wompi-payments.mjs` sube a 39 comprobaciones, con Dropi simulado en 8443. Cubre la confirmación automática, los correos, el precio bloqueado, el envío manual SIN RECAUDO con el total pagado, el interruptor apagado por defecto y el envío automático.
+- **Pendiente:** el primer pedido real SIN RECAUDO creado por Tinbana, con un pedido de la tienda. Se cancela en Dropi si algo no cuadra.
 
 ## Fase 3 · Link de pago por WhatsApp
 
@@ -171,4 +196,11 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
   99MINUTOS y WIILOG dan error de bodega en los dos casos. En la fase 4, la cotización de los pedidos pagados debe usar `EnvioConCobro=false`. La cuenta del correo probado primero no tenía Dropi conectado.
 - [x] La cuenta maneja pedidos `SIN RECAUDO` (2026-11-17, `dropi:order-probe rates` ejecutado por el usuario en el hosting). De los 7 pedidos de la cuenta, 6 son `CON RECAUDO` y 1 es `SIN RECAUDO` (orden 93524042, `type` FINAL_ORDER, estado ENTREGADO, `total_order` 50000, `shipping_amount` 10774), con el valor exacto `rate_type: "SIN RECAUDO"`.
   - Para comparar, un CON RECAUDO del 2026-10-23 tenía `total_order` 60000 y `shipping_amount` 16550.
-  - No se sabe si ese pedido se creó por la API o en el panel de Dropi, ni qué método de pago guarda. El listado no trae `payment_method_id`. Antes de la fase 4 conviene leer el detalle de esa orden.
+  - **Detalle de la orden 93524042** (`dropi:order-probe rates <email> 93524042`, ejecutado por el usuario el 2026-11-17):
+    - `rate_type` «SIN RECAUDO», `payment_method_id` **1** (el mismo que Tinbana envía hoy) y `type` FINAL_ORDER.
+    - `total_order` 50000 (igual al `price` del detalle), `shipping_amount` 10774, transportadora ENVIA (id 2). Llegó entregada.
+    - `shop.type` «CHATEA PRO»: la creó otra integración por API, lo que indica que la API acepta `SIN RECAUDO`.
+    - **Billetera de Dropi:** al crearla, Dropi descontó del saldo del dropshipper el costo del proveedor más el flete. Quedó `history_wallet` SALIDA 28274 = `supplier_price` 17500 + envío 10774 (`discounted_amount` 28274; saldo anterior 34063), y `dropshipper_amount_to_win` = 21726 (= 50000 − 28274).
+    - **Para la fase 4:**
+      - Enviar el mismo cuerpo que contraentrega, con `rate_type: "SIN RECAUDO"`, `payment_method_id` 1 y `total_order` = lo que pagó el comprador.
+      - La tienda debe tener **saldo en su billetera de Dropi** que cubra el costo del producto más el flete; si no, el pedido no puede pagarse en Dropi.

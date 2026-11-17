@@ -55,6 +55,7 @@ final class Api {
    if($method==='PUT'){Auth::limit('wompi-save:'.$owner,20,600);return WompiAccount::save($owner,self::body());}
    if($method==='DELETE')return WompiAccount::delete($owner);
   }
+  if($path==='/api/wompi/account/settings'&&$method==='PUT')return WompiAccount::settings($owner,self::body());
   if($path==='/api/wompi/account/test'&&$method==='POST'){Auth::limit('wompi-test:'.$owner,30,600);return WompiAccount::test($owner);}
   if($path==='/api/wompi/account/test-payment'&&$method==='POST'){Auth::limit('wompi-test-payment:'.$owner,20,600);return WompiAccount::testPayment($owner);}
   if($path==='/api/store/tracking'){if($method==='GET')return StoreTracking::view($owner);if($method==='PUT'){Auth::limit('store-tracking:'.$owner,30,600);return StoreTracking::save($owner,self::body());}}

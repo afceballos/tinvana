@@ -16,6 +16,22 @@ final class DropiOrders {
  // PENDIENTE CONFIRMACION -> PENDIENTE -> GUIA_GENERADA; to be verified with the first real order (tracking shows the result).
  public const STATUS_CONFIRMED='PENDIENTE';
  public const RATE_TYPE='CON RECAUDO';
+ /**
+  * Wompi phase 4: an order paid online goes SIN RECAUDO (contract read on 2026-11-17 from a real prepaid order of the
+  * account: same body, payment_method_id 1, total_order = what the buyer paid). Dropi then charges the store's wallet
+  * for the supplier price and the freight.
+  */
+ public const RATE_PREPAID='SIN RECAUDO';
+ public static function rate(array $r): string {return ($r['payment_method']??'cod')==='online'&&($r['payment_status']??'')==='paid'?self::RATE_PREPAID:self::RATE_TYPE;}
+ private static function paidCents(array $r): ?int {$p=json_decode((string)($r['payment']??'null'),true);return is_array($p)&&is_numeric($p['amount_in_cents']??null)?(int)$p['amount_in_cents']:null;}
+ /** What Dropi will take from the store's wallet for a prepaid order (supplier price × quantity + freight), approximate. */
+ public static function walletEstimate(array $r,array $product): ?array {
+  if(self::rate($r)!==self::RATE_PREPAID)return null;$raw=json_decode($product['original_data'],true)?:[];
+  $unit=is_numeric($raw['sale_price']??null)?(float)$raw['sale_price']:null;$ship=$r['shipping_price']===null?null:(float)$r['shipping_price'];
+  if($unit===null)return null;$supplier=round($unit*(int)$r['quantity']);
+  // Freight the buyer did not pay ($0) is still charged by Dropi: unknown here, shown as «+ the freight Dropi computes».
+  return ['supplier'=>$supplier,'shipping'=>$ship!==null&&$ship>0?$ship:null,'total'=>$supplier+($ship!==null&&$ship>0?$ship:0)];
+ }
  private const STALE_SECONDS=120;
 
  private static function endpoint(): string {
@@ -41,7 +57,8 @@ final class DropiOrders {
  public static function payload(array $r,array $product,array $opts=[]): array {
   $raw=json_decode($product['original_data'],true,512,JSON_THROW_ON_ERROR);$mapped=json_decode($product['mapped_data'],true,512,JSON_THROW_ON_ERROR);
   $customer=json_decode($r['customer'],true);$address=json_decode($r['delivery_address'],true);$variant=json_decode($r['variant_data']??'null',true);
-  $qty=(int)$r['quantity'];$total=self::cents($r['unit_price'])*$qty+self::cents($r['shipping_price']);
+  // Prepaid: the total is what the buyer paid (discount and freight included); cash on delivery: what the carrier collects.
+  $qty=(int)$r['quantity'];$total=self::rate($r)===self::RATE_PREPAID&&self::paidCents($r)!==null?self::paidCents($r):self::cents($r['unit_price'])*$qty+self::cents($r['shipping_price']);
   // Same as the plugin: shipping is folded into the unit price so the products add up to the amount collected.
   $line=$raw;$line['name']=$mapped['name']??($raw['name']??'');$line['quantity']=$qty;$line['price']=round($total/$qty/100,2);
   if($variant)$line['variation_id']=(int)$variant['id'];
@@ -53,7 +70,7 @@ final class DropiOrders {
    'dir'=>trim($address['address'].' '.($address['address_details']??'')),
    'country'=>'CO','state'=>$place['state'],'city'=>$place['city'],
    'phone'=>self::phone($customer['phone']),'client_email'=>$customer['email'],
-   'payment_method_id'=>1,'status'=>($opts['confirmed']??false)===true?self::STATUS_CONFIRMED:self::STATUS,'type'=>'FINAL_ORDER','rate_type'=>self::RATE_TYPE,
+   'payment_method_id'=>1,'status'=>($opts['confirmed']??false)===true?self::STATUS_CONFIRMED:self::STATUS,'type'=>'FINAL_ORDER','rate_type'=>self::rate($r),
    'products'=>[$line],'calculate_costs_and_shiping'=>true,'supplier_id'=>self::supplier($raw),'create_product_if_not_exist'=>false,
   ];
  }
@@ -70,13 +87,13 @@ final class DropiOrders {
   if(($r['fulfillment']??'dropi')==='own')return OwnProducts::readiness($r);
   $p=ProductOffers::forOrder($r);$address=json_decode($r['delivery_address'],true);$mapped=json_decode($p['mapped_data'],true);$raw=json_decode($p['original_data'],true);$variants=ProductOffers::variants($p);$variant=json_decode($r['variant_data']??'null',true);$variantValid=!$variants&&strtoupper((string)($mapped['type']??''))!=='VARIABLE';
   foreach($variants as $v)if($variant&&$v['id']===($variant['id']??null))$variantValid=true;
-  $configured=(bool)Database::one('SELECT id FROM integrations WHERE id=? AND user_id=?',[$p['integration_id'],$r['user_id']]);
+  $configured=(bool)Database::one('SELECT id FROM integrations WHERE id=? AND user_id=?',[$p['integration_id'],$r['user_id']]);$online=($r['payment_method']??'cod')==='online';
   $checks=[
-   // Paid online (Payments): Dropi would collect it again as CON RECAUDO; SIN RECAUDO arrives in Wompi phase 4.
-   ...(($r['payment_method']??'cod')==='online'?[['key'=>'prepaid','label'=>'Envío sin recaudo para pedidos pagados en línea (próximamente). Mientras tanto, créalo en Dropi como SIN RECAUDO.','ready'=>false]]:[]),
+   // Online (Payments): only once Wompi approved it; then it goes SIN RECAUDO with the amount the buyer paid.
+   ...($online?[['key'=>'paid','label'=>'Pago en línea aprobado por Wompi','ready'=>($r['payment_status']??'')==='paid']]:[]),
    ['key'=>'integration','label'=>'Integración del catálogo configurada','ready'=>$configured],
    ['key'=>'buyer_acceptance','label'=>'Aceptación del comprador registrada','ready'=>$r['sale_status']==='confirmed'&&$r['confirmation']!==null],
-   ['key'=>'quote','label'=>'Cotización vigente con precio y envío','ready'=>$r['quote_id']!==null&&$r['quote_expires_at']!==null&&strtotime($r['quote_expires_at'])>time()&&$r['shipping_price']!==null],
+   $online?['key'=>'quote','label'=>'Precio y envío fijados por el pago','ready'=>$r['unit_price']!==null&&$r['shipping_price']!==null]:['key'=>'quote','label'=>'Cotización vigente con precio y envío','ready'=>$r['quote_id']!==null&&$r['quote_expires_at']!==null&&strtotime($r['quote_expires_at'])>time()&&$r['shipping_price']!==null],
    ['key'=>'address','label'=>'Dirección de Colombia con departamento y municipio','ready'=>($address['country_code']??'')==='CO'&&!empty($address['department_code'])&&!empty($address['city_code'])&&!empty($address['address'])],
    ['key'=>'variant','label'=>'Variante del catálogo seleccionada cuando aplica','ready'=>$variantValid],
    ['key'=>'supplier','label'=>'Producto con ID y proveedor de Dropi','ready'=>is_array($raw)&&!empty($raw['id'])&&self::supplier($raw)!==null],
@@ -91,10 +108,11 @@ final class DropiOrders {
    $status==='unknown'||self::stale($r)=>'No sabemos si Dropi creó la orden. Búscala en tu panel de Dropi antes de hacer nada y registra aquí lo que encuentres. No se reintenta automáticamente para no duplicarla.',
    $status==='sending'=>'Envío en curso. Actualiza el pedido en unos segundos.',
    $status==='failed'=>'Dropi rechazó el último envío y no creó la orden. Corrige lo indicado y vuelve a enviarlo.',
-   $can=>'Al enviarlo, Dropi recibirá la orden como '.self::STATUS.' y cobro '.self::RATE_TYPE.'. Revísala y confírmala en Dropi para generar la guía.',
+   $can&&($w=self::walletEstimate($r,$p))!==null=>'Al enviarlo, Dropi recibirá la orden como '.self::STATUS.' y '.self::RATE_PREPAID.' (ya está pagada). Dropi descontará de tu billetera '.($w['shipping']!==null?'unos $'.number_format($w['total'],0,',','.').' (producto al proveedor $'.number_format($w['supplier'],0,',','.').' + envío $'.number_format($w['shipping'],0,',','.').')':'el producto al proveedor ($'.number_format($w['supplier'],0,',','.').') + el envío que calcule Dropi').': revisa que tengas saldo. Luego confírmala en Dropi para generar la guía.',
+   $can=>'Al enviarlo, Dropi recibirá la orden como '.self::STATUS.' y cobro '.self::rate($r).'. Revísala y confírmala en Dropi para generar la guía.',
    default=>'Completa los requisitos pendientes para habilitar el envío.'
   };
-  return ['mode'=>'submission','status'=>$status,'can_submit'=>$can,'can_resolve'=>$status==='unknown'||self::stale($r),'dropi_order_id'=>$r['dropi_order_id']??null,'last'=>$data,'preview'=>$preview,'checks'=>$checks,'message'=>$message];
+  return ['mode'=>'submission','rate_type'=>self::rate($r),'wallet'=>self::walletEstimate($r,$p),'status'=>$status,'can_submit'=>$can,'can_resolve'=>$status==='unknown'||self::stale($r),'dropi_order_id'=>$r['dropi_order_id']??null,'last'=>$data,'preview'=>$preview,'checks'=>$checks,'message'=>$message];
  }
 
  /** Sends one confirmed order. Returns the refreshed order detail. $automatic: sent after the buyer confirmed by WhatsApp. */
@@ -109,7 +127,8 @@ final class DropiOrders {
    $r=Orders::owned($owner,$id,true);
    if(!isset($b['version'])||!is_int($b['version'])||$b['version']!==(int)$r['version'])throw new HttpError(409,'El pedido cambió. Actualiza el detalle antes de continuar.');
    if(($r['fulfillment']??'dropi')==='own')throw new HttpError(409,'Este pedido es de un producto propio: no se envía a Dropi, lo despachas tú.');
-   if(($r['payment_method']??'cod')==='online')throw new HttpError(409,'Este pedido se pagó en línea: enviarlo así a Dropi lo cobraría otra vez contraentrega. Créalo en Dropi como SIN RECAUDO; el envío automático sin recaudo llega pronto.');
+   // Never as cash on delivery an order paid online, nor before its payment is approved.
+   if(($r['payment_method']??'cod')==='online'&&($r['payment_status']??'')!=='paid')throw new HttpError(409,'Este pedido espera el pago en línea: se envía a Dropi cuando Wompi lo apruebe.');
    if(!in_array($r['integration_status'],['not_sent','failed'],true))throw new HttpError(409,'Este pedido ya tiene un envío a Dropi registrado o pendiente de revisión.');
    $check=self::readiness($r);if(!$check['can_submit'])throw new HttpError(409,'Completa los requisitos de envío antes de mandar el pedido a Dropi.');
    $product=ProductOffers::forOrder($r);$integration=Database::one('SELECT * FROM integrations WHERE id=? AND user_id=?',[$product['integration_id'],$owner]);

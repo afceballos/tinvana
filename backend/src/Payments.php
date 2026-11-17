@@ -57,6 +57,8 @@ final class Payments {
    $shipping=(float)$q['amount'];$carrier=$q['carrier']??null;
    $data['shipping_source']='dropi';$data['shipping_price']=$shipping;$data['shipping_carrier']=$carrier;
   }
+  // Without Dropi freight on the landing the buyer paid no shipping: the order keeps $0 (Dropi still charges its freight to the wallet).
+  if($shipping===0.0){$data['shipping_source']='included';$data['shipping_price']=0;}
   $amount=$goods-$discount+$shipping;$data['grand_total']=$amount;$data['payment_method']='online';
   return ['method'=>'online','reference'=>'tb-'.bin2hex(random_bytes(8)),'goods'=>$goods,'discount_percent'=>$pct,'discount'=>$discount,'shipping'=>$shipping,'shipping_carrier'=>$carrier,'amount'=>$amount,'amount_in_cents'=>(int)round($amount*100),'currency'=>'COP','attempts'=>0];
  }
@@ -102,32 +104,59 @@ final class Payments {
   try{
    $o=Database::one("SELECT * FROM orders WHERE user_id=? AND payment_reference=? AND payment_method='online' FOR UPDATE",[$account['user_id'],$m[1]]);
    if(!$o){$db->commit();return;}
-   self::settle($o,$t,'event');$db->commit();
+   $paid=self::settle($o,$t,'event');$db->commit();
   }catch(\Throwable $e){$db->rollBack();throw $e;}
+  if($paid)self::afterPaid((string)$o['id']);
  }
 
- /** One transaction result on its order (row locked by the caller). */
- private static function settle(array $o,array $t,string $source): void {
+ /** One transaction result on its order (row locked by the caller). True when it just became paid (not a late payment). */
+ private static function settle(array $o,array $t,string $source): bool {
   $p=self::data($o);$status=(string)($t['status']??'');$p['last_status']=$status;$p['last_transaction']=(string)($t['id']??'');
   if($status!=='APPROVED'){
    Database::query('UPDATE orders SET payment=?::jsonb,updated_at=now() WHERE id=?',[Support::json($p),$o['id']]);
    if(in_array($status,['DECLINED','ERROR','VOIDED'],true))Orders::event($o,'payment_declined',['status'=>$status,'transaction_id'=>$t['id']??null,'reference'=>$t['reference']??null],null);
-   return;
+   return false;
   }
-  if($o['payment_status']==='paid')return;
+  if($o['payment_status']==='paid')return false;
   $amount=(int)($t['amount_in_cents']??-1);$currency=(string)($t['currency']??'COP');
   if($amount!==(int)($p['amount_in_cents']??-2)||$currency!=='COP'){
    $p['mismatch']=['amount_in_cents'=>$amount,'currency'=>$currency,'transaction_id'=>$t['id']??null];
    Database::query('UPDATE orders SET payment=?::jsonb,updated_at=now() WHERE id=?',[Support::json($p),$o['id']]);
-   Orders::event($o,'payment_mismatch',['expected_in_cents'=>$p['amount_in_cents']??null,'received_in_cents'=>$amount,'currency'=>$currency,'transaction_id'=>$t['id']??null],null);return;
+   Orders::event($o,'payment_mismatch',['expected_in_cents'=>$p['amount_in_cents']??null,'received_in_cents'=>$amount,'currency'=>$currency,'transaction_id'=>$t['id']??null],null);return false;
   }
   $p['transaction_id']=(string)($t['id']??'');$p['method']=is_string($t['payment_method_type']??null)?$t['payment_method_type']:null;$p['source']=$source;
   $late=$o['sale_status']==='cancelled';
   Database::query("UPDATE orders SET payment_status='paid',paid_at=now(),payment=?::jsonb,version=version+1,updated_at=now() WHERE id=?",[Support::json($p),$o['id']]);
   $o=Database::one('SELECT * FROM orders WHERE id=?',[$o['id']]);
   Orders::event($o,$late?'payment_after_cancel':'payment_approved',['amount'=>$p['amount']??null,'transaction_id'=>$p['transaction_id'],'method'=>$p['method'],'source'=>$source],null);
-  // The buyer and the store hear about an online order once it is paid (cash on delivery: when it is placed).
-  if(!$late){OrderMail::queue($o,'buyer_received');OrderMail::queue($o,'owner_new_order');}
+  if($late)return false;
+  // Phase 4: paying is the buyer's confirmation (no call, no «1 SÍ»). The confirmation email says the payment arrived;
+  // the store hears about the new paid order. Own products take their stock here, as on any confirmation.
+  OrderMail::queue($o,'owner_new_order');
+  if($o['sale_status']==='draft')Orders::confirmByCustomer($o,['source'=>'wompi','evidence'=>'Pago en línea aprobado por Wompi','transaction_id'=>$p['transaction_id'],'amount'=>$p['amount']??null,'accepted'=>true,'at'=>gmdate('c')]);
+  return true;
+ }
+
+ /**
+  * After the commit of a newly paid order: «pago recibido» in the WhatsApp chat (only inside the 24-hour window), a panel
+  * notification, and with option B (auto_dropi) the order goes to Dropi SIN RECAUDO by itself. Failures never undo the payment.
+  */
+ public static function afterPaid(string $id): void {
+  $o=Database::one('SELECT * FROM orders WHERE id=?',[$id]);if(!$o||$o['payment_status']!=='paid')return;
+  $owner=(string)$o['user_id'];$p=self::data($o);$amount='$'.number_format((float)($p['amount']??0),0,',','.');$own=($o['fulfillment']??'dropi')==='own';
+  $a=WompiAccount::ofUser($owner);$auto=!$own&&$a&&(int)($a['auto_dropi']??0)===1&&Entitlements::allows($owner,'dropi_orders');
+  try{
+   $c=self::conversationFor($o);$wa=WhatsAppAccount::ofUser($owner);
+   if($c&&$wa&&Entitlements::allows($owner,'whatsapp')&&WhatsAppInbox::windowOpen($c['last_customer_at'])){
+    $name=trim((string)(json_decode((string)$o['customer'],true)['first_name']??''));
+    WhatsAppInbox::sendText($wa,$c,'¡Pago recibido'.($name!==''?', '.$name:'').'! Tu pedido '.Orders::displayNumber($o).' por '.$amount.' quedó confirmado. Te avisaremos cuando salga hacia tu dirección.','system',null);
+   }
+  }catch(\Throwable $t){error_log('Tinbana paid notice: '.get_class($t));}
+  $c=json_decode((string)$o['customer'],true)?:[];$who=trim(($c['first_name']??'').' '.($c['last_name']??''))?:'Un cliente';
+  Notifications::notify($owner,'order_confirmed',$who.' pagó su pedido en línea','Pedido '.Orders::displayNumber($o).' · '.$amount.'. '.($own?'Es un producto propio: prepáralo y márcalo como despachado.':($auto?'Se envía a Dropi como SIN RECAUDO automáticamente.':'Revísalo y envíalo a Dropi como SIN RECAUDO.')),'/panel/pedidos/'.$o['id'],null);
+  if(!$auto)return;
+  try{DropiOrders::submit($owner,(string)$o['id'],['confirm'=>true,'version'=>(int)$o['version']],true);}
+  catch(\Throwable $t){error_log('Tinbana paid order to Dropi: '.get_class($t));Orders::event($o,'auto_dropi_failed',['message'=>$t instanceof HttpError?$t->getMessage():'No se pudo enviar a Dropi'],null);}
  }
 
  /**
@@ -135,13 +164,13 @@ final class Payments {
   * the order is cancelled as expired. Called every minute by mail:work; bounded per run.
   */
  public static function expire(int $max=20): array {
-  $out=['paid'=>0,'expired'=>0];
+  $out=['paid'=>0,'expired'=>0];$after=[];
   foreach(Database::all("SELECT id FROM orders WHERE payment_method='online' AND payment_status='pending' AND sale_status<>'cancelled' AND payment_due_at<now() ORDER BY payment_due_at LIMIT ".max(1,min(100,$max))) as $row){
    $db=Database::connection();$db->beginTransaction();
    try{
     $o=Database::one("SELECT * FROM orders WHERE id=? AND payment_status='pending' FOR UPDATE",[$row['id']]);if(!$o){$db->commit();continue;}
     $found=self::reconcile($o);
-    if($found){self::settle($o,$found,'reconcile');$out['paid']++;}
+    if($found){if(self::settle($o,$found,'reconcile'))$after[]=(string)$o['id'];$out['paid']++;}
     else{
      Database::query("UPDATE orders SET payment_status='expired',sale_status='cancelled',version=version+1,updated_at=now() WHERE id=?",[$o['id']]);
      Orders::event(Database::one('SELECT * FROM orders WHERE id=?',[$o['id']]),'payment_expired',['hours'=>self::DUE_HOURS],null);$out['expired']++;
@@ -149,6 +178,7 @@ final class Payments {
     $db->commit();
    }catch(\Throwable $e){$db->rollBack();error_log('Tinbana payment expiry: '.get_class($e));}
   }
+  foreach($after as $id)self::afterPaid($id);
   return $out;
  }
 

@@ -146,7 +146,7 @@ No solicitar que se peguen secretos en el chat. El remitente `no-reply@zenzales.
   - [x] Fase 1 (conexión) desplegada y comprobada en el hosting (2026-11-17): aviso real del sandbox recibido y secretos en verde.
   - [x] Fase 2 (pago en la landing) desplegada y comprobada en el hosting con el sandbox (reportado por el usuario).
   - [x] Fase 3 (link de pago por WhatsApp) desplegada y comprobada en el hosting (reportado por el usuario).
-  - [ ] Fase 4: Dropi SIN RECAUDO para pedidos pagados. La cuenta ya tiene un pedido SIN RECAUDO entregado (lectura del 2026-11-17); falta leer su detalle (método de pago).
+  - [x] Fase 4 (Dropi SIN RECAUDO y avisos) implementada y comprobada en local. Falta el primer pedido real SIN RECAUDO. Sin desplegar.
 
 No volver a añadir filtro de favoritos sin comprobarlo. Categorías, orden por precio y selector de tamaño no están expuestos inicialmente en el catálogo del panel.
 
@@ -1208,7 +1208,26 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 ### 2026-11-17 · Dropi: la cuenta tiene pedidos SIN RECAUDO
 - **Cambio:** `dropi:order-probe rates [email]`, de solo lectura, cuenta los `rate_type` de los últimos pedidos de la cuenta (commit `6a21015`).
 - **Resultado (ejecutado por el usuario en el hosting):** 7 pedidos, 6 `CON RECAUDO` y 1 `SIN RECAUDO` (orden 93524042, entregada, total 50000, envío 10774). El valor exacto es `SIN RECAUDO`. Detalle en [WOMPI.md](WOMPI.md).
-- **Siguiente paso:** leer el detalle de la orden 93524042 (método de pago y campos de cobro) y armar la fase 4.
+- **Detalle de la orden 93524042 (mismo día):**
+  - `payment_method_id` 1, `total_order` 50000 y la creó la integración «CHATEA PRO» por API.
+  - Dropi cobró de la billetera de la tienda el costo del proveedor más el flete (28274).
+- **Siguiente paso:** fase 4, con aviso de saldo en la billetera de Dropi.
+
+### 2026-11-17 · Wompi, fase 4 (Dropi SIN RECAUDO y avisos)
+- **Pedido del usuario:** las dos opciones; por defecto, la tienda envía cada pedido pagado a Dropi (A), y el envío automático (B) con un interruptor.
+- **Cambio:**
+  - Al aprobarse el pago, el pedido queda confirmado solo, con correo «Recibimos tu pago», WhatsApp «¡Pago recibido!» (dentro de la ventana) y notificación.
+  - Los pedidos pagados se envían a Dropi como SIN RECAUDO con el total pagado y el aviso de lo que descontará la billetera.
+  - Interruptor «Enviar a Dropi automáticamente los pedidos pagados», apagado por defecto.
+  - Los pedidos pagados ya no se cotizan ni se devuelven a revisión.
+  - Al revisarlo en el navegador se corrigieron un pedido pagado sin envío que no se podía enviar y los textos de contraentrega en pedidos pagados.
+  - Migraciones PostgreSQL 044 y MySQL 069. Guía: [WOMPI.md](WOMPI.md).
+- **Comprobado (local):**
+  - `wompi-payments` 39.
+  - También pasan `wompi-whatsapp` 11, `wompi-connection` 29, `orders` 37, `order-editing` 52, `dropi-orders` 36, `dropi-confirmed` 8, `dropi-tracking` 28, `own-products` 29, `order-mail` 24, `whatsapp-confirm` 92, `whatsapp-notify` 27 y `whatsapp-agent` 101.
+  - En el navegador: pedido pagado listo para Dropi SIN RECAUDO, con el aviso de la billetera, y el interruptor apagado.
+- **Limitaciones:** el estimado de la billetera es aproximado (precio del proveedor del catálogo + el envío cobrado).
+- **Siguiente paso:** desplegar (migración 069) y crear el primer pedido real SIN RECAUDO con un pedido de la tienda; si algo no cuadra, cancelarlo en Dropi antes de la guía.
 
 ### Plantilla para la próxima actualización
 
