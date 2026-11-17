@@ -33,6 +33,7 @@ final class Api {
    if($method==='PUT')return ProductOffers::save($owner,$m[1],self::body());
   }
   if(preg_match('~^/api/orders/([^/]+)/shipping$~',$path,$m)&&$method==='POST')return OwnProducts::ship($owner,$m[1],self::body());
+  if(preg_match('~^/api/orders/([^/]+)/payment-link$~',$path,$m)&&$method==='POST')return Payments::sendLink($owner,$m[1],self::body());
   if($path==='/api/orders'){
    if($method==='GET')return Orders::listing($owner,$_GET);
    if($method==='POST')return Orders::create($owner,self::body());

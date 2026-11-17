@@ -12,7 +12,9 @@ namespace App;
  * messages exactly once, also when several arrive while it is thinking.
  */
 final class WhatsAppAgent {
- public const ACTIONS=['none','ask_product','request_quote','present_summary','confirm','handoff','show_order','not_interested','opt_out'];
+ public const ACTIONS=['none','ask_product','request_quote','present_summary','confirm','handoff','show_order','payment_link','not_interested','opt_out'];
+ /** Wompi phase 3: the customer asked for a payment link but has no order waiting for an online payment. */
+ public const NO_PAYMENT='No veo un pedido tuyo esperando pago en línea. Si quieres, dime el número de tu pedido y lo reviso.';
  /** Goodbye when the customer is not interested and the AI wrote nothing. */
  public const NOT_INTERESTED='Entendido, gracias por avisarnos. 😊 Si más adelante necesitas algo, escríbenos aquí mismo.';
  public const CAPTURE=['name'=>'Nombre','city'=>'Ciudad','department'=>'Departamento','address'=>'Dirección','neighborhood'=>'Barrio','reference'=>'Referencia','quantity'=>'Cantidad','variant'=>'Variante','email'=>'Correo'];
@@ -149,6 +151,12 @@ final class WhatsAppAgent {
     if($number&&isset($mine[$number])){WhatsAppOrderChat::show($owner,$id,(string)$mine[$number]);return true;}
     if(!$number&&count($mine)>0){WhatsAppOrderChat::answerOrderQuestion($owner,$c);return true;}
     if(!$number){WhatsAppInbox::sendText($account,$c,self::ASK_ORDER,'system',null);return true;}}
+   // Wompi phase 3: the payment link of an order waiting for its online payment; the server writes it, never the AI.
+   if($action==='payment_link'){$number=Orders::normalizeNumber(is_string($d['order_number']??null)?$d['order_number']:'');
+    $waiting=array_values(array_filter(WhatsAppOrderChat::ordersFor($owner,$c),fn($o)=>Payments::retryUrl($o)!==null&&(!$number||$o['order_number']===$number)));
+    if($waiting){$o=$waiting[0];WhatsAppInbox::sendText($account,$c,Payments::linkText($o),'system',null);Orders::event($o,'payment_link_sent',['channel'=>'whatsapp_ai','conversation_id'=>$c['id']],null);}
+    else WhatsAppInbox::sendText($account,$c,self::NO_PAYMENT,'system',null);
+    return true;}
    if($reply==='')$reply=$s['messages']['fallback'];
    // Stage 5: with «Vender por WhatsApp» on, the server builds the order and shows the summary (never the AI's text).
    if($sell&&in_array($action,['request_quote','present_summary','confirm'],true)){
@@ -193,7 +201,7 @@ final class WhatsAppAgent {
    .'Nunca digas ni calcules precios, costos de envío, totales, descuentos, tiempos de entrega ni disponibilidad, salvo el texto exacto de "offer.price_text", del "price_text" del producto en "products" o de "sheet.price_note" si existen.'."\n"
    .'Si el cliente pide ver el producto, fotos o más detalles, comparte el "url" de ese producto en "products", copiado exacto (si es null, no hay enlace: no inventes uno). No envíes el enlace si no lo pide.'."\n"
    .'Si el cliente pregunta qué productos hay, cuéntale los de "products" (nombre y "price_text" si lo tiene) y pregunta cuál le interesa; cuando pregunte por uno, devuelve su id en "product_id".'."\n"
-   .'En "orders" están los pedidos de este cliente (número, producto, total, estado y si falta confirmarlo). No inventes estados ni datos de pedidos. Si pregunta por un pedido, quiere confirmarlo o ver su información, usa action "show_order" con su número en "order_number" (o "" si tiene varios y no sabes cuál): el sistema le muestra el pedido y, si falta confirmarlo, le pregunta «1 SÍ / 2 NO». No digas que un pedido quedó confirmado: eso lo hace el sistema. Si no tiene pedidos en "orders", pídele su número de pedido, que empieza por TB. No pases a un asesor por preguntas sobre pedidos; solo si reporta un problema.'."\n"
+   .'En "orders" están los pedidos de este cliente (número, producto, total, estado y si falta confirmarlo). No inventes estados ni datos de pedidos. Si pregunta por un pedido, quiere confirmarlo o ver su información, usa action "show_order" con su número en "order_number" (o "" si tiene varios y no sabes cuál): el sistema le muestra el pedido y, si falta confirmarlo, le pregunta «1 SÍ / 2 NO». Si un pedido tiene "payment" «en línea, esperando pago» y el cliente quiere pagarlo, pide el link, dice que no pudo pagar o pregunta cómo pagar, usa action "payment_link" con su número en "order_number": el sistema le envía el link de pago. Nunca escribas links ni montos de pago tú. No digas que un pedido quedó confirmado: eso lo hace el sistema. Si no tiene pedidos en "orders", pídele su número de pedido, que empieza por TB. No pases a un asesor por preguntas sobre pedidos; solo si reporta un problema.'."\n"
    .'En "memory" está lo que ya sabes de esta conversación; devuelve en "memory" un resumen breve y actualizado (qué quiere el cliente, sus datos, pedidos mencionados y en qué quedó), máximo 400 caracteres. Si "order_number" no aplica, déjalo en "".'."\n"
    .$sell
    .'Si "product" es null y hay varios productos en "products", pregunta cuál le interesa (action "ask_product"). Cuando lo identifiques, devuelve su id exacto en "product_id"; si no, deja "product_id" en "".'."\n"

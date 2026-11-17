@@ -1,0 +1,1 @@
+ALTER TABLE whatsapp_reminders DROP CONSTRAINT whatsapp_reminders_kind_ck

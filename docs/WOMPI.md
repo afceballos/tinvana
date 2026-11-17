@@ -8,8 +8,8 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
 |---|---|---|
 | 0 · Verificación | Firmas de Wompi, llaves de prueba en el sandbox, cotización de Dropi con pago anticipado y aceptación de `SIN RECAUDO` | Hecha, salvo la confirmación de Dropi |
 | 1 · Conexión | «Integraciones → Wompi»: 4 llaves cifradas, guía, URL de eventos con firma y prueba de conexión | Hecha y comprobada en el hosting (2026-11-17) |
-| 2 · Landing | Pago en línea en el formulario; el pedido pasa a «pagado» solo con el evento firmado | Hecha en local; falta un pago real en el hosting |
-| 3 · WhatsApp | Link de pago desde el pedido y desde el asistente | Pendiente |
+| 2 · Landing | Pago en línea en el formulario; el pedido pasa a «pagado» solo con el evento firmado | Hecha y comprobada en el hosting (reportado por el usuario) |
+| 3 · WhatsApp | Link de pago desde el pedido, en el chat (respuesta automática y asistente) y recordatorio | Hecha en local |
 | 4 · Dropi y avisos | Pedidos pagados a Dropi `SIN RECAUDO`, avisos y Pendientes | Pendiente |
 
 ## Fase 2 · Decisiones del usuario (2026-11-17)
@@ -22,6 +22,28 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
   - El comprador puede reintentar con un link.
   - Si en 48 horas no hay pago aprobado, se cancela solo.
 - **Regla fija:** un pedido solo pasa a «pagado» con el aviso firmado de Wompi (`APPROVED`) cuyo monto y referencia coinciden con el pedido. La página de regreso nunca lo confirma.
+
+## Fase 3 · Link de pago por WhatsApp
+
+- **Regla:** el link siempre lo escribe el servidor (`Payments::retryUrl`, la landing + `/pagar/<ref>`), nunca la IA. Solo existe mientras el pedido en línea espera el pago y no está cancelado.
+- **Desde el pedido** (botón «Enviar link por WhatsApp» en la tarjeta de pago; `POST /api/orders/<id>/payment-link`):
+  - Si el cliente escribió en las últimas 24 horas, Tinbana le envía el mensaje con el link, el total y el vencimiento, y queda `payment_link_sent` en la historia del pedido.
+  - Si no (o no hay chat, o el plan no incluye WhatsApp), WhatsApp no deja enviar texto libre. La tarjeta lo explica y ofrece «Abrir en mi WhatsApp» (`wa.me` con el mensaje listo).
+  - Las plantillas aún no admiten botones con link, así que fuera de la ventana no se envía nada automático.
+- **En el chat:**
+  - Cuando el cliente pregunta por «mi pedido», la respuesta automática del servidor muestra el estado y, si espera el pago, el link (`WhatsAppOrderChat::show`).
+  - El asistente ve en `orders` el campo `payment` («contraentrega», «en línea, esperando pago», «en línea, pagado» o «en línea, vencido sin pago»).
+  - La acción `payment_link` hace que el servidor envíe el link del pedido pendiente (por número, o el más reciente). Si no hay pedido pendiente, responde que no ve uno. El texto o los links que escriba la IA en esa respuesta no se envían.
+- **No se confirma sin pagar:**
+  - Un pedido en línea pendiente no ofrece «1 SÍ / 2 NO» en el chat (`confirmable`).
+  - No se envía la confirmación contraentrega por WhatsApp (`WhatsAppOrderConfirm::forOrder`).
+  - `Orders::confirmByCustomer` lo rechaza.
+- **Recordatorio** (`payment_pending`, en «Ventas WhatsApp → Confirmaciones → Recordatorios», activo por defecto):
+  - Una vez, si el pedido sigue sin pagar 24 horas después de creado y faltan más de 1 hora para el vencimiento.
+  - Solo si el chat está dentro de la ventana de 24 horas (sin plantilla ni costo); si no, queda omitido con el motivo.
+  - Corre con `whatsapp:work`.
+- **Migraciones:** PostgreSQL `043_reminders_payment_pending.sql`; MySQL `067_reminders_kind_drop.sql` y `068_reminders_payment_pending.sql` (nuevo valor de `whatsapp_reminders.kind`).
+- **Pruebas:** `tests/wompi-whatsapp.mjs` (11 comprobaciones) con Meta, OpenAI y Wompi simulados. El asistente solo responde con una ficha de producto aprobada (regla existente).
 
 ## Fase 2 · Cómo funciona
 
@@ -62,7 +84,7 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
 - **Migraciones:** PostgreSQL `042_orders_online_payment.sql`; MySQL `065_orders_payment_status_drop.sql` y `066_orders_online_payment.sql`. `payment_status` pasa a admitir `pending`, `paid` y `expired`.
 - **Protección hasta la fase 4:** un pedido pagado en línea no se puede enviar a Dropi (la revisión de envío muestra «Envío sin recaudo… próximamente» y el envío responde 409), porque saldría CON RECAUDO y la transportadora le cobraría otra vez al cliente. Mientras tanto se crea a mano en Dropi como SIN RECAUDO.
 - **Pruebas:** `tests/wompi-payments.mjs` (33 comprobaciones) con Wompi y Dropi simulados. En el navegador, con las llaves de sandbox: opción y totales, paso a Wompi, regreso aprobado y rechazado (con avisos firmados enviados en local), tarjeta del pedido y editor.
-- **Pendiente:** un pago real de punta a punta en el hosting, donde Wompi sí puede enviar el aviso y devolver al comprador a la landing.
+- **Comprobado en el hosting:** el usuario desplegó el commit `9e4b7bb` e hizo la compra de prueba con las llaves de sandbox siguiendo la guía. Reportó que todo funcionó: pago en línea desde la landing, regreso con el resultado y pedido pagado en el panel.
 
 ## Fase 1 · Conexión
 

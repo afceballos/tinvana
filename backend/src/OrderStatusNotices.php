@@ -21,7 +21,7 @@ final class OrderStatusNotices {
  // ---- Settings ----
 
  /** Reminders (stage 6B, WhatsAppReminders) share these settings: both on by default. */
- public const REMINDERS=['unconfirmed'=>'Pedido sin confirmar','abandoned'=>'Compra a medias en el chat'];
+ public const REMINDERS=['unconfirmed'=>'Pedido sin confirmar','abandoned'=>'Compra a medias en el chat','payment_pending'=>'Pago en línea pendiente'];
  public static function defaults(): array {return ['whatsapp'=>array_fill_keys(array_keys(self::STATES),true),'template_id'=>null,'reminders'=>array_fill_keys(array_keys(self::REMINDERS),true)];}
  public static function settings(string $owner): array {
   $s=self::defaults();$row=Database::one('SELECT settings FROM whatsapp_notice_settings WHERE user_id=?',[$owner]);

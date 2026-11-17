@@ -341,7 +341,8 @@ final class WhatsAppOrderConfirm {
   $waiting=$row&&!$customer&&in_array($row['status'],['queued','sending'],true);
   $at=$customer?(new \DateTimeImmutable((string)$row['send_after']))->setTimezone(new \DateTimeZone('America/Bogota'))->format('H:i'):'';
   $current=$row&&$row['status']==='sent'&&$row['quote_id']===$r['quote_id']&&(int)$row['order_version']===(int)$r['version'];
-  $editable=$r['sale_status']==='draft'&&in_array($r['integration_status'],['not_sent','failed'],true);
+  // An online order waiting for its payment is not confirmed by WhatsApp: paying confirms it (Payments).
+  $editable=$r['sale_status']==='draft'&&in_array($r['integration_status'],['not_sent','failed'],true)&&!Payments::awaiting($r);
   $hint=match(true){
    !$active=>'Activa la confirmación por WhatsApp en Ventas WhatsApp → Confirmaciones.',
    !$editable=>null,

@@ -26,6 +26,8 @@ final class Payments {
   $mode=$r['content']['commerce']['paymentMode']??'cod';if(!in_array($mode,self::MODES,true))$mode='cod';
   return $mode!=='cod'&&self::account((string)($r['user_id']??''))?$mode:'cod';
  }
+ /** Online order still waiting for an approved payment (it cannot be confirmed meanwhile). */
+ public static function awaiting(array $o): bool {return ($o['payment_method']??'cod')==='online'&&($o['payment_status']??'')!=='paid';}
  public static function discountPercent(array $c): int {$d=$c['commerce']['onlineDiscount']??0;return is_int($d)&&$d>=0&&$d<=50?$d:0;}
 
  /** Payment choice of the landing form ('' for cash on delivery only). */
@@ -148,6 +150,51 @@ final class Payments {
    }catch(\Throwable $e){$db->rollBack();error_log('Tinbana payment expiry: '.get_class($e));}
   }
   return $out;
+ }
+
+ /**
+  * Wompi phase 3: the payment link of a pending order by WhatsApp. The server always writes the link (never the AI):
+  * inside the 24-hour window Tinbana sends it; outside, only a template could, and templates have no link buttons yet,
+  * so the store gets a wa.me address that opens its own WhatsApp with the message ready.
+  */
+ public static function retryUrl(array $o): ?string {
+  if(!self::awaiting($o)||$o['payment_status']!=='pending'||$o['sale_status']==='cancelled'||empty($o['payment_reference']))return null;
+  $p=json_decode((string)$o['product_data'],true)?:[];$landing=is_string($p['landing_url']??null)?$p['landing_url']:'';
+  return preg_match('~^https?://[^\s]+/p/[a-z0-9-]+$~D',$landing)?$landing.'/pagar/'.$o['payment_reference']:null;
+ }
+ public static function linkText(array $o,bool $reminder=false): string {
+  $c=json_decode((string)$o['customer'],true)?:[];$name=trim((string)($c['first_name']??''));$p=self::data($o);
+  $amount='$'.number_format((float)($p['amount']??0),0,',','.');$due=$o['payment_due_at']?(new \DateTimeImmutable((string)$o['payment_due_at'].' UTC'))->setTimezone(new \DateTimeZone('America/Bogota'))->format('d/m h:i a'):null;
+  return 'Hola'.($name!==''?' '.$name:'').($reminder?', tu pedido '.Orders::displayNumber($o).' sigue reservado, pero aún no vemos el pago.':', este es el link para pagar tu pedido '.Orders::displayNumber($o).'.')
+   ."\nTotal: ".$amount.' (tarjeta, PSE, Nequi y más con Wompi).'."\n".self::retryUrl($o)
+   .($due?"\nSi no se paga antes del ".$due.', el pedido se cancela solo.':'')."\nSi ya pagaste, ignora este mensaje.";
+ }
+ /** The store's open chat with this order's customer (any window state), or null. */
+ public static function conversationFor(array $o): ?array {
+  $a=WhatsAppAccount::ofUser((string)$o['user_id']);$phone=preg_replace('/\D/','',(string)(json_decode((string)$o['customer'],true)['phone']??''))??'';
+  if(!$a||!preg_match('/^[1-9][0-9]{7,14}$/D',$phone))return null;
+  return Database::one('SELECT c.*,ct.phone,ct.profile_name FROM whatsapp_conversations c JOIN whatsapp_contacts ct ON ct.id=c.contact_id AND ct.user_id=c.user_id WHERE c.user_id=? AND c.account_id=? AND ct.phone=? ORDER BY c.last_customer_at DESC LIMIT 1',[$o['user_id'],$a['id'],$phone]);
+ }
+ /** Panel: send the link in the chat when the window is open; always returns the wa.me fallback. */
+ public static function sendLink(string $owner,string $id,array $b): array {
+  $o=Orders::owned($owner,$id);$url=self::retryUrl($o);if($url===null)throw new HttpError(409,'Este pedido no tiene un pago en línea pendiente.');
+  $text=self::linkText($o);$phone=preg_replace('/\D/','',(string)(json_decode((string)$o['customer'],true)['phone']??''))??'';
+  $waMe=preg_match('/^[1-9][0-9]{7,14}$/D',$phone)?'https://wa.me/'.$phone.'?text='.rawurlencode($text):null;
+  $out=['sent'=>false,'wa_me'=>$waMe,'text'=>$text];
+  if(($b['channel']??'whatsapp')!=='whatsapp')return $out+['message'=>'Link listo para enviar.'];
+  if(!Entitlements::allows($owner,'whatsapp'))return $out+['message'=>'Tu plan no incluye WhatsApp en Tinbana: ábrelo en tu WhatsApp para enviarlo.'];
+  $c=self::conversationFor($o);$a=WhatsAppAccount::ofUser($owner);
+  if(!$c||!$a||!WhatsAppInbox::windowOpen($c['last_customer_at']))return $out+['message'=>$c?'El cliente no te ha escrito en las últimas 24 horas, así que WhatsApp no deja enviarle texto desde Tinbana. Ábrelo en tu WhatsApp para enviárselo.':'No hay un chat con este cliente en Tinbana. Ábrelo en tu WhatsApp para enviárselo.'];
+  Auth::limit('payment-link:'.$owner,60,3600);
+  $m=WhatsAppInbox::sendText($a,$c,$text,'agent',$owner);
+  if(($m['status']??'')==='failed')return $out+['message'=>'WhatsApp no aceptó el mensaje'.(!empty($m['error'])?': '.$m['error']:'').'. Ábrelo en tu WhatsApp para enviárselo.'];
+  Orders::event($o,'payment_link_sent',['channel'=>'whatsapp','conversation_id'=>$c['id']],$owner);
+  return ['sent'=>true,'conversation_id'=>$c['id']]+$out+['message'=>'Link de pago enviado por WhatsApp.'];
+ }
+ /** How the agent sees the payment of an order. */
+ public static function chatLabel(array $o): string {
+  if(($o['payment_method']??'cod')!=='online')return 'contraentrega';
+  return match($o['payment_status']){'paid'=>'en línea, pagado','expired'=>'en línea, vencido sin pago',default=>$o['sale_status']==='cancelled'?'en línea, cancelado':'en línea, esperando pago'};
  }
 
  /** An approved transaction of any attempt of this order, asked to Wompi with the store's private key; null otherwise. */

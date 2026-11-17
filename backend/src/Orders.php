@@ -119,6 +119,7 @@ final class Orders {
  }
  /** Records the buyer's own acceptance (WhatsApp button). Locked row, open transaction; the caller checked the quote. */
  public static function confirmByCustomer(array $r,array $confirmation): array {
+  if(Payments::awaiting($r))throw new HttpError(409,'Este pedido espera el pago en línea del cliente.');
   $r=Database::one("UPDATE orders SET sale_status='confirmed',confirmation=?::jsonb,version=version+1,updated_at=now() WHERE id=? RETURNING *",[Support::json($confirmation),$r['id']]);
   self::event($r,'confirmed',$confirmation,null);OrderMail::queue($r,'buyer_confirmed');
   return OwnProducts::take($r);

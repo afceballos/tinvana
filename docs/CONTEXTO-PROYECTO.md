@@ -144,7 +144,8 @@ No solicitar que se peguen secretos en el chat. El remitente `no-reply@zenzales.
 - [ ] Pagos con Wompi por tienda, en 5 fases ([WOMPI.md](WOMPI.md)).
   - [x] Fase 0: firmas y sandbox comprobados; Dropi cotiza con pago anticipado. Falta que Dropi confirme `SIN RECAUDO`.
   - [x] Fase 1 (conexión) desplegada y comprobada en el hosting (2026-11-17): aviso real del sandbox recibido y secretos en verde.
-  - [x] Fase 2 (pago en la landing) implementada y comprobada en local. Falta un pago real en el hosting. Sin desplegar.
+  - [x] Fase 2 (pago en la landing) desplegada y comprobada en el hosting con el sandbox (reportado por el usuario).
+  - [x] Fase 3 (link de pago por WhatsApp) implementada y comprobada en local. Sin desplegar.
 
 No volver a añadir filtro de favoritos sin comprobarlo. Categorías, orden por precio y selector de tamaño no están expuestos inicialmente en el catálogo del panel.
 
@@ -1177,6 +1178,27 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
   - Desplegar (migraciones 065 y 066).
   - En el hosting, activar «Contraentrega o en línea» en una landing y hacer un pago de prueba con la tarjeta 4242.
   - Después, la fase 3 (link por WhatsApp).
+
+### 2026-11-17 · Wompi, fase 2 comprobada en el hosting
+- **Reportado por el usuario:** con el commit `9e4b7bb` desplegado, hizo la compra de prueba en el sandbox siguiendo la guía, y todo funcionó.
+- **Siguiente paso:** fase 3, link de pago por WhatsApp.
+
+### 2026-11-17 · Wompi, fase 3 (link de pago por WhatsApp)
+- **Pedido del usuario:** arrancar la fase 3.
+- **Cambio:**
+  - Botón «Enviar link por WhatsApp» en el pedido: dentro de la ventana de 24 horas lo envía Tinbana; si no, ofrece «Abrir en mi WhatsApp» (wa.me).
+  - En el chat, «mi pedido» muestra el link cuando el pedido espera el pago, y el asistente tiene la acción `payment_link` (el link lo escribe el servidor).
+  - Recordatorio «Pago en línea pendiente» a las 24 horas, dentro de la ventana.
+  - Los pedidos en línea sin pagar ya no se pueden confirmar por WhatsApp. Era un hueco de la fase 2: la confirmación por chat no pasaba por la protección.
+  - Migraciones PostgreSQL 043 y MySQL 067 y 068. Guía: [WOMPI.md](WOMPI.md).
+- **Comprobado (local):**
+  - `wompi-whatsapp` 11 (nueva).
+  - También pasan `whatsapp-agent` 101, `whatsapp-confirm` 92, `whatsapp-inbox` 43, `whatsapp-notify` 27, `whatsapp-templates` 32, `whatsapp-ads` 30, `wompi-payments` 33, `wompi-connection` 29, `orders` 37 y `order-mail` 24.
+  - En el navegador: tarjeta del pedido con el botón y la alternativa wa.me.
+- **Limitaciones:** fuera de la ventana de 24 horas no hay envío automático, porque las plantillas no tienen botones con link.
+- **Siguiente paso:**
+  - Desplegar (migraciones 067 y 068) y probar en el hosting con un chat real.
+  - Después, la fase 4 (requiere que Dropi confirme SIN RECAUDO).
 
 ### Plantilla para la próxima actualización
 

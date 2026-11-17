@@ -113,6 +113,8 @@ if($op==='confirm-due'){
  echo 'ok';exit;
 }
 if($op==='mail-info'){echo Support::json(App\WhatsAppOrderConfirm::mailInfo($fixture['owner'],(string)($argv[2]??'')));exit;}
+// Wompi phase 3: runs the WhatsApp reminders now (payment link of online orders unpaid after 24 h).
+if($op==='reminders-run'){echo Support::json(App\WhatsAppReminders::runDue());exit;}
 if($op==='confirm-work'){echo Support::json(App\WhatsAppOrderConfirm::runDue(20));exit;}
 if($op==='feature'){
  $on=($argv[2]??'')==='on';

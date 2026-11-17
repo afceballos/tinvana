@@ -42,7 +42,7 @@ final class WhatsAppReminders {
  }
  public static function runDue(): array {
   $out=['sent'=>0,'skipped'=>0,'no_answer'=>0];
-  self::unconfirmed($out);self::abandoned($out);self::resolve($out);
+  self::unconfirmed($out);self::abandoned($out);self::payments($out);self::resolve($out);
   return $out;
  }
 
@@ -82,6 +82,26 @@ final class WhatsAppReminders {
   }
  }
 
+ /**
+  * Wompi phase 3: an online order still unpaid 24 hours after it was placed (it expires at 48 h) gets one reminder
+  * with its link, only inside the 24-hour window (templates have no link buttons yet; outside it is skipped).
+  */
+ private static function payments(array &$out): void {
+  foreach(Database::all("SELECT * FROM orders WHERE payment_method='online' AND payment_status='pending' AND sale_status<>'cancelled' AND created_at<now()-interval '24 hours' AND payment_due_at>now()+interval '1 hours' ORDER BY created_at LIMIT 50") as $o){
+   $owner=(string)$o['user_id'];$ref='payment_pending:'.$o['id'];if(self::exists($owner,$ref)||Payments::retryUrl($o)===null)continue;
+   $c=Payments::conversationFor($o);$why=self::gate($owner,'payment_pending',$c);if($why==='wait'||$why==='off')continue;
+   $id=self::claim($owner,'payment_pending',$ref,(string)$o['id'],$c['id']??null);if(!$id)continue;
+   if($why===null&&!($c&&WhatsAppInbox::windowOpen($c['last_customer_at'])))$why=$c?'El cliente no escribió en las últimas 24 horas':'No hay un chat con este cliente';
+   if($why!==null){self::finish($id,'skipped',null,$why);$out['skipped']++;continue;}
+   try{
+    $a=Database::one('SELECT * FROM whatsapp_accounts WHERE id=? AND user_id=?',[$c['account_id'],$owner]);
+    $m=$a?WhatsAppInbox::sendText($a,$c,Payments::linkText($o,true),'system',null):['status'=>'failed'];
+    if(($m['status']??'')==='failed'){self::finish($id,'failed','text','WhatsApp no aceptó el recordatorio');continue;}
+    self::finish($id,'sent','text');
+   }catch(\Throwable $t){error_log('WhatsApp payment reminder '.$id.': '.get_class($t));self::finish($id,'failed',null,'No se pudo enviar el recordatorio');continue;}
+   Orders::event($o,'whatsapp_reminder_sent',['kind'=>'payment_pending','conversation_id'=>$c['id']],null);$out['sent']++;
+  }
+ }
  /** The customer gave purchase data to the agent and went quiet 2 hours ago (the chat is still the agent's). */
  private static function abandoned(array &$out): void {
   $rows=Database::all("SELECT c.*,ct.phone,ct.profile_name FROM whatsapp_conversations c JOIN whatsapp_contacts ct ON ct.id=c.contact_id AND ct.user_id=c.user_id WHERE c.owner_mode='ai' AND c.closed_at IS NULL AND c.pending IS NULL AND c.last_customer_at<now()-interval '".self::ABANDONED_HOURS." hours' AND c.last_customer_at>now()-interval '23 hours' AND c.last_message_at>c.last_customer_at ORDER BY c.last_customer_at LIMIT 50");

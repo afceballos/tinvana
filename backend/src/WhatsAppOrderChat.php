@@ -43,10 +43,10 @@ final class WhatsAppOrderChat {
   return array_slice(array_values($found),0,$limit);
  }
  /** An order the customer can still confirm in the chat. */
- public static function confirmable(array $o): bool {return $o['sale_status']==='draft'&&in_array($o['integration_status'],['not_sent','failed'],true);}
+ public static function confirmable(array $o): bool {return $o['sale_status']==='draft'&&in_array($o['integration_status'],['not_sent','failed'],true)&&!Payments::awaiting($o);}
  /** Orders as the agent sees them (no contact data). */
  public static function context(string $owner,array $c): array {
-  return array_map(function($o){$v=OrderLookup::view($o);return ['number'=>$v['number'],'product'=>$v['product'].($v['variant']!==''?' · '.$v['variant']:''),'quantity'=>$v['quantity'],'total'=>$v['total'],'status'=>$v['status']['label'],'needs_confirmation'=>self::confirmable($o),'created'=>substr((string)$o['created_at'],0,10)];},self::ordersFor($owner,$c));
+  return array_map(function($o){$v=OrderLookup::view($o);return ['number'=>$v['number'],'product'=>$v['product'].($v['variant']!==''?' · '.$v['variant']:''),'quantity'=>$v['quantity'],'total'=>$v['total'],'status'=>$v['status']['label'],'needs_confirmation'=>self::confirmable($o),'payment'=>Payments::chatLabel($o),'created'=>substr((string)$o['created_at'],0,10)];},self::ordersFor($owner,$c));
  }
  private static function account(string $owner,array $c): ?array {return Database::one('SELECT * FROM whatsapp_accounts WHERE id=? AND user_id=?',[$c['account_id'],$owner]);}
  private static function send(string $owner,array $c,string $text): void {$a=self::account($owner,$c);if($a&&WhatsAppInbox::windowOpen($c['last_customer_at']))WhatsAppInbox::sendText($a,$c,$text,'system',null);}
@@ -69,7 +69,9 @@ final class WhatsAppOrderChat {
    }catch(HttpError){if($db->inTransaction())$db->rollBack();$o=Database::one('SELECT * FROM orders WHERE id=?',[$orderId]);}
    catch(\Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
   }
-  self::send($owner,$c,OrderLookup::text($o).($ask?"\n\n".self::ASK_CONFIRM:"\n\nConsúltalo cuando quieras: ".OrderLookup::url($owner,Orders::displayNumber($o))));
+  // Wompi phase 3: an order waiting for its online payment shows its payment link (written by the server).
+  $pay=Payments::retryUrl($o);
+  self::send($owner,$c,OrderLookup::text($o).($ask?"\n\n".self::ASK_CONFIRM:($pay!==null?"\n\nTu pedido espera el pago en línea. Puedes pagarlo aquí: ".$pay:"\n\nConsúltalo cuando quieras: ".OrderLookup::url($owner,Orders::displayNumber($o)))));
   return true;
  }
  /** A question about «my order»: the only recent order, or the list to choose from; null when the phone has none. */
