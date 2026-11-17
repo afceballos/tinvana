@@ -25,7 +25,7 @@ final class Api {
   if($path==='/api/notifications/settings'){if($method==='GET')return Notifications::view($owner);if($method==='PUT'){Auth::limit('notification-settings:'.$owner,30,600);return Notifications::save($owner,self::body());}}
   // Plan features, enforced for the whole module here; the panel only hides what this would refuse. [pattern, feature, writes only]
   foreach([['~^/api/orders/[^/]+/dropi~','dropi_orders',false],['~^/api/orders~','orders',false],['~^/api/pending~','orders',false],['~^/api/landings/[^/]+/ai$~','ai',false],['~^/api/ai/~','ai',true],
-   ['~^/api/integrations/[^/]+/(products|categories)$~','catalog',false],['~^/api/webhook-settings$~','ghl',true],['~^/api/mail-settings~','mail',true],['~^/api/profile/store$~','store',false],['~^/api/store/tracking$~','landings',true],
+   ['~^/api/integrations/[^/]+/(products|categories)$~','catalog',false],['~^/api/webhook-settings$~','ghl',true],['~^/api/mail-settings~','mail',true],['~^/api/profile/store$~','store',false],['~^/api/wompi/~','payments',false],['~^/api/store/tracking$~','landings',true],
    ['~^/api/landings/[^/]+/(publish)$~','publish',false],['~^/api/landings/~','landings',true],['~^/api/builder-templates$~','landings',true],['~^/api/products/[^/]+/(landing|offers)$~','landings',true]] as [$pattern,$feature,$writes])
    if(preg_match($pattern,$path)&&(!$writes||!in_array($method,['GET','HEAD'],true))){Entitlements::require($owner,$feature);break;}
   if(preg_match('~^/api/products/([^/]+)/offers$~',$path,$m)){
@@ -49,6 +49,13 @@ final class Api {
   // The guided tour was shown (started by itself or opened with «?»): it does not start by itself again on any device.
   if($path==='/api/profile/tour'&&$method==='POST'){Database::query('UPDATE users SET tour_seen_at=COALESCE(tour_seen_at,now()) WHERE id=?',[$owner]);return ['ok'=>true];}
   if($path==='/api/profile/store'&&$method==='PUT')return ['profile'=>Store::save($owner,self::body())];
+  if($path==='/api/wompi/account'){
+   if($method==='GET')return WompiAccount::view($owner);
+   if($method==='PUT'){Auth::limit('wompi-save:'.$owner,20,600);return WompiAccount::save($owner,self::body());}
+   if($method==='DELETE')return WompiAccount::delete($owner);
+  }
+  if($path==='/api/wompi/account/test'&&$method==='POST'){Auth::limit('wompi-test:'.$owner,30,600);return WompiAccount::test($owner);}
+  if($path==='/api/wompi/account/test-payment'&&$method==='POST'){Auth::limit('wompi-test-payment:'.$owner,20,600);return WompiAccount::testPayment($owner);}
   if($path==='/api/store/tracking'){if($method==='GET')return StoreTracking::view($owner);if($method==='PUT'){Auth::limit('store-tracking:'.$owner,30,600);return StoreTracking::save($owner,self::body());}}
   // Stage 6C: «Pendientes» (read-only list, reviewed marks and the menu counter).
   if($path==='/api/pending'&&$method==='GET')return Pending::view($owner);

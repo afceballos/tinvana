@@ -48,6 +48,15 @@ try {
   }
   exit;
  }
+ // Wompi events of one store (its own URL): public, no session; the checksum with that store's events secret authenticates it.
+ if(preg_match('~^/wompi/events/([A-Za-z0-9]{1,80})$~D',$path,$wm)){
+  header('Content-Type: text/plain; charset=utf-8');header('Cache-Control: no-store');header('X-Robots-Tag: noindex, nofollow');
+  if($method!=='POST')throw new HttpError(405,'Método no permitido.');
+  App\Auth::limit('wompi-events:'.($_SERVER['REMOTE_ADDR']??''),240,60);
+  $raw=(string)file_get_contents('php://input',false,null,0,App\WompiAccount::MAX_EVENT_BYTES+1);
+  $r=App\WompiAccount::receive($wm[1],$raw,(string)($_SERVER['HTTP_X_EVENT_CHECKSUM']??''));
+  http_response_code($r['status']);echo $r['status']===200?'OK':'';exit;
+ }
  // Buyer's order look-up by public number; on a store subdomain only that store's orders.
  if($path==='/pedido'){if(!in_array($method,['GET','HEAD'],true))throw new HttpError(405,'Use GET.');header('Content-Type: text/html; charset=utf-8');header('Cache-Control: no-store');header('X-Robots-Tag: noindex, nofollow');header('Referrer-Policy: no-referrer');echo App\OrderLookup::page(is_string($_GET['numero']??null)?$_GET['numero']:'',$storeOwner??null);exit;}
  // Public legal pages (privacy policy and terms), server-rendered without session.
@@ -117,7 +126,7 @@ try {
  }
  // Public home of the main domain (store subdomains already answered 404 for "/" above).
  if($path==='/'){if(!in_array($method,['GET','HEAD'],true))throw new HttpError(405,'Use GET.');$file=__DIR__.'/app/home.html';if(!is_file($file))throw new HttpError(503,'Compila el frontend con npm run build.');header('Content-Type: text/html; charset=utf-8');header('Cache-Control: public, max-age=300');readfile($file);exit;}
- if(!preg_match('~^/(?:login|registro|verificar-correo|reenviar-verificacion|recuperar-contrasena|restablecer-contrasena|panel(?:/(?:pendientes|catalogo|integraciones|webhooks|ia|perfil|seguridad|productos(?:/nuevo|/[a-f0-9-]+/(?:ofertas|editar))?|archivos|plantilla|leads|correos|notificaciones|whatsapp(?:/(?:conexion|plantillas|confirmaciones|anuncios|agente|seguimientos|operacion|[a-f0-9-]+))?|pedidos(?:/[a-f0-9-]+)?|admin(?:/(?:planes|globales|ia|auditoria|cuentas/[a-f0-9-]+))?|landings/[a-f0-9-]+))?)?/?$~',$path))throw new HttpError(404,'Página no encontrada.');
+ if(!preg_match('~^/(?:login|registro|verificar-correo|reenviar-verificacion|recuperar-contrasena|restablecer-contrasena|panel(?:/(?:pendientes|catalogo|integraciones|wompi|webhooks|ia|perfil|seguridad|productos(?:/nuevo|/[a-f0-9-]+/(?:ofertas|editar))?|archivos|plantilla|leads|correos|notificaciones|whatsapp(?:/(?:conexion|plantillas|confirmaciones|anuncios|agente|seguimientos|operacion|[a-f0-9-]+))?|pedidos(?:/[a-f0-9-]+)?|admin(?:/(?:planes|globales|ia|auditoria|cuentas/[a-f0-9-]+))?|landings/[a-f0-9-]+))?)?/?$~',$path))throw new HttpError(404,'Página no encontrada.');
  $file=__DIR__.'/app/index.html';if(!is_file($file))throw new HttpError(503,'Compila el frontend con npm run build.');readfile($file);
 }catch(HttpError $e){http_response_code($e->status);if($api||str_contains($_SERVER['CONTENT_TYPE']??'','application/json')){header('Content-Type: application/json; charset=utf-8');echo json_encode(['error'=>$e->getMessage()]+$e->details,JSON_UNESCAPED_UNICODE);}else tinvanaErrorPage($e->status,$e->getMessage());
 }catch(\PDOException $e){

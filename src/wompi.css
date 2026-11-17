@@ -1,0 +1,21 @@
+/* «Integraciones → Wompi». Reuses the connection cards (webhook-*, wa-*); only what is specific to payments lives here. */
+.wompi-env,.wompi-return{display:flex;align-items:flex-start;gap:8px;margin:0;padding:10px 12px;border:1px solid var(--info-bd,#bcd4fb);border-radius:12px;background:var(--info-bg,#eff6ff);color:var(--info-fg,#1e40af);font-size:13px;line-height:1.45}
+.wompi-env .icon,.wompi-return .icon{flex:none;margin-top:1px}
+.wompi-return{max-width:760px;margin:0 0 16px}
+.wa-facts .wompi-wide{grid-column:1/-1}
+.wompi-events-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:6px}
+.wompi-events-head h3{margin:0;font-size:15px}
+.wompi-events-head button{display:inline-flex;align-items:center;gap:6px}
+.wompi-events{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.wompi-events li{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px}
+.wompi-events li>span:last-child{display:grid;gap:2px;min-width:0}
+.wompi-events small{overflow:hidden;color:var(--muted);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.wompi-result{flex:none;min-width:84px;padding:3px 10px;border-radius:999px;background:var(--warn-bg,#fffbeb);color:var(--warn-fg,#92400e);font-size:12px;font-weight:600;text-align:center}
+.wompi-result.is-ok{background:var(--ok-bg,#ecfdf3);color:var(--ok-fg,#166534)}
+.wompi-result.is-bad{background:var(--bad-bg,#fef2f2);color:var(--bad-fg,#991b1b)}
+.wompi-guide{display:grid;gap:8px;margin:4px 0 0;padding-left:22px;list-style:decimal;font-size:14px;line-height:1.5}
+.wompi-guide li{display:list-item;padding-left:4px}
+.wompi-guide li::marker{color:var(--orange,#ff6a00);font-weight:700}
+.wa-checks li.is-wait{color:var(--muted)}
+.wa-facts .wompi-wide dd{font-weight:500;font-size:14px;line-height:1.5}
+:root[data-theme=dark] .wa-checks li.is-wait{color:var(--muted)}

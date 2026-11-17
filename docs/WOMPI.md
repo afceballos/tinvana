@@ -6,11 +6,32 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
 
 | Fase | Alcance | Estado |
 |---|---|---|
-| 0 · Verificación | Firmas de Wompi, llaves de prueba en el sandbox, cotización de Dropi con pago anticipado y aceptación de `SIN RECAUDO` | En curso |
-| 1 · Conexión | «Integraciones → Wompi»: 4 llaves cifradas, guía, URL de eventos con firma y prueba de conexión | Pendiente |
+| 0 · Verificación | Firmas de Wompi, llaves de prueba en el sandbox, cotización de Dropi con pago anticipado y aceptación de `SIN RECAUDO` | Hecha, salvo la confirmación de Dropi |
+| 1 · Conexión | «Integraciones → Wompi»: 4 llaves cifradas, guía, URL de eventos con firma y prueba de conexión | Hecha en local; falta el evento real en el hosting |
 | 2 · Landing | Pago en línea en el formulario; el pedido pasa a «pagado» solo con el evento firmado | Pendiente |
 | 3 · WhatsApp | Link de pago desde el pedido y desde el asistente | Pendiente |
 | 4 · Dropi y avisos | Pedidos pagados a Dropi `SIN RECAUDO`, avisos y Pendientes | Pendiente |
+
+## Fase 1 · Conexión
+
+- **Pantalla:** «Integraciones → Wompi» (`/panel/wompi`, `src/WompiConnection.tsx`), con el permiso de plan `payments` («Pagos en línea con Wompi»). La función es nueva, así que queda activa en todos los planes que no la apaguen.
+- **Cuenta:** una por tienda (`wompi_accounts`).
+  - La llave pública se guarda visible.
+  - La llave privada, el secreto de eventos y el secreto de integridad se guardan cifrados (contexto `id:usuario:campo`) y nunca vuelven al navegador.
+  - Las cuatro deben ser del mismo ambiente. Al reemplazarlas, los tres secretos pueden quedar vacíos para conservar los guardados; si cambia el ambiente, hay que pegar las cuatro.
+- **Prueba de conexión (solo lectura):**
+  - `GET /merchants/<llave pública>` trae el nombre del comercio y sus medios de pago.
+  - `GET /transactions?reference=tb-check-…` con la llave privada responde 200 si la llave es válida y 401 si no.
+  - Los dos secretos se comprueban con el primer aviso (eventos) y con el primer pago firmado por Tinbana (integridad, referencias `tb-…`).
+- **URL de eventos propia:** `APP_URL/wompi/events/we<40 hex>`, con el token guardado cifrado y su hash para buscarlo.
+  - Respuestas: 404 si la URL no existe, 401 si el checksum no coincide (se anota `last_rejected_at` y Wompi reintenta), 200 cuando se guarda o ya estaba.
+  - Un aviso válido del otro ambiente se responde con 200 y no se guarda.
+  - Los avisos se guardan en `wompi_events`, una sola vez por transacción y estado. La fase 2 los usará para marcar pedidos pagados.
+- **Pago de prueba:** solo con llaves de pruebas y la conexión comprobada. Es un Web Checkout firmado de $10.000 (referencia `tb-test-…`) que comprueba la URL de eventos y los dos secretos.
+- **Dirección de regreso:** Wompi responde 403 a todo el checkout si la dirección de regreso no es pública y `https` (comprobado con `http://127.0.0.1`). Por eso `Wompi::redirectUrl()` solo la envía cuando `APP_URL` es `https` y no es local.
+- **API:** `GET/PUT/DELETE /api/wompi/account`, `POST /api/wompi/account/test` y `POST /api/wompi/account/test-payment`, con CSRF y límites por tienda.
+- **Migraciones:** PostgreSQL `041_wompi.sql`; MySQL `063_wompi_accounts.sql` y `064_wompi_events.sql`.
+- **Pruebas:** `tests/wompi-connection.mjs` (29 comprobaciones), con Wompi simulado en `https://127.0.0.1:8449/v1` (`WOMPI_API_URL`, ignorada en producción).
 
 ## Contrato de Wompi (documentación oficial, revisada el 2026-11-17)
 
@@ -57,7 +78,7 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
 - [x] `wompi:probe sandbox` con las llaves de prueba (2026-11-17, local): el comercio respondió con medios activos (tarjeta, PSE, Nequi, Daviplata, Bancolombia y otros) y token de aceptación; la llave privada creó un link de un solo uso (HTTP 201); se armó el Web Checkout firmado.
 - [x] Pago aprobado en el sandbox (2026-11-17): Web Checkout firmado con la tarjeta de prueba aprobada. `wompi:probe transaction` leyó `APPROVED`, 1500000 COP, la misma referencia `tb-probe-…` y medio `CARD`. Wompi aceptó la firma de integridad. La transacción trae también `payment_link_id`, útil para la fase 3. La redirección llegó como `?id=<transacción>&env=test`.
 - [x] Pago rechazado en el sandbox (2026-11-17, tarjeta de prueba declinada): `DECLINED`, 1500000 COP, la misma referencia, medio `CARD`. La redirección llega igual (`?id=…&env=test`) que con un pago aprobado, lo que confirma que la página de regreso no sirve para saber si se pagó.
-- [ ] Evento firmado real del sandbox. Requiere una URL pública, así que se verifica en el hosting al montar la URL de eventos (fase 1).
+- [ ] Evento firmado real del sandbox. Requiere una URL pública, así que se verifica en el hosting: conectar las llaves de pruebas en «Integraciones → Wompi», pegar la URL de eventos en Wompi y hacer el pago de prueba.
 - [x] `dropi:shipping-probe` en el hosting (2026-11-17, ejecutado por el usuario sin correo: primera integración, producto 309, bodega Cali → Bogotá, valor declarado $13.500). Dropi cotiza el pago anticipado (`EnvioConCobro=false`) y sale más barato en todas las transportadoras:
 
   | Transportadora | Contra entrega | Pago anticipado |

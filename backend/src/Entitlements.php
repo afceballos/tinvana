@@ -22,6 +22,7 @@ final class Entitlements {
   'store'=>'Tienda con subdominio propio',
   'whatsapp'=>'Ventas por WhatsApp con IA',
   'whatsapp_ai'=>'Agente de IA en WhatsApp',
+  'payments'=>'Pagos en línea con Wompi',
  ];
  public const LIMITS=[
   'landings'=>'Landings creadas',

@@ -16,6 +16,13 @@ final class Wompi {
  /** Key prefixes per environment: public, private, events secret, integrity secret. */
  public const PREFIXES=['test'=>['pub_test_','prv_test_','test_events_','test_integrity_'],'prod'=>['pub_prod_','prv_prod_','prod_events_','prod_integrity_']];
 
+ /** API base for an environment. Tests point WOMPI_API_URL at a local simulator (never in production). */
+ public static function base(string $environment): string {
+  $url=Support::env('WOMPI_API_URL');
+  if($url!==''&&Support::env('APP_ENV')!=='production'&&preg_match('~^https://127\.0\.0\.1:[0-9]{2,5}/v1$~D',$url))return $url;
+  return $environment==='prod'?self::PRODUCTION:self::SANDBOX;
+ }
+
  public static function integrity(string $reference,int $amountInCents,string $currency,string $secret,?string $expiration=null): string {
   return hash('sha256',$reference.$amountInCents.$currency.($expiration??'').$secret);
  }
@@ -36,6 +43,16 @@ final class Wompi {
  public static function environment(string $public,string $private,string $events,string $integrity): ?string {
   foreach(self::PREFIXES as $env=>$p)if(str_starts_with($public,$p[0])&&str_starts_with($private,$p[1])&&str_starts_with($events,$p[2])&&str_starts_with($integrity,$p[3]))return $env;
   return null;
+ }
+
+ /**
+  * Return address for the checkout, or null: Wompi's edge answers 403 to the whole checkout when redirect-url is not a
+  * public https address (checked 2026-11-17 with http://127.0.0.1), so local environments send none.
+  */
+ public static function redirectUrl(string $path): ?string {
+  $app=rtrim(Support::env('APP_URL'),'/');$host=(string)parse_url($app,PHP_URL_HOST);
+  if(!str_starts_with($app,'https://')||$host===''||$host==='localhost'||filter_var($host,FILTER_VALIDATE_IP)!==false)return null;
+  return $app.$path;
  }
 
  /** Web Checkout address (redirect, no script on our pages). */

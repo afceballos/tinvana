@@ -141,7 +141,9 @@ No solicitar que se peguen secretos en el chat. El remitente `no-reply@zenzales.
 - [ ] Verificar con un píxel real (Pixel Helper y Tag Assistant) en el hosting.
 - [ ] Fase 2: API de Conversiones de Meta desde el servidor, deduplicada con el `eventID` del pedido.
 - [x] Visita guiada del panel para usuarios nuevos, con botón «?» para repetirla ([MODERN-UI.md](MODERN-UI.md)). Comprobado en local; sin desplegar.
-- [ ] Pagos con Wompi por tienda, en 5 fases ([WOMPI.md](WOMPI.md)). Fase 0 (verificación) en curso: firmas comprobadas sin red; faltan el sandbox con llaves de prueba y la consulta a Dropi.
+- [ ] Pagos con Wompi por tienda, en 5 fases ([WOMPI.md](WOMPI.md)).
+  - [x] Fase 0: firmas y sandbox comprobados; Dropi cotiza con pago anticipado. Falta que Dropi confirme `SIN RECAUDO`.
+  - [x] Fase 1 (conexión) implementada y comprobada en local. Falta el aviso real de Wompi en el hosting. Sin desplegar.
 
 No volver a añadir filtro de favoritos sin comprobarlo. Categorías, orden por precio y selector de tamaño no están expuestos inicialmente en el catálogo del panel.
 
@@ -1124,6 +1126,26 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
   - Pagos de prueba en el sandbox, leídos con `wompi:probe transaction`: aprobado (`APPROVED`) y rechazado (`DECLINED`), con monto y referencia iguales a los firmados.
   - Falta la confirmación de Dropi sobre crear pedidos `SIN RECAUDO` y el evento firmado real (requiere la URL pública de la fase 1).
 - **Siguiente paso:** con esos resultados, decidir y empezar la fase 1.
+
+### 2026-11-17 · Wompi, fase 1 (conexión)
+- **Pedido del usuario:** subir la fase 0 y arrancar la fase 1.
+- **Cambio:**
+  - «Integraciones → Wompi» (`/panel/wompi`, permiso de plan `payments`): 4 llaves de la tienda, con la privada y los dos secretos cifrados.
+  - Prueba de conexión de solo lectura (comercio y llave privada), URL de eventos propia de cada tienda con checksum y registro de avisos.
+  - Pago de prueba de $10.000 en el sandbox, paso a paso y desconexión.
+  - Migraciones PostgreSQL 041 y MySQL 063 y 064. Guía: [WOMPI.md](WOMPI.md).
+- **Comprobado (local):**
+  - `wompi-connection`: 29 comprobaciones con Wompi simulado. Incluyen CSRF, formatos, mezcla de ambientes, que los secretos no vuelven, aislamiento entre tiendas, avisos válidos, inválidos, duplicados y del otro ambiente, pago de prueba firmado, permiso del plan y desconexión.
+  - También pasan `admin` 39, `whatsapp-connection` 57, `order-mail` 24, `own-products` 29 y `store-tracking` 16.
+  - En el navegador, con las llaves de pruebas reales del usuario contra el sandbox: «Conectado», comercio «Tinbana», 11 medios de pago, ningún secreto en la página, y el pago de prueba abre el checkout de Wompi. Se vio en escritorio, celular y modo oscuro.
+- **Hallazgo:** Wompi responde 403 a todo el checkout si la dirección de regreso es local (`http://127.0.0.1`). Ahora solo se envía si `APP_URL` es `https` pública.
+- **Limitaciones:**
+  - El aviso firmado real de Wompi solo puede llegar al hosting, que tiene URL pública.
+  - Una de cinco corridas en el navegador mostró «Con error» de forma pasajera (Wompi sin respuesta); las siguientes, bien.
+- **Siguiente paso:**
+  - Desplegar con las migraciones 059 a 064.
+  - En el hosting, conectar las llaves de pruebas, pegar la URL de eventos en Wompi y hacer el pago de prueba.
+  - Después, la fase 2 (pago en la landing).
 
 ### Plantilla para la próxima actualización
 

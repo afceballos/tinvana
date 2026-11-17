@@ -1,7 +1,7 @@
 # Runs browser/HTTP suites one by one against the isolated local MariaDB 10.11 (zenzales_test, port 33307, same engine
 # as the hosting; settings in .tools/test-env.json, the old PostgreSQL ones in .tools/test-env.pg.json), each with fresh fixtures
 # and the general HTTP suite (npm test) first. Every external service points to a local simulator: Dropi 8443-8445,
-# Meta Graph 8446, OpenAI 8447. -Ai also starts the AI test router on 8083 (ai-http, ai-ui). Never use production data.
+# Meta Graph 8446, OpenAI 8447, Wompi 8449. -Ai also starts the AI test router on 8083 (ai-http, ai-ui). Never use production data.
 # Usage: powershell -File tests/run-suites.ps1 -Only whatsapp-templates,orders [-Ai]
 param([string]$Label='run',[string[]]$Only=@(),[switch]$Ai)
 Set-Location (Split-Path $PSScriptRoot -Parent)
@@ -10,6 +10,8 @@ foreach ($entry in $config.PSObject.Properties) { [Environment]::SetEnvironmentV
 $env:DROPI_TRACKING_URL='https://127.0.0.1:8445/integrations/orders/myorders/'; $env:DROPI_QUOTE_URL='https://127.0.0.1:8444/integrations/orders/cotizaEnvioTransportadoraV2'; $env:DROPI_ORDERS_URL='https://127.0.0.1:8443/integrations/orders/myorders'; $env:DROPI_CATALOG_URL='https://127.0.0.1:8448/integrations/products/index'; $env:HTTP_CA_BUNDLE=(Resolve-Path .tools/test-cert.pem).Path
 # WhatsApp: simulated Graph API and test-only platform values.
 $env:WHATSAPP_GRAPH_URL='https://127.0.0.1:8446/'; $env:AI_OPENAI_URL='https://127.0.0.1:8447'; $env:WHATSAPP_APP_SECRET='test-app-secret-not-real'; $env:WHATSAPP_VERIFY_TOKEN='test-verify-token'
+# Wompi: simulated API (8449) for the connection suite.
+$env:WOMPI_API_URL='https://127.0.0.1:8449/v1'
 $env:TEST_BASE_URL='http://127.0.0.1:8081'
 $old = Get-Process -Id (Get-Content .tools/php-server.pid -ErrorAction SilentlyContinue) -ErrorAction SilentlyContinue; if ($old -and $old.Path -like '*\.tools\php\php.exe') { Stop-Process -Id $old.Id -Confirm:$false }
 $server = Start-Process -FilePath .tools/php/php.exe -ArgumentList @('-S','127.0.0.1:8081','-t','backend/public','backend/router.php') -WindowStyle Hidden -RedirectStandardOutput .tools/php-server.out.log -RedirectStandardError .tools/php-server.err.log -PassThru
@@ -30,7 +32,7 @@ if (-not $Only.Count) {
  "{0,-20} {1}" -f 'npm test', (Fresh)
  foreach ($p in 'run','builder') { if (Test-Path "backend/tests/$p.php") { "{0,-20} {1}" -f "php $p", (Summary ((.tools/php/php.exe "backend/tests/$p.php" 2>&1) | Out-String)) } }
 }
-$suites = if ($Only.Count) { $Only } else { 'builder','builder-http','gallery','header','lead-success','lead-phone-country','dropi-block','product-list','visual','delivery-ui','geography','dropi-shipping','store-router','brand','orders','own-products','store-tracking' }
+$suites = if ($Only.Count) { $Only } else { 'builder','builder-http','gallery','header','lead-success','lead-phone-country','dropi-block','product-list','visual','delivery-ui','geography','dropi-shipping','store-router','brand','orders','own-products','store-tracking','wompi-connection' }
 foreach ($t in $suites) {
  if (-not (Test-Path "tests/$t.mjs")) { continue }
  $null = Fresh
