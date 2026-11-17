@@ -141,6 +141,7 @@ No solicitar que se peguen secretos en el chat. El remitente `no-reply@zenzales.
 - [ ] Verificar con un píxel real (Pixel Helper y Tag Assistant) en el hosting.
 - [ ] Fase 2: API de Conversiones de Meta desde el servidor, deduplicada con el `eventID` del pedido.
 - [x] Visita guiada del panel para usuarios nuevos, con botón «?» para repetirla ([MODERN-UI.md](MODERN-UI.md)). Comprobado en local; sin desplegar.
+- [ ] Pagos con Wompi por tienda, en 5 fases ([WOMPI.md](WOMPI.md)). Fase 0 (verificación) en curso: firmas comprobadas sin red; faltan el sandbox con llaves de prueba y la consulta a Dropi.
 
 No volver a añadir filtro de favoritos sin comprobarlo. Categorías, orden por precio y selector de tamaño no están expuestos inicialmente en el catálogo del panel.
 
@@ -364,6 +365,7 @@ Estado al cerrar las pruebas de pedidos: fixtures eliminados y servicios de prue
 | Preparación de órdenes Dropi | [DROPI-ORDERS.md](DROPI-ORDERS.md) |
 | Productos propios (sin Dropi) | [OWN-PRODUCTS.md](OWN-PRODUCTS.md) |
 | Píxeles y medición de la tienda | [STORE-TRACKING.md](STORE-TRACKING.md) |
+| Pagos con Wompi | [WOMPI.md](WOMPI.md) |
 | Superusuario, planes y permisos | [ADMIN.md](ADMIN.md) |
 | Ventas por WhatsApp | [WHATSAPP.md](WHATSAPP.md) |
 | Privacidad y términos públicos | [LEGAL.md](LEGAL.md) |
@@ -1102,6 +1104,26 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
   - Por pedido del usuario, se recuerda por cuenta y no por navegador. Comprobado en el navegador: la cuenta la ve sola una vez; en un segundo navegador no aparece, ni en otras páginas, pero «?» la abre. Otra cuenta la ve su primera vez.
 - **Limitaciones:** los avisos que lleguen durante la guía se muestran al cerrarla.
 - **Siguiente paso:** ejecutar la migración 062 en el hosting **antes** de subir el código, porque la sesión lee la columna nueva. Sin desplegar.
+
+### 2026-11-17 · Wompi, fase 0 (verificación)
+- **Pedido del usuario:** retomar Wompi. Aprobó el plan de cinco fases (0 verificación, 1 conexión, 2 landing, 3 WhatsApp, 4 Dropi y avisos) y pidió empezar por la fase 0. Guía: [WOMPI.md](WOMPI.md).
+- **Cambio:**
+  - `backend/src/Wompi.php`: firma de integridad, validación de eventos, ambiente de las llaves, Web Checkout y peticiones.
+  - `backend/src/WompiProbe.php` y el comando `wompi:probe selftest|sandbox|transaction <id>`, que solo acepta llaves de prueba.
+- **Comprobado:**
+  - `wompi:probe selftest`: 8 de 8 sin red. La firma de integridad da el hash del ejemplo oficial; los eventos alterados o con otro secreto se rechazan.
+  - Sin llaves, el modo sandbox avisa y no llama a Wompi.
+  - Se encontró un error en la documentación de Wompi: el hash del ejemplo de eventos no corresponde a su cadena.
+- **Pendiente de la fase 0:**
+  - Llaves de prueba de Wompi, cargadas por el usuario en la configuración local, para `sandbox` y un pago de prueba.
+  - Ejecutar `dropi:shipping-probe` en el hosting (pago anticipado frente a contra entrega).
+  - Confirmar con Dropi la aceptación de `SIN RECAUDO`, sin crear pedidos reales.
+- **Avance del mismo día:**
+  - `wompi:probe sandbox` funcionó con las llaves de prueba del usuario: comercio, link de pago (HTTP 201) y Web Checkout firmado.
+  - `dropi:shipping-probe` en el hosting: el pago anticipado cotiza y es más barato en todas las transportadoras (la más barata, VELOCES, $14.450 frente a $16.450 contra entrega; INTERRAPIDISIMO solo cotiza sin recaudo por el mínimo de $45.000). Detalle en [WOMPI.md](WOMPI.md).
+  - Pagos de prueba en el sandbox, leídos con `wompi:probe transaction`: aprobado (`APPROVED`) y rechazado (`DECLINED`), con monto y referencia iguales a los firmados.
+  - Falta la confirmación de Dropi sobre crear pedidos `SIN RECAUDO` y el evento firmado real (requiere la URL pública de la fase 1).
+- **Siguiente paso:** con esos resultados, decidir y empezar la fase 1.
 
 ### Plantilla para la próxima actualización
 
