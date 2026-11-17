@@ -48,6 +48,7 @@ try{
  await owner.request('/api/wompi/account','PUT',K);eventsUrl=(await owner.request('/api/wompi/account')).data.account.events_url;
  html=await page();
  check('landing offers both, online first with its discount',html.includes('class="pay-choice"')&&/value="online" checked/.test(html)&&html.includes('10 % de descuento')&&html.includes('Pago contraentrega')&&html.includes('>Continuar al pago<'));
+ check('trust row: Wompi and only the accepted methods',html.includes('Pago seguro con <b>Wompi</b>')&&html.includes('aria-label="Visa"')&&html.includes('aria-label="PSE"')&&html.includes('aria-label="Nequi"')&&!html.includes('aria-label="Daviplata"'));
  // Freight: prepaid for online, cash on delivery otherwise.
  quotes.length=0;r=await visitor.request('/p/'+fixture.slug+'/shipping','POST',{city_code:'11001',quantity:1,payment:'online'});
  check('online quote is prepaid',r.data.amount===15000&&quotes.at(-1)?.EnvioConCobro===false);
@@ -82,7 +83,8 @@ try{
  check('paying confirms the order (no call, no «1 SÍ»)',d.order.sale_status==='confirmed'&&d.order.confirmation?.source==='wompi'&&d.events.some(e=>e.event_type==='confirmed'));
  await deliver(good);const mails=JSON.parse(await helper('mail-queue')).filter(m=>m.dedupe_key?.includes(o.id));
  check('emails queued once when paid: payment received and new paid order',mails.filter(m=>m.kind==='buyer_confirmed').length===1&&mails.filter(m=>m.kind==='owner_new_order').length===1&&!mails.some(m=>m.kind==='buyer_received'));
- r=await visitor.request('/p/'+fixture.slug+'/pago/'+baseRef);check('return page status: paid',r.data.status==='paid'&&r.data.amount===expected&&r.data.retry_url===null&&r.data.order_number===d.order.order_number);
+ r=await visitor.request('/p/'+fixture.slug+'/pago/'+baseRef);check('receipt for the buyer without contact data',r.data.receipt?.order_number===d.order.order_number&&r.data.receipt.amount===expected&&r.data.receipt.transaction_id==='777-1'&&r.data.receipt.method==='NEQUI'&&!!r.data.receipt.paid_at&&!r.text.includes('pago@example.test')&&!r.text.includes('3001234567')&&!r.text.includes('Calle 123'));
+ check('return page status: paid',r.data.status==='paid'&&r.data.amount===expected&&r.data.retry_url===null&&r.data.order_number===d.order.order_number);
  check('paid order cannot be retried',(await visitor.request('/p/'+fixture.slug+'/pagar/'+baseRef)).response.status===409);
  // Phase 4, option A (default): the store sends it; it goes SIN RECAUDO with the amount the buyer paid.
  check('paid order ready for Dropi as SIN RECAUDO',d.dropi.rate_type==='SIN RECAUDO'&&d.dropi.can_submit===true&&d.dropi.checks.some(c=>c.key==='paid'&&c.ready)&&/SIN RECAUDO/.test(d.dropi.message)&&created.length===0);

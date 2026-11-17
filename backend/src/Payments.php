@@ -34,11 +34,36 @@ final class Payments {
  public static function choice(array $r,bool $preview): string {
   $mode=$preview?(($r['content']['commerce']['paymentMode']??'cod')):self::mode($r);if($mode==='cod'||!in_array($mode,self::MODES,true))return '';
   $pct=self::discountPercent($r['content']);$off=$pct>0?' · '.$pct.' % de descuento':'';
-  $online='<span><strong>Pagar en línea</strong><small>Tarjeta, PSE, Nequi y más con Wompi'.$off.'</small></span>';
+  $a=$preview?null:self::account((string)($r['user_id']??''));$methods=$a?(json_decode((string)($a['payment_methods']??'[]'),true)?:[]):['CARD','PSE','NEQUI'];
+  $online='<span><strong>Pagar en línea</strong><small>Tarjeta, PSE, Nequi y más'.$off.'</small>'.self::brands($methods).'</span>';
   if($mode==='online')return '<div class="pay-choice is-single" data-pay-discount="'.$pct.'"><input type="hidden" name="payment" value="online"><p class="pay-single"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18v12H3z M3 10h18 M7 15h4"/></svg>'.$online.'</p></div>';
   return '<fieldset class="pay-choice" data-pay-discount="'.$pct.'"><legend>¿Cómo quieres pagar?</legend>'
    .'<label class="pay-option"><input type="radio" name="payment" value="online" checked>'.$online.'</label>'
    .'<label class="pay-option"><input type="radio" name="payment" value="cod"><span><strong>Pago contraentrega</strong><small>Pagas en efectivo al recibir</small></span></label></fieldset>';
+ }
+
+ /**
+  * Trust row of the online option: «Pago seguro con Wompi» and badges of the methods the store's Wompi account really
+  * accepts (from the connection test). Own simple badges (inline SVG, no external files), not copies of the brands' logos.
+  */
+ public static function brands(array $methods): string {
+  $b=[
+   'visa'=>'<svg viewBox="0 0 40 26" role="img" aria-label="Visa"><rect width="40" height="26" rx="5" fill="#fff" stroke="#e3e7ef"/><text x="20" y="17.5" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" font-weight="800" font-style="italic" fill="#1a1f71">VISA</text></svg>',
+   'mastercard'=>'<svg viewBox="0 0 40 26" role="img" aria-label="Mastercard"><rect width="40" height="26" rx="5" fill="#fff" stroke="#e3e7ef"/><circle cx="16.5" cy="13" r="7" fill="#eb001b"/><circle cx="23.5" cy="13" r="7" fill="#f79e1b" fill-opacity=".9"/><path d="M20 7.1a7 7 0 0 1 0 11.8 7 7 0 0 1 0-11.8z" fill="#ff5f00"/></svg>',
+   'amex'=>'<svg viewBox="0 0 40 26" role="img" aria-label="American Express"><rect width="40" height="26" rx="5" fill="#2e77bc"/><text x="20" y="16.5" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="8.5" font-weight="800" fill="#fff">AMEX</text></svg>',
+   'pse'=>'<svg viewBox="0 0 40 26" role="img" aria-label="PSE"><rect width="40" height="26" rx="5" fill="#fff" stroke="#e3e7ef"/><circle cx="20" cy="13" r="9" fill="#0b3c7d"/><text x="20" y="16" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="7.5" font-weight="800" fill="#fff">PSE</text></svg>',
+   'nequi'=>'<svg viewBox="0 0 40 26" role="img" aria-label="Nequi"><rect width="40" height="26" rx="5" fill="#210049"/><text x="20" y="16.5" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="8.5" font-weight="800" fill="#e5007e">Nequi</text></svg>',
+   'daviplata'=>'<svg viewBox="0 0 40 26" role="img" aria-label="Daviplata"><rect width="40" height="26" rx="5" fill="#ed1c27"/><text x="20" y="16" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="6.6" font-weight="800" fill="#fff">DaviPlata</text></svg>',
+   'bancolombia'=>'<svg viewBox="0 0 40 26" role="img" aria-label="Bancolombia"><rect width="40" height="26" rx="5" fill="#2c2a29"/><text x="20" y="15.8" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="5.6" font-weight="800" fill="#fdda24">Bancolombia</text></svg>',
+  ];
+  $show=[];
+  if(in_array('CARD',$methods,true))array_push($show,'visa','mastercard','amex');
+  if(in_array('PSE',$methods,true))$show[]='pse';
+  if(in_array('NEQUI',$methods,true))$show[]='nequi';
+  if(in_array('DAVIPLATA',$methods,true))$show[]='daviplata';
+  if(array_intersect(['BANCOLOMBIA_TRANSFER','BANCOLOMBIA_QR','BANCOLOMBIA_COLLECT','BANCOLOMBIA'],$methods))$show[]='bancolombia';
+  return '<span class="pay-trust"><span class="pay-secure"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 10V7a6 6 0 0 1 12 0v3 M5 10h14v11H5z M12 14v3"/></svg>Pago seguro con <b>Wompi</b></span>'
+   .($show?'<span class="pay-brands">'.implode('',array_map(fn($k)=>$b[$k],$show)).'</span>':'').'</span>';
  }
 
  /**
@@ -93,7 +118,15 @@ final class Payments {
   $p=self::data($o);$state=$o['payment_status']==='paid'?'paid':($o['payment_status']==='expired'||$o['sale_status']==='cancelled'?'closed':'pending');
   return ['status'=>$state,'declined'=>in_array($p['last_status']??'',['DECLINED','ERROR','VOIDED'],true),'amount'=>(float)($p['amount']??0),'currency'=>'COP','quantity'=>(int)$o['quantity'],
    'order_number'=>$o['order_number'],'tracking_url'=>$o['order_number']?OrderLookup::url((string)$o['user_id'],(string)$o['order_number']):null,
-   'retry_url'=>$state==='pending'?'/p/'.$slug.'/pagar/'.$o['payment_reference']:null,'due_at'=>$o['payment_due_at']];
+   'retry_url'=>$state==='pending'?'/p/'.$slug.'/pagar/'.$o['payment_reference']:null,'due_at'=>$o['payment_due_at'],
+   'receipt'=>$state==='paid'?self::receipt($o,$p):null];
+ }
+ /** Proof of payment the buyer can download: store, order, product and the Wompi transaction (no contact data). */
+ private static function receipt(array $o,array $p): array {
+  $d=json_decode((string)$o['product_data'],true)?:[];$v=json_decode((string)($o['variant_data']??'null'),true);
+  return ['store'=>OrderMail::settings((string)$o['user_id'])['sender_name'],'order_number'=>Orders::displayNumber($o),'product'=>(string)($d['product_name']??'Producto'),
+   'variant'=>is_array($v)?(string)($v['label']??''):'','quantity'=>(int)$o['quantity'],'goods'=>(float)($p['goods']??0),'discount'=>(float)($p['discount']??0),'shipping'=>(float)($p['shipping']??0),
+   'amount'=>(float)($p['amount']??0),'method'=>$p['method']??null,'transaction_id'=>$p['transaction_id']??null,'reference'=>$o['payment_reference'],'paid_at'=>$o['paid_at']&&($ts=strtotime((string)$o['paid_at'])?:strtotime((string)$o['paid_at'].' UTC'))?gmdate('c',$ts):null];
  }
 
  /** Signed Wompi event already stored (WompiAccount::receive): applies it to its order. Idempotent. */

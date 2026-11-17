@@ -1229,6 +1229,17 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 - **Limitaciones:** el estimado de la billetera es aproximado (precio del proveedor del catálogo + el envío cobrado).
 - **Siguiente paso:** desplegar (migración 069) y crear el primer pedido real SIN RECAUDO con un pedido de la tienda; si algo no cuadra, cancelarlo en Dropi antes de la guía.
 
+### 2026-11-17 · Wompi: confianza en la landing y comprobante animado
+- **Pedido del usuario:** mostrar Wompi y los iconos de tarjetas y bancos en el pago, y una pantalla de resultado más visual, con un check animado y un comprobante descargable.
+- **Cambio:**
+  - «Pago seguro con Wompi» con insignias de los medios que la cuenta acepta.
+  - Check que se dibuja solo, X de rechazo animada e indicador de espera.
+  - Comprobante con los datos del pedido y descarga en PNG. Guía: [WOMPI.md](WOMPI.md).
+- **Comprobado (local):**
+  - `wompi-payments` 41; también pasan `wompi-whatsapp` 11, `wompi-connection` 29 y `lead-success` 12.
+  - En el navegador, con las llaves de sandbox: insignias, aprobado con comprobante, PNG descargado y rechazado.
+- **Siguiente paso:** sin desplegar.
+
 ### Plantilla para la próxima actualización
 
 ```text

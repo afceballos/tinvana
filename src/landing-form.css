@@ -104,3 +104,39 @@
 .pay-result-actions .secondary{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 18px;border:1px solid var(--line,#ffe0cd);border-radius:999px;background:#fff;color:inherit;font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
 #lead-form .pay-option{flex-direction:row;align-items:center;margin:0}#lead-form .pay-option input[type=radio]{width:20px;height:20px;min-height:0;margin:0;padding:0;box-shadow:none}#lead-form .pay-choice legend{font-size:16px}
 #lead-form label.pay-option{display:flex}#lead-form label.pay-option>span{display:grid;gap:2px}
+
+/* Trust row of the online option (Wompi and the accepted methods) and the animated result after Wompi. */
+#lead-form .pay-trust{display:grid;gap:8px;margin-top:8px}
+#lead-form .pay-secure{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:#4b5563}
+#lead-form .pay-secure b{color:#1e1e1e;letter-spacing:.2px}
+#lead-form .pay-secure svg{width:15px;height:15px;fill:none;stroke:#16a34a;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#lead-form .pay-brands{display:flex;flex-wrap:wrap;gap:6px}
+#lead-form .pay-brands svg{width:40px;height:26px;border-radius:5px;box-shadow:0 1px 2px #1e1e1e14}
+.pay-result{width:min(460px,calc(100% - 28px));max-height:calc(100dvh - 28px);overflow:auto}
+.pay-result[open]{animation:pay-in .38s cubic-bezier(.2,.8,.2,1)}
+.pay-result::backdrop{background:#1e1e1e8c;backdrop-filter:blur(2px)}
+.pay-icon{display:grid;place-items:center;margin:0 auto 14px;width:84px;height:84px}
+.pay-mark{width:84px;height:84px;overflow:visible}
+.pay-ring{fill:none;stroke-width:4;stroke-dasharray:183;stroke-dashoffset:183;animation:pay-draw .6s cubic-bezier(.65,0,.45,1) forwards}
+.pay-stroke{fill:none;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:48;stroke-dashoffset:48;animation:pay-draw .38s cubic-bezier(.65,0,.45,1) .5s forwards}
+.pay-stroke.is-second{animation-delay:.7s}
+.pay-mark.is-ok{animation:pay-pop .45s cubic-bezier(.3,1.6,.5,1) .85s both}
+.pay-mark.is-ok .pay-ring{stroke:#16a34a;fill:#ecfdf3;fill-opacity:0;animation:pay-draw .6s cubic-bezier(.65,0,.45,1) forwards,pay-fill .4s ease .55s forwards}
+.pay-mark.is-ok .pay-stroke{stroke:#16a34a}
+.pay-mark.is-bad .pay-ring,.pay-mark.is-bad .pay-stroke{stroke:#dc2626}
+.pay-mark.is-bad{animation:pay-shake .45s ease .9s both}
+.pay-mark.is-info .pay-ring,.pay-mark.is-info .pay-stroke{stroke:#d97706}
+.pay-mark.is-wait .pay-ring{stroke:#ffe0cd;stroke-dashoffset:0;animation:none}
+.pay-spin{fill:none;stroke:var(--accent,#ff6a00);stroke-width:4;stroke-linecap:round;stroke-dasharray:46 140;transform-origin:32px 32px;animation:pay-rotate 1s linear infinite}
+.pay-receipt{margin:0 0 20px;padding:14px 16px;border:1px dashed #f3c9ad;border-radius:14px;background:#fffaf5;text-align:left;animation:pay-up .4s ease 1s both}
+.pay-receipt dl{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;margin:0;font-size:14px}
+.pay-receipt dt{color:#75665c}.pay-receipt dd{margin:0;text-align:right;font-weight:600;overflow-wrap:anywhere}
+.pay-receipt dd.is-total{font-size:18px;font-weight:800;color:#1e1e1e}
+@keyframes pay-draw{to{stroke-dashoffset:0}}
+@keyframes pay-fill{to{fill-opacity:1}}
+@keyframes pay-pop{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
+@keyframes pay-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}50%{transform:translateX(5px)}75%{transform:translateX(-3px)}}
+@keyframes pay-rotate{to{transform:rotate(360deg)}}
+@keyframes pay-in{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes pay-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.pay-result[open],.pay-mark,.pay-ring,.pay-stroke,.pay-receipt{animation:none!important;stroke-dashoffset:0!important}.pay-mark.is-ok .pay-ring{fill-opacity:1}.pay-spin{animation-duration:3s}}

@@ -23,6 +23,20 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
   - Si en 48 horas no hay pago aprobado, se cancela solo.
 - **Regla fija:** un pedido solo pasa a «pagado» con el aviso firmado de Wompi (`APPROVED`) cuyo monto y referencia coinciden con el pedido. La página de regreso nunca lo confirma.
 
+## Confianza y comprobante (2026-11-17)
+
+- **Opción «Pagar en línea»:**
+  - Muestra «Pago seguro con **Wompi**» con un candado.
+  - Muestra insignias solo de los medios que la cuenta de Wompi de la tienda acepta, según la prueba de conexión: Visa, Mastercard y American Express si acepta tarjeta (`CARD`); PSE, Nequi y Daviplata; Bancolombia (cualquiera de sus métodos).
+  - Las insignias son propias, en SVG en línea (`Payments::brands`): no son archivos externos ni copias de los logos oficiales.
+- **Página de regreso** (`src/landing-payment.ts`):
+  - Aprobado: un check que se dibuja solo dentro de un círculo verde. Rechazado: una X con un leve temblor. Esperando: un indicador que gira. Vencido o sin aviso: un signo de atención.
+  - Con «reducir movimiento» del dispositivo, las marcas aparecen sin animación.
+- **Comprobante:**
+  - Con el pago aprobado, `GET /p/<slug>/pago/<ref>` agrega `receipt`: tienda, pedido, producto, cantidad, desglose, total, medio, transacción de Wompi, referencia y fecha. Nunca lleva datos de contacto.
+  - «Descargar comprobante» lo dibuja en un canvas y lo guarda como PNG (`comprobante-<pedido>.png`), sin librerías.
+- **Pruebas:** `tests/wompi-payments.mjs` sube a 41 comprobaciones (insignias según los medios aceptados y comprobante sin datos de contacto). En el navegador se revisaron las insignias, la animación de aprobado y de rechazado y la imagen descargada.
+
 ## Fase 4 · Dropi SIN RECAUDO y avisos
 
 - **Decisión del usuario (2026-11-17):** opción A por defecto (la tienda revisa y pulsa «Enviar a Dropi»). Opción B (envío automático) solo con un interruptor en «Integraciones → Wompi → Envío a Dropi».
