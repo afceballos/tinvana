@@ -146,7 +146,7 @@ No solicitar que se peguen secretos en el chat. El remitente `no-reply@zenzales.
   - [x] Fase 1 (conexión) desplegada y comprobada en el hosting (2026-11-17): aviso real del sandbox recibido y secretos en verde.
   - [x] Fase 2 (pago en la landing) desplegada y comprobada en el hosting con el sandbox (reportado por el usuario).
   - [x] Fase 3 (link de pago por WhatsApp) desplegada y comprobada en el hosting (reportado por el usuario).
-  - [ ] Fase 4: Dropi SIN RECAUDO para pedidos pagados (espera la confirmación de soporte de Dropi).
+  - [ ] Fase 4: Dropi SIN RECAUDO para pedidos pagados. La cuenta ya tiene un pedido SIN RECAUDO entregado (lectura del 2026-11-17); falta leer su detalle (método de pago).
 
 No volver a añadir filtro de favoritos sin comprobarlo. Categorías, orden por precio y selector de tamaño no están expuestos inicialmente en el catálogo del panel.
 
@@ -1204,6 +1204,11 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
 ### 2026-11-17 · Wompi, fase 3 comprobada en el hosting
 - **Reportado por el usuario:** con el commit `62dd8d6` desplegado, la fase 3 funcionó en el hosting.
 - **Siguiente paso:** fase 4, cuando soporte de Dropi confirme que la cuenta acepta crear pedidos SIN RECAUDO por la API.
+
+### 2026-11-17 · Dropi: la cuenta tiene pedidos SIN RECAUDO
+- **Cambio:** `dropi:order-probe rates [email]`, de solo lectura, cuenta los `rate_type` de los últimos pedidos de la cuenta (commit `6a21015`).
+- **Resultado (ejecutado por el usuario en el hosting):** 7 pedidos, 6 `CON RECAUDO` y 1 `SIN RECAUDO` (orden 93524042, entregada, total 50000, envío 10774). El valor exacto es `SIN RECAUDO`. Detalle en [WOMPI.md](WOMPI.md).
+- **Siguiente paso:** leer el detalle de la orden 93524042 (método de pago y campos de cobro) y armar la fase 4.
 
 ### Plantilla para la próxima actualización
 

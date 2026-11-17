@@ -144,6 +144,7 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
   - `sandbox`: solo acepta llaves de prueba. Lee el comercio (llave pública), crea un link de pago de un solo uso (llave privada) y arma un Web Checkout firmado (secreto de integridad) de $15.000.
   - `transaction <id>`: lee la transacción del sandbox y muestra estado, monto, referencia y medio de pago.
   - **Llaves:** el comando las toma de `WOMPI_TEST_PUBLIC_KEY`, `WOMPI_TEST_PRIVATE_KEY`, `WOMPI_TEST_EVENTS_SECRET` y `WOMPI_TEST_INTEGRITY_SECRET`. Se ponen en la configuración local ignorada por git (`.tools/test-env.json` o `backend/.env`) y nunca en el repositorio ni en la documentación.
+- **Detalle de una orden:** `php bin/console.php dropi:order-probe rates <email> <orden_dropi>` (`GET orders/myorders/<id>`, solo lectura). Lista todas las claves y muestra los valores de pago, cobro, montos, tarifa, tipo, estado, ids y el nombre del método de pago. Los datos de contacto (nombre, teléfono, correo, dirección, ciudad, documento y notas) no se imprimen; el filtro se comprobó sin red con una orden inventada.
 - **Dropi, tipos de cobro (2026-11-17):** `php bin/console.php dropi:order-probe rates [email]` lee los últimos 200 pedidos de la cuenta (`GET orders/myorders`) y cuenta los valores de `rate_type`. Para un ejemplo de cada tipo muestra solo los campos de pago, cobro, montos y estado; nunca datos del comprador ni el token. Si la cuenta ya tiene pedidos SIN RECAUDO (por ejemplo, hechos a mano en el panel de Dropi), confirma el valor exacto y cómo los guarda Dropi. Si no los tiene, no confirma nada y hace falta la respuesta de soporte o una prueba controlada.
 - **Dropi:** `php bin/console.php dropi:shipping-probe [email] 11001`, de solo lectura, ya cotiza contra entrega (`EnvioConCobro=true`) y pago anticipado (`EnvioConCobro=false`). Se ejecuta en el hosting, donde está el token.
 
@@ -168,4 +169,6 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
   | DEROCHA-EXPRESS | $22.400 | $21.400 |
 
   99MINUTOS y WIILOG dan error de bodega en los dos casos. En la fase 4, la cotización de los pedidos pagados debe usar `EnvioConCobro=false`. La cuenta del correo probado primero no tenía Dropi conectado.
-- [ ] Confirmar con Dropi (soporte o su panel) que la cuenta acepta pedidos `SIN RECAUDO` por la API. No se puede comprobar en modo de solo lectura, y no se creará un pedido real para averiguarlo.
+- [x] La cuenta maneja pedidos `SIN RECAUDO` (2026-11-17, `dropi:order-probe rates` ejecutado por el usuario en el hosting). De los 7 pedidos de la cuenta, 6 son `CON RECAUDO` y 1 es `SIN RECAUDO` (orden 93524042, `type` FINAL_ORDER, estado ENTREGADO, `total_order` 50000, `shipping_amount` 10774), con el valor exacto `rate_type: "SIN RECAUDO"`.
+  - Para comparar, un CON RECAUDO del 2026-10-23 tenía `total_order` 60000 y `shipping_amount` 16550.
+  - No se sabe si ese pedido se creó por la API o en el panel de Dropi, ni qué método de pago guarda. El listado no trae `payment_method_id`. Antes de la fase 4 conviene leer el detalle de esa orden.
