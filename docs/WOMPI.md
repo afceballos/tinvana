@@ -28,7 +28,20 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
 - **Opción «Pagar en línea»:**
   - Muestra «Pago seguro con **Wompi**» con un candado.
   - Muestra insignias solo de los medios que la cuenta de Wompi de la tienda acepta, según la prueba de conexión: Visa, Mastercard y American Express si acepta tarjeta (`CARD`); PSE, Nequi y Daviplata; Bancolombia (cualquiera de sus métodos).
-  - Las insignias son propias, en SVG en línea (`Payments::brands`): no son archivos externos ni copias de los logos oficiales.
+  - Desde el mismo día, a pedido del usuario, son los **logos reales**, guardados en `backend/public/brand/payments/` y mostrados con `<img>` (un SVG así no puede ejecutar nada). Se revisaron antes de usarlos: sin scripts, eventos ni referencias externas. Fuentes:
+
+    | Logo | Archivo | Fuente | Licencia indicada por la fuente |
+    |---|---|---|---|
+    | Visa | `visa.svg` | Wikimedia Commons, «Visa Inc. logo (2021–present).svg» | Dominio público |
+    | Mastercard | `mastercard.svg` | Wikimedia Commons, «Mastercard 2019 logo.svg» | Dominio público |
+    | American Express | `amex.svg` | Wikimedia Commons, «American Express logo (2018).svg» | Dominio público |
+    | Nequi | `nequi.svg` | Wikimedia Commons, «Nequi Colombia logo.svg» | CC BY-SA 4.0 |
+    | Bancolombia | `bancolombia.svg` | Wikimedia Commons, «Bancolombia S.A. logo.svg» | Dominio público |
+    | Wompi | `wompi.svg` | `public-assets.wompi.com/brand_wompi/logos/logo-primary.svg` (sitio oficial de Wompi) | Marca de Wompi |
+    | PSE | `pse.jpg` | Logo del encabezado de pse.com.co (sitio oficial) | Marca de ACH Colombia |
+    | Daviplata | `daviplata.svg` | worldvectorlogo.com (no oficial; Daviplata no publica su logo) | Revisar con Daviplata |
+
+  - Las licencias de Wikimedia se refieren al derecho de autor del archivo. Las marcas siguen siendo de sus dueños y se usan para indicar que la tienda acepta esos medios.
 - **Página de regreso** (`src/landing-payment.ts`):
   - Aprobado: un check que se dibuja solo dentro de un círculo verde. Rechazado: una X con un leve temblor. Esperando: un indicador que gira. Vencido o sin aviso: un signo de atención.
   - Con «reducir movimiento» del dispositivo, las marcas aparecen sin animación.

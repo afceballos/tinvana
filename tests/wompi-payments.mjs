@@ -48,7 +48,7 @@ try{
  await owner.request('/api/wompi/account','PUT',K);eventsUrl=(await owner.request('/api/wompi/account')).data.account.events_url;
  html=await page();
  check('landing offers both, online first with its discount',html.includes('class="pay-choice"')&&/value="online" checked/.test(html)&&html.includes('10 % de descuento')&&html.includes('Pago contraentrega')&&html.includes('>Continuar al pago<'));
- check('trust row: Wompi and only the accepted methods',html.includes('Pago seguro con <b>Wompi</b>')&&html.includes('aria-label="Visa"')&&html.includes('aria-label="PSE"')&&html.includes('aria-label="Nequi"')&&!html.includes('aria-label="Daviplata"'));
+ check('trust row: Wompi and only the accepted methods',html.includes('alt="Wompi"')&&html.includes('alt="Visa"')&&html.includes('alt="PSE"')&&html.includes('alt="Nequi"')&&!html.includes('alt="Daviplata"'));
  // Freight: prepaid for online, cash on delivery otherwise.
  quotes.length=0;r=await visitor.request('/p/'+fixture.slug+'/shipping','POST',{city_code:'11001',quantity:1,payment:'online'});
  check('online quote is prepaid',r.data.amount===15000&&quotes.at(-1)?.EnvioConCobro===false);

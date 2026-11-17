@@ -108,10 +108,15 @@
 /* Trust row of the online option (Wompi and the accepted methods) and the animated result after Wompi. */
 #lead-form .pay-trust{display:grid;gap:8px;margin-top:8px}
 #lead-form .pay-secure{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:#4b5563}
-#lead-form .pay-secure b{color:#1e1e1e;letter-spacing:.2px}
 #lead-form .pay-secure svg{width:15px;height:15px;fill:none;stroke:#16a34a;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #lead-form .pay-brands{display:flex;flex-wrap:wrap;gap:6px}
-#lead-form .pay-brands svg{width:40px;height:26px;border-radius:5px;box-shadow:0 1px 2px #1e1e1e14}
+#lead-form .pay-brands .pay-badge{display:grid;place-items:center;width:48px;height:30px;padding:4px 6px;box-sizing:border-box;border:1px solid #e3e7ef;border-radius:7px;background:#fff;box-shadow:0 1px 2px #1e1e1e0d}
+#lead-form .pay-badge img{display:block;width:auto;height:18px;max-width:36px;object-fit:contain}
+#lead-form .pay-badge.is-amex img,#lead-form .pay-badge.is-pse img{height:24px;max-width:24px}
+#lead-form .pay-badge.is-daviplata img{height:24px;max-width:42px}
+#lead-form .pay-badge.is-amex,#lead-form .pay-badge.is-pse{padding:2px}
+#lead-form .pay-badge.is-daviplata{padding:1px 2px}
+#lead-form .pay-secure .pay-wompi{height:15px;width:auto;margin-left:2px;vertical-align:middle}
 .pay-result{width:min(460px,calc(100% - 28px));max-height:calc(100dvh - 28px);overflow:auto}
 .pay-result[open]{animation:pay-in .38s cubic-bezier(.2,.8,.2,1)}
 .pay-result::backdrop{background:#1e1e1e8c;backdrop-filter:blur(2px)}
