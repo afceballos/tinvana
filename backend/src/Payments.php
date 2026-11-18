@@ -73,7 +73,7 @@ final class Payments {
   if($goods===null||$goods<=0)throw new HttpError(409,'Este producto no tiene precio para pagar en línea. Elige contraentrega o escríbenos.');
   $pct=self::discountPercent($c);$discount=round($goods*$pct/100);$shipping=0.0;$carrier=null;
   if(($c['commerce']['dropiShipping']??false)===true&&($data['source']??'dropi')!=='own'){
-   $q=DropiShipping::forLanding($r,(string)$v['delivery']['city_code'],$quantity,$variant['price']??null,false);
+   $q=DropiShipping::forLanding($r,(string)$v['delivery']['city_code'],$quantity,isset($data['quantity_offer'])?(float)$data['unit_price']:($variant['price']??null),false);
    if($q===null)throw new HttpError(409,'No pudimos calcular el envío a tu ciudad para el pago en línea. Intenta de nuevo en un momento o elige contraentrega.');
    $shipping=(float)$q['amount'];$carrier=$q['carrier']??null;
    $data['shipping_source']='dropi';$data['shipping_price']=$shipping;$data['shipping_carrier']=$carrier;

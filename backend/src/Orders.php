@@ -39,8 +39,10 @@ final class Orders {
   $source=($p['origin']??'')==='whatsapp'?'whatsapp':'landing';
   // An own product (OwnProducts) is shipped by the store, never sent to Dropi.
   $fulfillment=($p['source']??'dropi')==='own'?'own':'dropi';
-  $r=Database::one('INSERT INTO orders(id,order_number,user_id,lead_id,source,fulfillment,customer,delivery_address,product_data,quantity,unit_price,shipping_price,variant_data) VALUES(?,?,?,?,?,?,?::jsonb,?::jsonb,?::jsonb,?,?,?,?::jsonb) ON CONFLICT(lead_id) DO NOTHING RETURNING *',[
-   $id,self::newNumber(),$owner,$leadId,$source,$fulfillment,Support::json(array_intersect_key($lead,array_flip(['first_name','last_name','email','phone']))),$lead['delivery_address']??'{}',$lead['product_data'],max(1,min(100,(int)($p['quantity']??1))),$unit,$shipping,$variant?Support::json($variant):null
+  // Phase A: a landing quantity offer travels as the order's offer snapshot (same shape as a quoted offer).
+  $offer=is_array($p['quantity_offer']??null)?Support::json($p['quantity_offer']+['source'=>'landing']):null;
+  $r=Database::one('INSERT INTO orders(id,order_number,user_id,lead_id,source,fulfillment,customer,delivery_address,product_data,quantity,unit_price,shipping_price,variant_data,offer_snapshot) VALUES(?,?,?,?,?,?,?::jsonb,?::jsonb,?::jsonb,?,?,?,?::jsonb,?::jsonb) ON CONFLICT(lead_id) DO NOTHING RETURNING *',[
+   $id,self::newNumber(),$owner,$leadId,$source,$fulfillment,Support::json(array_intersect_key($lead,array_flip(['first_name','last_name','email','phone']))),$lead['delivery_address']??'{}',$lead['product_data'],max(1,min(100,(int)($p['quantity']??1))),$unit,$shipping,$variant?Support::json($variant):null,$offer
   ]);
   if($r)self::event($r,'created',['origin'=>$source,'lead_id'=>$leadId]+($source==='whatsapp'?['conversation_id'=>$p['conversation_id']??null]:[]),null);
   else $r=Database::one('SELECT * FROM orders WHERE lead_id=? AND user_id=?',[$leadId,$owner]);

@@ -1240,6 +1240,26 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
   - En el navegador, con las llaves de sandbox: insignias, aprobado con comprobante, PNG descargado y rechazado.
 - **Siguiente paso:** sin desplegar.
 
+### 2026-11-18 · «Explorar productos»: Dropi rechazó el token (401)
+- **Reportado por el usuario:** «Explorar productos» mostraba «Dropi devolvió HTTP 401: Access denied».
+- **Revisión:** el código del catálogo (`Dropi.php`) y el descifrado (`Crypto.php`) no cambiaron desde antes del 2026-11-08. El 401 es la respuesta de Dropi a un token que ya no acepta, no un error de Tinbana.
+- **Resolución (usuario):** generó un token nuevo en Dropi y lo reemplazó en «Integraciones → Dropi». Volvió a funcionar.
+- **Herramienta preparada:** `dropi:order-probe tokens [email]`, de solo lectura. Prueba cada integración contra el catálogo (con la misma función de «Explorar productos») y contra pedidos, sin mostrar el token. Sin subir.
+
+### 2026-11-18 · Fase A: ofertas por cantidad en la landing
+- **Pedido del usuario** (de su equipo): ofertas por cantidad en landings y formularios para subir el ticket. Decidió: tarjetas de paquete, el descuento de Wompi se suma y la oferta manda sobre las variantes.
+- **Cambio:**
+  - En el editor, «Precio» muestra las ofertas del producto como paquetes, con «Más elegido» opcional.
+  - La landing y el formulario tienen tarjetas de paquete conectadas a la cantidad y al total.
+  - El servidor aplica el precio del tramo al pedido (`offer_snapshot`), con flete, Wompi y píxel coherentes.
+  - Se corrigió un desborde que ya existía en el selector de cantidad del formulario en celular.
+  - Guía: [PRODUCT-OFFERS.md](PRODUCT-OFFERS.md).
+- **Comprobado (local):**
+  - `quantity-offers` 11 (nueva).
+  - También pasan `wompi-payments` 41, `orders` 37, `order-editing` 52, `builder`, `lead-success` 12, `dropi-shipping` 20, `own-products` 29, `whatsapp-confirm` 92, `whatsapp-agent` 101 y `store-tracking` 16.
+  - En el navegador (escritorio y celular): tocar «2 unidades» deja $100.000 c/u, el + pasa a «3 unidades» a $90.000, el formulario suma $270.000, y el editor muestra los tramos y el destacado.
+- **Siguiente paso:** desplegar (sin migraciones) y probar con una oferta real. Después, la Fase B («Arma tu kit»).
+
 ### Plantilla para la próxima actualización
 
 ```text

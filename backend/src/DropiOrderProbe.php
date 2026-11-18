@@ -100,6 +100,38 @@ final class DropiOrderProbe {
   $walk($o,'   ',0);
   return implode("\n",$out)."\n";
  }
+ /**
+  * Token check (console: dropi:order-probe tokens [email]). GET/POST read-only: for every Dropi integration of the account
+  * (or of all accounts without email), one catalog search of 1 product and one order list of 1, with the HTTP status and
+  * Dropi's message. Shows the integration name and dates, never the token. Explains a «401 Access denied».
+  */
+ public static function tokens(string $email=''): string {
+  $user=$email!==''?Database::one('SELECT id FROM users WHERE email=?',[strtolower($email)]):null;
+  if($email!==''&&!$user)throw new \RuntimeException('No existe ese usuario.');
+  $rows=Database::all('SELECT * FROM integrations'.($user?' WHERE user_id=?':'').' ORDER BY created_at',$user?[$user['id']]:[]);
+  if(!$rows)throw new \RuntimeException('No hay integraciones Dropi configuradas.');
+  $out=['== Dropi token check '.gmdate('c').' (solo lectura) '.count($rows).' integración(es)'];
+  foreach($rows as $i){
+   $out[]='-- «'.$i['name'].'» creada '.substr((string)$i['created_at'],0,10).' · actualizada '.substr((string)$i['updated_at'],0,10).($user?'':' · cuenta '.substr((string)$i['user_id'],0,8));
+   try{$token=Crypto::decrypt($i['token_ciphertext'],$i['id'].':'.$i['user_id']);}catch(\Throwable){$out[]='   no se pudo descifrar el token guardado (¿cambió TOKEN_ENCRYPTION_KEY?)';continue;}
+   $out[]='   token guardado: '.strlen($token).' caracteres';
+   // The catalog through the same code as «Explorar productos» (Dropi::request), so the result is the one the panel sees.
+   try{$r=Dropi::request($i,['pageSize'=>1]);$out[]='   catálogo (Explorar productos) → OK | '.count($r['objects']).' producto(s)';}catch(HttpError $e){$out[]='   catálogo (Explorar productos) → '.$e->getMessage();}catch(\Throwable $e){$out[]='   catálogo (Explorar productos) → error '.get_class($e);}
+   foreach([['GET','orders/myorders?result_number=1&start=0',null]] as [$m,$path,$body]){
+    $c=curl_init(self::BASE.$path);
+    curl_setopt_array($c,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_ENCODING=>'',CURLOPT_CONNECTTIMEOUT=>8,CURLOPT_TIMEOUT=>20,CURLOPT_USERAGENT=>'WordPress/6.5; https://tinbana.com',
+     CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS,
+     CURLOPT_HTTPHEADER=>['Content-Type: application/json','Accept: application/json','dropi-integration-key: '.$token]]);
+    if($body!==null)curl_setopt_array($c,[CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>Support::json($body)]);else curl_setopt($c,CURLOPT_HTTPGET,true);
+    if(Support::env('HTTP_CA_BUNDLE')!=='')curl_setopt($c,CURLOPT_CAINFO,Support::env('HTTP_CA_BUNDLE'));
+    $res=curl_exec($c);$status=(int)curl_getinfo($c,CURLINFO_RESPONSE_CODE);curl_close($c);
+    $json=is_string($res)?json_decode($res,true):null;$msg=is_array($json)&&is_string($json['message']??null)?str_replace($token,'[redacted]',$json['message']):'';
+    $count=is_array($json['objects']??null)?count($json['objects']):null;
+    $out[]='   '.$m.' '.strtok($path,'?').' → HTTP '.$status.($msg!==''?' | '.mb_substr($msg,0,160):'').($count!==null?' | '.$count.' resultado(s)':'');
+   }
+  }
+  return implode("\n",$out)."\n";
+ }
  /** Keys of every level; values only for status/guide/carrier/date-like keys. */
  private static function describe(array $a,string $pad,array &$out,int $depth): void {
   $out[]=$pad.'* claves: '.implode(',',array_keys($a));

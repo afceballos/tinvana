@@ -16,7 +16,32 @@ El operador elige **Aplicar oferta guardada** al cotizar. PHP lee la configuraci
 
 La cotización guarda `offer_snapshot` con versión, precio/tramo y vigencia. El vencimiento del resumen es el menor entre 24 horas y el fin de la oferta. Cambiar la configuración no altera esa copia. Para aplicar una versión nueva se requiere nueva cotización y aceptación. El precio manual sigue siendo una opción explícita del operador.
 
-Las ofertas no cambian automáticamente el precio ni el formulario de las landings. No hay combos de varios productos, varias partidas ni reglas por variante todavía; los tramos se aplican al producto completo.
+Desde el 2026-11-18 (Fase A), la landing puede mostrar estas ofertas como paquetes y aplicarlas a sus pedidos; ver «Ofertas en la landing». No hay combos de varios productos, varias partidas ni reglas por variante todavía; los tramos se aplican al producto completo.
+
+## Ofertas en la landing (Fase A, 2026-11-18)
+
+- **Editor:** en «Precio», el interruptor «Mostrar ofertas por cantidad (paquetes)» (`commerce.quantityOffers`) y el selector «Paquete destacado» (`commerce.offerHighlight`, la cantidad mínima del tramo).
+  - Los tramos salen del producto; el editor los lista y enlaza a «Precios por cantidad».
+  - Avisa si no hay una oferta activa o si la cantidad está desactivada en «Botón y cantidad».
+- **Landing (`QuantityOffers::cards`):**
+  - Una tarjeta por tramo vigente, dentro de la cantidad máxima, en la caja de compra y en el formulario. Muestra unidades, precio por unidad, total y «Ahorras …» frente al tramo de 1 unidad (o el precio de la landing si no hay tramo de 1), y «Más elegido» en el destacado.
+  - Al tocar una tarjeta cambian la cantidad y el precio; el selector − / + mueve la tarjeta marcada. Las flechas del teclado navegan como un grupo de opciones.
+  - Los tramos van a la página en `data-packs`, solo como dato de visualización.
+- **Servidor (`QuantityOffers::apply`, en `Leads::save`):**
+  - Resuelve el tramo con `ProductOffers::resolve` (el de mayor mínimo alcanzado) y fija el precio unitario, que manda sobre el precio de la variante.
+  - Guarda `quantity_offer` en el pedido, que pasa a `orders.offer_snapshot` con `source:'landing'`.
+  - El flete de Dropi (contraentrega o pago anticipado) se cotiza con el precio del tramo. El pago en línea aplica su descuento sobre el total del paquete (los descuentos se suman), y el Purchase del píxel lleva ese valor.
+  - Sin oferta activa, o bajo el primer tramo, el pedido usa el precio de la landing como antes. Los pedidos del chat de WhatsApp no cambian.
+- **Pruebas:** `tests/quantity-offers.mjs` (11 comprobaciones).
+- **Plan:** este apartado reemplaza al plan; las decisiones fueron tarjetas de paquete, descuento de Wompi sumado y la oferta manda sobre las variantes.
+
+## Plan anterior: ofertas en la landing (Fase A, decisiones del 2026-11-18)
+
+- **Formato:** tarjetas de paquete en la landing y el formulario, una por tramo, con precio por unidad, total y ahorro. Opcionalmente un tramo marcado como «Más elegido».
+- **Descuento de Wompi:** se suma. Primero el precio del tramo y encima el % de pago en línea.
+- **Variantes con precio propio:** manda el precio del tramo.
+- **Servidor:** el precio del tramo se aplica en el servidor al crear el pedido (cotización y `offer_snapshot`). Debe funcionar con contraentrega, Wompi, el píxel y Dropi.
+- Fases siguientes guardadas: B «Arma tu kit», C chat de IA en el editor y D asistente de IA para la plataforma.
 
 ## Variantes
 

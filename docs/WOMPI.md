@@ -41,6 +41,7 @@ Las tiendas cobran a sus compradores con su propia cuenta de Wompi. Cada tienda 
     | PSE | `pse.jpg` | Logo del encabezado de pse.com.co (sitio oficial) | Marca de ACH Colombia |
     | Daviplata | `daviplata.svg` | worldvectorlogo.com (no oficial; Daviplata no publica su logo) | Revisar con Daviplata |
 
+  - Comprobado en el hosting el 2026-11-17 (commit `1e95c22`): el usuario confirmó que los logos ya se ven en la landing.
   - Las licencias de Wikimedia se refieren al derecho de autor del archivo. Las marcas siguen siendo de sus dueños y se usan para indicar que la tienda acepta esos medios.
 - **Página de regreso** (`src/landing-payment.ts`):
   - Aprobado: un check que se dibuja solo dentro de un círculo verde. Rechazado: una X con un leve temblor. Esperando: un indicador que gira. Vencido o sin aviso: un signo de atención.

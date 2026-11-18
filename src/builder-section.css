@@ -51,3 +51,8 @@
 .builder-pay-mode span{display:grid;gap:2px}.builder-pay-mode small{color:var(--muted);font-size:12px}
 .builder-warn{padding:8px 10px;border-radius:10px;background:var(--warn-bg,#fffbeb);color:var(--warn-fg,#92400e)}
 .builder-payment label.builder-pay-mode{display:flex;flex-direction:row}.builder-payment .builder-pay-mode input[type=radio]{flex:none;width:18px;height:18px;min-height:0;margin:3px 0 0;padding:0;box-shadow:none}
+
+/* Phase A: quantity offers (packs). */
+.builder-offers{display:grid;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.builder-offers-list{display:flex;flex-wrap:wrap;gap:6px}
+.builder-offers-list span{padding:4px 10px;border:1px solid var(--line);border-radius:999px;font-size:12.5px}

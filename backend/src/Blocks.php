@@ -70,6 +70,9 @@ final class Blocks {
   foreach(['quantityEnabled'=>true,'stickyMobile'=>false,'showShipping'=>false,'showDelivery'=>false,'showPayment'=>false,'dropiShipping'=>false] as $key=>$default){$v=$value[$key]??$default;if(!is_bool($v))throw new HttpError(422,'Configuración comercial inválida.');$out[$key]=$v;}
   foreach(['shipping','delivery','payment'] as $key)$out[$key]=self::text($value[$key]??'',500);
   $max=$value['maxQuantity']??99;if(!is_int($max)||$max<1||$max>99)throw new HttpError(422,'La cantidad máxima debe estar entre 1 y 99.');$out['maxQuantity']=$max;
+  // Phase A: the product's quantity offers as pack cards; offerHighlight is the minimum quantity of the «Más elegido» tier.
+  $qo=$value['quantityOffers']??false;if(!is_bool($qo))throw new HttpError(422,'Configuración comercial inválida.');$out['quantityOffers']=$qo;
+  $hl=$value['offerHighlight']??null;if($hl!==null&&(!is_int($hl)||$hl<1||$hl>100))throw new HttpError(422,'El paquete destacado no es válido.');$out['offerHighlight']=$hl;
   // Wompi phase 2: cash on delivery, online or both; online discount 0-50 %.
   $mode=$value['paymentMode']??'cod';if(!in_array($mode,Payments::MODES,true))throw new HttpError(422,'Opción de pago inválida.');$out['paymentMode']=$mode;
   $off=$value['onlineDiscount']??0;if(!is_int($off)||$off<0||$off>50)throw new HttpError(422,'El descuento por pagar en línea debe estar entre 0 y 50 %.');$out['onlineDiscount']=$off;

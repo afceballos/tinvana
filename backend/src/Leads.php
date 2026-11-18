@@ -42,8 +42,10 @@ final class Leads {
    $data['origin']='whatsapp';$data['conversation_id']=$chat['conversation_id'];$data['chat_fingerprint']=$chat['fingerprint']??null;
    if(isset($chat['offer'])){$unit=(float)$chat['offer']['unit_price'];$data['public_price']=$data['unit_price']=$data['inflated_price']=$unit;$data['total']=round($unit*$quantity,2);$data['whatsapp_offer']=['name'=>$chat['offer']['name'],'code'=>$chat['offer']['code'],'units'=>$chat['offer']['units']];$variant=$variant?['price'=>$unit]+$variant:null;}
   }
+  // Phase A: the quantity offer of the landing sets the unit price (server-side; it wins over a variant's price).
+  if($chat===null)QuantityOffers::apply($r,$data,$quantity);
   // Freight is quoted again on the server (never trusted from the browser); without a quote the lead is still saved.
-  if(($c['commerce']['dropiShipping']??false)===true&&($p['source']??'')!=='own'){$q=DropiShipping::forLanding($r,$v['delivery']['city_code'],$quantity,$variant['price']??(isset($chat['offer'])?(float)$chat['offer']['unit_price']:null));$data['shipping_source']='dropi';$data['shipping_price']=$q['amount']??null;$data['shipping_carrier']=$q['carrier']??null;$data['grand_total']=$q!==null&&$data['total']!==null?round($data['total']+$q['amount'],2):null;}
+  if(($c['commerce']['dropiShipping']??false)===true&&($p['source']??'')!=='own'){$q=DropiShipping::forLanding($r,$v['delivery']['city_code'],$quantity,isset($data['quantity_offer'])?(float)$data['unit_price']:($variant['price']??(isset($chat['offer'])?(float)$chat['offer']['unit_price']:null)));$data['shipping_source']='dropi';$data['shipping_price']=$q['amount']??null;$data['shipping_carrier']=$q['carrier']??null;$data['grand_total']=$q!==null&&$data['total']!==null?round($data['total']+$q['amount'],2):null;}
   // Online payment (Payments) is decided here, after the price and before saving; chat orders are always cash on delivery.
   $pay=$chat===null?Payments::prepare($r,$data,$b,$v,$quantity,$variant):['method'=>'cod'];
   $db=Database::connection();$db->beginTransaction();try{
