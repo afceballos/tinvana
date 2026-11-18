@@ -51,7 +51,7 @@ final class OrderMail {
   $c=json_decode((string)$order['customer'],true)?:[];$a=json_decode((string)$order['delivery_address'],true)?:[];$p=json_decode((string)$order['product_data'],true)?:[];$v=json_decode((string)($order['variant_data']??'null'),true);
   $qty=(int)$order['quantity'];$unit=$order['unit_price']===null?null:(float)$order['unit_price'];$ship=$order['shipping_price']===null?null:(float)$order['shipping_price'];
   return ['ref'=>Orders::displayNumber($order),'tracking_url'=>!empty($order['order_number'])?OrderLookup::url((string)$order['user_id'],(string)$order['order_number']):'','order_id'=>$order['id'],'first_name'=>(string)($c['first_name']??''),'last_name'=>(string)($c['last_name']??''),'email'=>(string)($c['email']??''),'phone'=>(string)($c['phone']??''),
-   'product'=>(string)($p['product_name']??'Producto'),'variant'=>is_array($v)?(string)($v['label']??''):'','quantity'=>$qty,'unit_price'=>$unit,'shipping'=>$ship,'total'=>$unit!==null&&$ship!==null?round($unit*$qty+$ship,2):null,
+   'product'=>(string)($p['product_name']??'Producto'),'variant'=>is_array($v)?(string)($v['label']??''):Kits::text($p),'quantity'=>$qty,'unit_price'=>$unit,'shipping'=>$ship,'total'=>$unit!==null&&$ship!==null?round($unit*$qty+$ship,2):null,
    // Paid online (Payments): the amount the buyer paid (discount and freight included).
    'paid'=>($order['payment_status']??'')==='paid'&&($order['payment_method']??'cod')==='online'?(float)(json_decode((string)($order['payment']??'{}'),true)['amount']??0):null,
    'address'=>trim((string)($a['address']??'').' '.(string)($a['address_details']??'')),'city'=>trim((string)($a['city']??'').', '.(string)($a['state']??''),', '),

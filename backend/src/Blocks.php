@@ -56,6 +56,13 @@ final class Blocks {
      $data['items'][]=['id'=>$id,'title'=>self::text($item['title']??'',500),'description'=>in_array($type,['faq','policies'],true)?self::rich($description):$description,'value'=>self::text($item['value']??'',1000),'quantity'=>self::text($item['quantity']??'',100),'image'=>$image,'icon'=>$icon,'rating'=>$rating,'date'=>$date,'visible'=>$shown];
     }
    }
+   // Phase B: «Arma tu kit» keeps its sizes; a piece maximum (item quantity) is a number or empty.
+   if($type==='kit'){
+    $data['sizes']=Kits::sizes($d['sizes']??null);
+    foreach($data['items'] as $item)if($item['quantity']!==''&&Kits::max($item)===null)throw new HttpError(422,'El máximo por kit de una pieza debe ser un número o quedar vacío.');
+    if($visible&&!array_filter($data['items'],fn($i)=>$i['visible']&&!Kits::soldOut($i)))throw new HttpError(422,'Agrega al menos una pieza disponible a «Arma tu kit» o esconde esa sección.');
+    if($visible&&!empty($kitSeen))throw new HttpError(422,'Solo puede haber una sección «Arma tu kit» visible por landing.');if($visible)$kitSeen=true;
+   }
    $out[]=['id'=>$b['id'],'type'=>$type,'visible'=>$visible,'variant'=>$variant,'style'=>$cleanStyle,'data'=>$data];
   }return $out;
  }

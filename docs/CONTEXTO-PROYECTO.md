@@ -1260,6 +1260,20 @@ Hitos anteriores agrupados por funcionalidad; no se asignan fechas precisas que 
   - En el navegador (escritorio y celular): tocar «2 unidades» deja $100.000 c/u, el + pasa a «3 unidades» a $90.000, el formulario suma $270.000, y el editor muestra los tramos y el destacado.
 - **Siguiente paso:** desplegar (sin migraciones) y probar con una oferta real. Después, la Fase B («Arma tu kit»).
 
+### 2026-11-18 · Fase B: bloque «Arma tu kit»
+- **Pedido del usuario** (de su equipo): que el cliente arme su kit eligiendo el tamaño (por ejemplo, de 3 o de 6) y las piezas. Decidió: precio fijo por tamaño, piezas repetibles con máximo opcional, un kit por pedido y sin stock por pieza.
+- **Cambio:**
+  - Sección nueva del editor con tamaños y piezas.
+  - En la landing, selector de tamaño, piezas con − / +, progreso y bloqueo de «Pedir» hasta completar el kit.
+  - El servidor valida la elección y fija el precio. La composición aparece en el pedido, los correos, el seguimiento, WhatsApp y las notas de Dropi.
+  - Guía: [PRODUCT-OFFERS.md](PRODUCT-OFFERS.md).
+- **Comprobado (local):**
+  - `kit-builder` 17 (nueva).
+  - También pasan `quantity-offers` 11, `wompi-payments` 41, `builder` (cuenta ahora 21 tipos), `lead-success` 12, `orders` 37, `order-lookup` 18, `order-mail` 24, `dropi-orders` 36, `whatsapp-confirm` 92, `own-products` 29 y `order-editing` 52.
+  - En el navegador (escritorio y celular): «Pedir» bloqueado hasta completar, máximo por pieza, agotadas, total de $70.000 en el formulario y editor de tamaños.
+- **Limitaciones:** `builder-http` sigue con su falla antigua («duplicate prevention retained»).
+- **Siguiente paso:** desplegar (sin migraciones) y probar con la landing real del kit. Después, la Fase C (chat de IA en el editor).
+
 ### Plantilla para la próxima actualización
 
 ```text

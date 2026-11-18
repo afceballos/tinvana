@@ -65,7 +65,8 @@ final class DropiOrders {
   $place=self::location($address);$ref='Tinbana '.(!empty($r['order_number'])?$r['order_number']:substr($r['id'],0,8));
   return [
    'total_order'=>$total/100,
-   'notes'=>trim($ref.($variant?'. Variante: '.$variant['label']:'')),
+   // Phase B: the kit composition goes in the notes, so the supplier (or the store) packs exactly what the buyer chose.
+   'notes'=>trim($ref.($variant?'. Variante: '.$variant['label']:'').(($kit=Kits::text(json_decode((string)$r['product_data'],true)?:[]))!==''?'. '.$kit:'')),
    'name'=>$customer['first_name'],'surname'=>$customer['last_name'],
    'dir'=>trim($address['address'].' '.($address['address_details']??'')),
    'country'=>'CO','state'=>$place['state'],'city'=>$place['city'],

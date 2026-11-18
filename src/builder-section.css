@@ -56,3 +56,8 @@
 .builder-offers{display:grid;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 .builder-offers-list{display:flex;flex-wrap:wrap;gap:6px}
 .builder-offers-list span{padding:4px 10px;border:1px solid var(--line);border-radius:999px;font-size:12.5px}
+
+/* Phase B: kit sizes. */
+.kit-size-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end;margin-bottom:10px;padding:10px;border:1px solid var(--line);border-radius:12px}.kit-size-row>label:first-child{grid-column:1/-1}.kit-size-row>button{grid-column:1/-1;justify-self:end}
+.kit-size-row label{margin:0}.kit-out-toggle{align-self:end}
+

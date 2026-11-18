@@ -164,3 +164,34 @@
 @media (prefers-reduced-motion:reduce){.qty-pack{transition:none}.qty-pack:hover{transform:none}}
 /* The order form quantity row wraps on narrow screens instead of pushing the stepper out of the dialog. */
 #purchase-dialog .order-quantity{flex-wrap:wrap}#purchase-dialog .order-quantity .quantity-control{flex:1 1 150px;width:auto;min-width:0;max-width:100%}
+
+/* Phase B: «Arma tu kit». Sizes as cards, pieces with a stepper, a progress bar; colors follow the landing (--primary). */
+body[data-kit] [data-hero-buy] .quantity-control,body[data-kit] #purchase-dialog .order-quantity{display:none}
+.kit{display:grid;gap:14px;margin-top:8px}
+.kit-step{display:flex;align-items:center;gap:10px;margin:8px 0 0;font-weight:800;font-size:16px}
+.kit-step span{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--primary,#ff6a00);color:var(--on-primary,#fff);font-size:14px}
+.kit-sizes{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kit-size{display:grid;gap:2px;padding:14px;border:1.5px solid var(--line,#ffe0cd);border-radius:14px;background:#fff;color:#1e1e1e;font:inherit;text-align:left;cursor:pointer;transition:border-color .2s,box-shadow .2s}
+.kit-size span{font-size:13px;color:#6b7280}.kit-size b{font-size:19px;margin-top:4px}
+.kit-size[aria-checked=true]{border-color:var(--primary,#ff6a00);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary,#ff6a00) 18%,transparent);background:color-mix(in srgb,var(--primary,#ff6a00) 5%,#fff)}
+.kit-progress{display:grid;gap:6px;font-size:14px}
+.kit-bar{display:block;height:8px;border-radius:999px;background:color-mix(in srgb,var(--primary,#ff6a00) 14%,#eee);overflow:hidden}
+.kit-bar i{display:block;height:100%;width:0;border-radius:inherit;background:var(--primary,#ff6a00);transition:width .3s cubic-bezier(.2,.8,.2,1)}
+.kit.is-complete .kit-bar i{background:#16a34a}
+.kit-pieces{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin:0;padding:0;list-style:none}
+.kit-piece{display:grid;gap:8px;padding:10px;border:1.5px solid var(--line,#ffe0cd);border-radius:14px;background:#fff;transition:border-color .2s,transform .2s}
+.kit-piece.is-picked{border-color:color-mix(in srgb,var(--primary,#ff6a00) 60%,var(--line,#ffe0cd))}
+.kit-piece.is-out{opacity:.55}
+.kit-piece-img{display:block;aspect-ratio:1;border-radius:10px;overflow:hidden;background:#f6f2ee}
+.kit-piece-img img{width:100%;height:100%;object-fit:cover}
+.kit-piece-name{display:grid;gap:2px}.kit-piece-name strong{font-size:14px}.kit-piece-name small{font-size:12px;color:#6b7280}.kit-piece-name small.is-out{color:#b91c1c;font-weight:700}
+.kit-stepper{display:flex;align-items:center;justify-content:space-between;border:1.5px solid var(--line,#ffe0cd);border-radius:999px;overflow:hidden}
+.kit-stepper button{width:40px;height:36px;border:0;background:none;font-size:20px;font-weight:700;color:#1e1e1e;cursor:pointer}
+.kit-stepper button:disabled{opacity:.3;cursor:not-allowed}
+.kit-stepper output{min-width:24px;text-align:center;font-weight:800}
+.kit-summary{margin:0;padding:12px 14px;border-radius:12px;background:var(--tint,#fff8f1);font-size:14px}
+.kit-summary.is-warn{background:#fffbeb;color:#92400e;font-weight:700}
+.kit.is-complete .kit-summary{background:#ecfdf3;color:#166534;font-weight:600}
+.kit-order-line{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:#ecfdf3;color:#166534;font-size:14px;font-weight:600}
+@media(max-width:600px){.kit-pieces{grid-template-columns:1fr 1fr}.kit-sizes{grid-template-columns:1fr 1fr}}
+@media (prefers-reduced-motion:reduce){.kit-bar i,.kit-size,.kit-piece{transition:none}}

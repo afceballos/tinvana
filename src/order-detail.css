@@ -83,3 +83,4 @@
 .od-pay-link{display:grid;gap:6px}.od-pay-link code{word-break:break-all}
 .od-pay-facts div{align-items:baseline}.od-pay-facts dt,.od-pay-facts dd{margin:0;line-height:1.45}.od-pay-link .webhook-url button{flex:none;white-space:nowrap}
 .od-pay-link .row button{display:inline-flex;align-items:center;gap:8px}.od-pay-fallback{display:grid;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--soft,#fff8f1)}.od-pay-fallback p{margin:0}.od-pay-fallback a{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:fit-content}
+.od-kit{display:block;margin-top:4px;padding:6px 8px;border-radius:8px;background:#ecfdf3;color:#166534}

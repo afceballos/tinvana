@@ -334,5 +334,19 @@
    "selectedProductIds"
   ],
   "items": false
+ },
+ "kit": {
+  "name": "Arma tu kit",
+  "description": "El cliente elige el tamaño del kit y las piezas que quiere.",
+  "icon": "grid",
+  "variants": [
+   "cards"
+  ],
+  "fields": [
+   "title",
+   "subtitle",
+   "ctaText"
+  ],
+  "items": true
  }
 }

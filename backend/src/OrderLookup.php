@@ -48,7 +48,7 @@ final class OrderLookup {
   $unit=$o['unit_price']===null?null:(float)$o['unit_price'];$ship=$o['shipping_price']===null?null:(float)$o['shipping_price'];$qty=(int)$o['quantity'];
   $store=OrderMail::settings((string)$o['user_id'])['sender_name'];
   return ['number'=>Orders::displayNumber($o),'store'=>$store,'created_at'=>$o['created_at'],'status'=>self::status($o),
-   'product'=>(string)($p['product_name']??'Producto'),'image'=>is_string($p['image']??null)?$p['image']:null,'variant'=>is_array($v)?(string)($v['label']??''):'','quantity'=>$qty,
+   'product'=>(string)($p['product_name']??'Producto'),'image'=>is_string($p['image']??null)?$p['image']:null,'variant'=>is_array($v)?(string)($v['label']??''):Kits::text($p),'quantity'=>$qty,
    'total'=>$unit!==null&&$ship!==null?round($unit*$qty+$ship,2):($unit!==null?round($unit*$qty,2):null),'shipping_known'=>$ship!==null,
    'name'=>self::maskName(trim(($c['first_name']??'').' '.($c['last_name']??''))),'phone'=>self::maskPhone((string)($c['phone']??'')),'email'=>self::maskEmail((string)($c['email']??'')),
    'address'=>trim(($a['address']??'').' '.($a['address_details']??'')),'city'=>trim(($a['city']??'').', '.($a['state']??''),', '),

@@ -12,7 +12,7 @@ final class QuantityOffers {
  /** Active tiers of the landing's product within its validity and the landing's maximum quantity, or null. */
  public static function forLanding(array $r): ?array {
   $c=$r['content'];$o=$c['commerce'];
-  if(($o['quantityOffers']??false)!==true||!$o['quantityEnabled']||empty($r['selected_product_id'])||empty($r['user_id']))return null;
+  if(($o['quantityOffers']??false)!==true||!$o['quantityEnabled']||empty($r['selected_product_id'])||empty($r['user_id'])||Kits::block($c))return null;
   $row=Database::one('SELECT version,settings FROM product_offers WHERE selected_product_id=? AND user_id=?',[$r['selected_product_id'],$r['user_id']]);if(!$row)return null;
   $s=json_decode((string)$row['settings'],true);
   if(!is_array($s)||empty($s['active'])||(!empty($s['starts_at'])&&strtotime($s['starts_at'])>time())||(!empty($s['ends_at'])&&strtotime($s['ends_at'])<=time()))return null;

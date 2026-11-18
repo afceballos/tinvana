@@ -144,7 +144,7 @@ final class WhatsAppOrderConfirm {
  /** Template values of an order; every value comes from the stored quote, never from the browser. */
  public static function values(array $r,array $account): array {
   $c=json_decode((string)$r['customer'],true);$a=json_decode((string)$r['delivery_address'],true);$p=json_decode((string)$r['product_data'],true);$v=json_decode((string)($r['variant_data']??'null'),true);
-  return ['nombre'=>trim((string)($c['first_name']??'')),'apellido'=>trim((string)($c['last_name']??'')),'producto'=>(string)($p['product_name']??''),'variante'=>is_array($v)?(string)$v['label']:'Única',
+  return ['nombre'=>trim((string)($c['first_name']??'')),'apellido'=>trim((string)($c['last_name']??'')),'producto'=>(string)($p['product_name']??''),'variante'=>is_array($v)?(string)$v['label']:(Kits::text($p)!==''?Kits::text($p):'Única'),
    'cantidad'=>(string)(int)$r['quantity'],'precio'=>self::money((string)$r['unit_price']),'envio'=>(float)$r['shipping_price']==0.0?'Incluido':self::money((string)$r['shipping_price']),
    'total'=>self::money(self::add((string)$r['unit_price'],(string)$r['shipping_price'],(int)$r['quantity'])),
    'direccion'=>trim(($a['address']??'').' '.($a['address_details']??'')),'ciudad'=>(string)($a['city']??''),'departamento'=>(string)($a['state']??''),

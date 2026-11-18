@@ -3,6 +3,7 @@ import {showLeadSuccess} from './lead-success';
 import {initVariantPicker,type PickedVariant,type VariantPicker} from './variant-picker';
 import {initTracking,trackCheckout,trackPurchase} from './landing-tracking';
 import {payOnline,renderPay,followPayment} from './landing-payment';
+import {initKit} from './landing-kit';
 import './landing-form.css';
 
 // Public landing runtime. No animation library: CSS does the motion, the Web Animations API covers the dialogs.
@@ -32,6 +33,8 @@ document.querySelectorAll<HTMLButtonElement>('[data-quantity-step]').forEach(but
 // Pack cards (hero and form): choose the units of the pack; arrows move between packs like a radio group.
 document.querySelectorAll<HTMLButtonElement>('[data-pack-qty]').forEach(b=>{b.addEventListener('click',()=>setQuantity(Number(b.dataset.packQty)));b.addEventListener('keydown',e=>{if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft'&&e.key!=='ArrowDown'&&e.key!=='ArrowUp')return;e.preventDefault();const all=[...(b.parentElement?.querySelectorAll<HTMLButtonElement>('[data-pack-qty]')||[])];const n=all[(all.indexOf(b)+(e.key==='ArrowRight'||e.key==='ArrowDown'?1:all.length-1))%all.length];n.focus();setQuantity(Number(n.dataset.packQty));});});
 if(packs.length)setQuantity(quantity);
+// Phase B: «Arma tu kit» sets the price of the chosen size; one kit per order.
+initKit(money,p=>{variantPrice=p??basePrice;price=variantPrice;setQuantity(1);});
 const summaryImage=document.querySelector<HTMLImageElement>('#purchase-dialog .order-summary img');const baseImage=summaryImage?.getAttribute('src')||'';
 const heroImage=document.querySelector<HTMLImageElement>('[data-hero-buy]')?.closest('.landing-block')?.querySelector<HTMLImageElement>('.block-gallery-main img')||null;const heroOriginal=heroImage?.getAttribute('src')||'';
 const swap=(img:HTMLImageElement|null,next:string)=>{if(!img||!next||img.getAttribute('src')===next)return;img.src=next;if(!reduced())img.animate([{opacity:.35,transform:'scale(.97)'},{opacity:1,transform:'none'}],{duration:240,easing:ease});};

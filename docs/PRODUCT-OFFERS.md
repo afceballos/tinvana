@@ -33,7 +33,37 @@ Desde el 2026-11-18 (Fase A), la landing puede mostrar estas ofertas como paquet
   - El flete de Dropi (contraentrega o pago anticipado) se cotiza con el precio del tramo. El pago en línea aplica su descuento sobre el total del paquete (los descuentos se suman), y el Purchase del píxel lleva ese valor.
   - Sin oferta activa, o bajo el primer tramo, el pedido usa el precio de la landing como antes. Los pedidos del chat de WhatsApp no cambian.
 - **Pruebas:** `tests/quantity-offers.mjs` (11 comprobaciones).
+- **Comprobado en el hosting:** el 2026-11-18, con el commit `544021f` desplegado, el usuario confirmó que funciona bien.
 - **Plan:** este apartado reemplaza al plan; las decisiones fueron tarjetas de paquete, descuento de Wompi sumado y la oferta manda sobre las variantes.
+
+## Bloque «Arma tu kit» (Fase B, 2026-11-18)
+
+- **Editor:** sección nueva «Arma tu kit» (`kit` en `backend/blocks.json`).
+  - **Tamaños** (`data.sizes`, de 1 a 6): nombre, piezas (de 1 a 30) y precio fijo; sin precio usa el de la landing (`KitSizesEditor`).
+  - **Piezas:** son los elementos del bloque: nombre, nota corta, foto, «Máximo por kit» (`quantity`, vacío = sin límite) y «Agotada» (`value='agotada'`).
+  - Solo una sección «Arma tu kit» visible por landing, con al menos una pieza disponible (`Blocks::validate`, `Kits::sizes`).
+- **Landing (`LandingRenderer::kit`, `src/landing-kit.ts`):**
+  - 1. Tamaño (tarjetas). 2. Piezas con − / +, barra de progreso «3 de 6» y resumen.
+  - El + se bloquea al llegar al máximo de la pieza o al completar el kit; las piezas agotadas no se pueden elegir.
+  - Cualquier botón «Pedir» espera el kit completo: lleva al bloque y dice cuántas piezas faltan.
+  - El formulario recibe la elección en `kit` (JSON) y muestra la composición y el total. La cantidad queda fija en 1 kit.
+  - En una landing con kit no se muestran los paquetes de ofertas por cantidad.
+- **Servidor (`Kits::apply`, en `Leads::save`):**
+  - Valida el tamaño, que las piezas existan y estén visibles, que no estén agotadas, el máximo por pieza, que la suma sea exacta y que sea un kit por pedido.
+  - Fija el precio del tamaño y guarda `product_data.kit` (tamaño, piezas y texto «Kit de 6: 2 × Reno, …»).
+  - Pago en línea: el descuento de Wompi se suma sobre el precio del kit.
+- **Dónde aparece la composición:** detalle del pedido («Kit armado»), correos y página de seguimiento del cliente (en lugar de la variante), el valor `variante` de la confirmación por WhatsApp y las notas del pedido en Dropi.
+- **Sin migraciones:** todo vive en el contenido de la landing y en `product_data`.
+- **Pruebas:** `tests/kit-builder.mjs` (17 comprobaciones). `tests/builder.mjs` cuenta ahora 21 tipos de sección.
+- **Decisiones del usuario:** precio fijo por tamaño; piezas repetibles con máximo opcional; un kit por pedido; sin stock por pieza (solo «Agotada» a mano).
+
+## Plan anterior: bloque «Arma tu kit» (Fase B, decisiones del 2026-11-18)
+
+- **Precio:** fijo por tamaño de kit (por ejemplo, Kit de 3 a $70.000 y Kit de 6 a $120.000), sin importar qué piezas elija el cliente.
+- **Piezas:** se pueden repetir, con un máximo opcional por pieza que define la tienda.
+- **Cantidad:** un kit armado por pedido.
+- **Stock:** sin stock por pieza por ahora; la tienda puede marcar una pieza como agotada a mano.
+- **Pedido:** la composición del kit viaja en el pedido, los correos, la confirmación por WhatsApp y las notas para Dropi o el despacho propio. El servidor la valida contra la configuración del bloque.
 
 ## Plan anterior: ofertas en la landing (Fase A, decisiones del 2026-11-18)
 
